@@ -1,7 +1,8 @@
 # Durable control plane (private integration milestone)
 
-This package orchestrates the existing JSON worker. It is not an HTTP server and
-does not authenticate browser requests yet. Use a dedicated private PostgreSQL
+This package orchestrates the existing JSON worker. It exports a framework-neutral
+authenticated HTTP handler mounted by the Next.js app; it starts no HTTP server.
+See [the auth/API guide](../../docs/hosted/auth-api.md). Use a dedicated private PostgreSQL
 database and a server-only pool. Never place its database credentials, snapshot
 store, Docker socket or modules inside the worker container.
 
@@ -106,7 +107,7 @@ set `HOSTED_TEST_IMAGE_ID` to the previously built image's immutable `.Id` and
 both tenant generations reach 2, and retains the existing worker regression suite.
 No real provider, cloud database or public deployment is used.
 
-Still required before a hosted beta: authenticated API integration, upload/fact
+Still required before a hosted beta: real OAuth setup/verification, upload/fact
 review and safe initial workspace provisioning, object-store adapter, process
 service lifecycle/metrics, quotas/provider budget enforcement, recovery UI,
 retention/deletion, real-model quality evaluation and adversarial security review.

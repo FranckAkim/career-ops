@@ -1,0 +1,77 @@
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
+import net from 'node:net';
+import { chromium } from 'playwright';
+
+export async function testOrigin() {
+  const server = net.createServer();
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address();
+  await new Promise(resolve => server.close(resolve));
+  return `http://127.0.0.1:${port}`;
+}
+export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, engineRevision }) {
+  const webRoot = fileURLToPath(new URL('../../../web/', import.meta.url));
+  const database = new URL('postgresql://127.0.0.1');
+  database.username = pool.options.user; database.password = pool.options.password;
+  database.port = String(pool.options.port); database.pathname = `/${pool.options.database}`;
+  const child = spawn(process.execPath, [path.join(webRoot, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', new URL(origin).port], {
+    cwd: webRoot, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore','pipe','pipe'],
+    env: { ...process.env, CAREER_OPS_MODE: 'hosted', DATABASE_URL: database.href, BETTER_AUTH_URL: origin, BETTER_AUTH_SECRET: secret,
+      GOOGLE_CLIENT_ID: 'synthetic-client', GOOGLE_CLIENT_SECRET: 'synthetic-secret', HOSTED_ENGINE_REVISION: engineRevision, NEXT_TELEMETRY_DISABLED: '1' },
+  });
+  child.stdout.resume(); child.stderr.resume();
+  let exit;
+  const closed = new Promise(resolve => { child.on('error', () => { exit = -1; resolve(); }); child.on('close', code => { exit = code; resolve(); }); });
+  let browser;
+  try {
+    let ready = false;
+    for (let i = 0; i < 100; i++) {
+      if (exit !== undefined) break;
+      try { const response = await fetch(`${origin}/api/hosted/session`); if (response.status === 401) { ready = true; break; } } catch {}
+      await new Promise(r => setTimeout(r, 100));
+    }
+    assert.ok(ready, 'production Next server returns unauthenticated 401');
+    browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext();
+    await context.addCookies(accounts[0].cookie.split('; ').map(pair => {
+      const split = pair.indexOf('='); return { name: pair.slice(0, split), value: pair.slice(split + 1), url: origin, httpOnly: true, sameSite: 'Lax' };
+    }));
+    const page = await context.newPage();
+    assert.equal((await page.goto(`${origin}/api/hosted/session`)).status(), 200);
+    const outcome = await page.evaluate(async ({ tenant }) => {
+      const response = await fetch(`/api/hosted/tenants/${tenant}/jobs`, { method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': 'browser-test' }, body: JSON.stringify({ operation: 'evaluate', postingText: 'Synthetic browser Python role.' }) });
+      return { status: response.status, data: await response.json() };
+    }, { tenant });
+    assert.equal(outcome.status, 202);
+    const jobId = outcome.data.job.id;
+    assert.equal((await pool.query('select requested_by from jobs where id=$1', [jobId])).rows[0].requested_by, accounts[0].id);
+    assert.equal((await page.goto(`${origin}/api/status`)).status(), 404);
+    assert.equal((await page.goto(`${origin}/pipeline`)).status(), 404);
+    assert.equal((await page.goto(`${origin}/`)).status(), 404);
+    const cancellation = await page.evaluate(async ({ tenant, jobId }) => {
+      const response = await fetch(`/api/hosted/tenants/${tenant}/jobs/${jobId}/cancel`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      return { status: response.status, data: await response.json() };
+    }, { tenant, jobId });
+    assert.equal(cancellation.status, 200); assert.equal(cancellation.data.status, 'cancelled');
+    const other = await browser.newContext();
+    await other.addCookies(accounts[1].cookie.split('; ').map(pair => {
+      const split = pair.indexOf('='); return { name: pair.slice(0, split), value: pair.slice(split + 1), url: origin, httpOnly: true, sameSite: 'Lax' };
+    }));
+    const otherPage = await other.newPage();
+    assert.equal((await otherPage.goto(`${origin}/api/hosted/tenants/${tenant}/jobs/${jobId}`)).status(), 404);
+    console.log('PASS browser -> production Next routes -> real auth/tenant DB -> enqueue/cancel; legacy routes blocked');
+  } finally {
+    if (browser) await browser.close();
+    if (child.pid && exit === undefined) {
+      if (process.platform === 'win32') await new Promise(resolve => {
+        const killer = spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+        killer.on('error', () => { child.kill(); resolve(); }); killer.on('close', resolve);
+      });
+      else { try { process.kill(-child.pid, 'SIGTERM'); } catch {} }
+    }
+    await closed;
+  }
+}

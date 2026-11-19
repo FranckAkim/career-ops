@@ -70,6 +70,18 @@ export class Queue {
       return { ...job, events };
     });
   }
+  async tenants({ userId }) {
+    check(uuid.test(userId));
+    const { rows } = await this.pool.query('select t.id,t.generation,t.recovery_required,m.role from tenants t join memberships m on m.tenant_id=t.id where m.user_id=$1 order by t.created_at,t.id limit 100', [userId]);
+    return rows;
+  }
+  async list({ tenantId, userId }) {
+    return this.transaction(async db => {
+      await this.authorize(db, tenantId, userId);
+      const { rows } = await db.query("select id,status,payload->>'operation' as operation,created_at,finished_at,error_code from jobs where tenant_id=$1 order by created_at desc,id desc limit 100", [tenantId]);
+      return rows;
+    });
+  }
   async cancel({ tenantId, userId, jobId }) {
     check(uuid.test(jobId));
     return this.transaction(async db => {
