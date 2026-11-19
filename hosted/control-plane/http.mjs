@@ -24,7 +24,7 @@ async function body(request, fields) {
   } finally { clearTimeout(timer); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
-export function createApi({ queue, auth, origin, engineRevision }) {
+export function createApi({ queue, auth, origin, engineRevision, onboarding }) {
   if (new URL(origin).origin !== origin || !/^[a-f0-9]{40}$/.test(engineRevision)) throw new ControlError('invalid_api_config');
   return async request => {
     try {
@@ -39,6 +39,23 @@ export function createApi({ queue, auth, origin, engineRevision }) {
       const route = segments.slice(2);
       if (request.method === 'GET' && route.join('/') === 'session') return json({ user: { id: userId, name: session.user.name } });
       if (request.method === 'GET' && route.join('/') === 'tenants') return json({ tenants: await queue.tenants({ userId }) });
+      if (route[0] === 'onboarding' && onboarding) {
+        if (route.join('/') === 'onboarding/drafts' && request.method === 'GET') return json({ drafts: await onboarding.list(userId) });
+        if (route.join('/') === 'onboarding/status' && request.method === 'GET') return json({ workspace: await onboarding.existing(userId) || null });
+        if (route.join('/') === 'onboarding/drafts' && request.method === 'POST') return json({ draft: await onboarding.create({ userId, profile: await body(request, ['fullName','cvMarkdown','targetRole','language']) }) }, 201);
+        if (route[1] === 'drafts' && route[2] && route.length === 3 && request.method === 'GET') return json({ draft: await onboarding.read({ userId, draftId: route[2] }) });
+        if (route[1] === 'drafts' && route[2] && route.length === 4 && request.method === 'POST') {
+          if (route[3] === 'update') {
+            const input = await body(request, ['expectedHash','profile']);
+            return json({ draft: await onboarding.update({ userId, draftId: route[2], ...input }) });
+          }
+          if (route[3] === 'confirm') {
+            const input = await body(request, ['expectedHash','acknowledged']);
+            return json(await onboarding.confirm({ userId, draftId: route[2], ...input }));
+          }
+        }
+        return json({ error: 'not_found' }, 404);
+      }
       const [prefix, tenantId, collection, jobId, action] = route;
       if (prefix !== 'tenants' || route.length > 5) return json({ error: 'not_found' }, 404);
       if (collection === 'jobs' && !jobId) {
@@ -60,7 +77,7 @@ export function createApi({ queue, auth, origin, engineRevision }) {
     } catch (error) {
       const code = error instanceof ControlError ? error.code : 'service_unavailable';
       const status = code === 'not_found' || code === 'evaluation_not_found' ? 404
-        : ['idempotency_conflict','tenant_busy'].includes(code) ? 409 : code === 'input_limit' ? 413 : code === 'service_unavailable' ? 503 : 400;
+        : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit'].includes(code) ? 409 : code === 'input_limit' ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit'].includes(code) ? 503 : 400;
       return json({ error: code }, status);
     }
   };

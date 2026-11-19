@@ -14,6 +14,7 @@ import { dockerRunner } from '../docker-runner.mjs';
 import { createEngine } from '../../engine.mjs';
 import { candidate, modelServer, engineRevision } from '../../tests/fixtures.mjs';
 import { verifyAuthHttp } from './auth-http.mjs';
+import { verifyOnboarding } from './onboarding.mjs';
 
 const name = `hc-postgres-test-${randomUUID()}`;
 const cleanup = [];
@@ -143,7 +144,8 @@ try {
   await assert.rejects(queue.publish(conflict, { snapshot: initial.id, result: { jobId: conflict.id, engineRevision }, artifacts: [] }), /generation_conflict/);
   await queue.finish(conflict); await queue.discardRecovery({ tenantId: tenantA, userId: userA });
   console.log('PASS generation compare-and-swap rejects stale base');
-  await verifyAuthHttp({ pool, queue, snapshot: initial.id, engineRevision });
+  await verifyOnboarding({ pool, queue, store, model, engineRevision });
+  await verifyAuthHttp({ pool, queue, snapshot: initial.id, engineRevision, store });
 
   if (process.env.HOSTED_TEST_IMAGE_ID) {
     const image = process.env.HOSTED_TEST_IMAGE_ID;

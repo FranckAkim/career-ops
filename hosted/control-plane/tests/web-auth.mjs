@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import net from 'node:net';
+import fs from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 export async function testOrigin() {
@@ -12,7 +13,7 @@ export async function testOrigin() {
   await new Promise(resolve => server.close(resolve));
   return `http://127.0.0.1:${port}`;
 }
-export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, engineRevision }) {
+export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, engineRevision, store }) {
   const webRoot = fileURLToPath(new URL('../../../web/', import.meta.url));
   const database = new URL('postgresql://127.0.0.1');
   database.username = pool.options.user; database.password = pool.options.password;
@@ -20,7 +21,7 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
   const child = spawn(process.execPath, [path.join(webRoot, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', new URL(origin).port], {
     cwd: webRoot, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore','pipe','pipe'],
     env: { ...process.env, CAREER_OPS_MODE: 'hosted', DATABASE_URL: database.href, BETTER_AUTH_URL: origin, BETTER_AUTH_SECRET: secret,
-      GOOGLE_CLIENT_ID: 'synthetic-client', GOOGLE_CLIENT_SECRET: 'synthetic-secret', HOSTED_ENGINE_REVISION: engineRevision, NEXT_TELEMETRY_DISABLED: '1' },
+      GOOGLE_CLIENT_ID: 'synthetic-client', GOOGLE_CLIENT_SECRET: 'synthetic-secret', HOSTED_ENGINE_REVISION: engineRevision, NEXT_TELEMETRY_DISABLED: '1', HOSTED_DEVELOPMENT_SNAPSHOT_ROOT: store.root },
   });
   child.stdout.resume(); child.stderr.resume();
   let exit;
@@ -50,7 +51,34 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     assert.equal((await pool.query('select requested_by from jobs where id=$1', [jobId])).rows[0].requested_by, accounts[0].id);
     assert.equal((await page.goto(`${origin}/api/status`)).status(), 404);
     assert.equal((await page.goto(`${origin}/pipeline`)).status(), 404);
-    assert.equal((await page.goto(`${origin}/`)).status(), 404);
+    assert.equal((await page.goto(`${origin}/`)).status(), 200);
+    assert.equal(new URL(page.url()).pathname, '/hosted');
+    await page.getByLabel('Full name', { exact: true }).waitFor();
+    await page.getByLabel('Full name', { exact: true }).fill('Synthetic Browser Candidate');
+    await page.getByLabel('CV text', { exact: true }).fill('# Synthetic Browser Candidate\n\n## Experience\n- Built Python tools for 4 engineers.');
+    await page.getByRole('button', { name: 'Review profile', exact: true }).click();
+    await page.getByRole('heading', { name: 'Check the details.' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Confirm and create workspace' }).isDisabled(), true);
+    await page.getByRole('button', { name: 'Edit profile', exact: true }).click();
+    await page.getByLabel('Target role', { exact: false }).fill('Backend Engineer');
+    await page.getByRole('button', { name: 'Review profile', exact: true }).click();
+    await page.getByRole('heading', { name: 'Check the details.' }).waitFor();
+    if (process.env.HOSTED_TEST_SCREENSHOTS) {
+      await fs.mkdir(process.env.HOSTED_TEST_SCREENSHOTS, { recursive: true });
+      await page.screenshot({ path: path.join(process.env.HOSTED_TEST_SCREENSHOTS, 'onboarding-review.png'), fullPage: true });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.screenshot({ path: path.join(process.env.HOSTED_TEST_SCREENSHOTS, 'onboarding-mobile.png'), fullPage: true });
+      await page.setViewportSize({ width: 1280, height: 720 });
+    }
+    await page.getByRole('checkbox').check();
+    await page.getByRole('button', { name: 'Confirm and create workspace' }).click();
+    await page.getByRole('heading', { name: 'Your workspace is ready.' }).waitFor();
+    const personal = (await pool.query('select t.snapshot from personal_workspaces p join tenants t on p.tenant_id=t.id where p.user_id=$1', [accounts[0].id])).rows[0];
+    assert.ok((await store.read(personal.snapshot, 'cv.md')).includes('Synthetic Browser Candidate'));
+    await page.reload();
+    await page.getByRole('heading', { name: 'Your workspace is ready.' }).waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     const cancellation = await page.evaluate(async ({ tenant, jobId }) => {
       const response = await fetch(`/api/hosted/tenants/${tenant}/jobs/${jobId}/cancel`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       return { status: response.status, data: await response.json() };
@@ -62,7 +90,11 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     }));
     const otherPage = await other.newPage();
     assert.equal((await otherPage.goto(`${origin}/api/hosted/tenants/${tenant}/jobs/${jobId}`)).status(), 404);
-    console.log('PASS browser -> production Next routes -> real auth/tenant DB -> enqueue/cancel; legacy routes blocked');
+    const guest = await browser.newContext();
+    const guestPage = await guest.newPage();
+    await guestPage.goto(`${origin}/hosted`);
+    await guestPage.getByRole('button', { name: 'Continue with Google' }).waitFor();
+    console.log('PASS browser onboarding edit/review/confirmation, reload/mobile layout, auth/tenant DB and enqueue/cancel; legacy routes blocked');
   } finally {
     if (browser) await browser.close();
     if (child.pid && exit === undefined) {

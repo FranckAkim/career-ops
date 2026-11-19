@@ -19,8 +19,9 @@ before traffic, never inside request handlers. Use a pooled Postgres connection
 near the Function region and validate TLS settings for the selected provider.
 
 Workspace files need private durable object storage; the current local snapshot
-adapter is for development and cannot be the Vercel Function filesystem. Choose
-and verify a Vercel-compatible private object-store adapter before onboarding.
+adapter is for development and cannot be the Vercel Function filesystem. The
+private Vercel Blob adapter is implemented and contract-tested; verify it against
+an actual private store/OIDC setup before deployment. See `onboarding.md`.
 The database remains the queue and atomic publication authority.
 
 The current Docker launcher is a verified local/reference worker implementation,
@@ -31,6 +32,6 @@ snapshot import/export) before production. Consult current Vercel execution
 products and limits at that point. The Next.js request must enqueue and return;
 it must not keep a durable supervisor loop or model process alive after response.
 
-Still needed: onboarding/fact review, hosted UI, production storage and worker
+Still needed: job/report/PDF UI, live storage verification and worker
 adapter, quotas, recovery UI, retention/deletion, real Google OAuth verification,
 real-model quality/budget checks, deployment/environment setup and security review.

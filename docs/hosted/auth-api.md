@@ -1,7 +1,8 @@
 # Authenticated API milestone
 
 Deployment target: Vercel. This milestone adds private hosted API wiring to the
-existing Next.js app; it does not deploy a website or provide onboarding/UI yet.
+existing Next.js app; it does not deploy a website. Reviewed profile onboarding
+and its UI are now implemented; see [onboarding.md](onboarding.md).
 
 ## Identity and deployment boundary
 
@@ -15,7 +16,7 @@ disabled. Session cookie caching is disabled so revocation is checked against th
 database on each protected request. Sessions expire after seven days.
 
 `VERCEL=1` or `CAREER_OPS_MODE=hosted` enables hosted isolation. Vercel cannot be
-overridden to local mode. The proxy allows only `/api/auth/*` and `/api/hosted/*`;
+overridden to local mode. The proxy allows `/hosted`, `/api/auth/*` and `/api/hosted/*`;
 all existing local pages and filesystem/process endpoints return 404. Future
 hosted UI routes require an explicit allowlist entry and server-side session
 checks. Static Next assets remain under the existing proxy exclusions. The
@@ -45,8 +46,8 @@ checks happen inside the queue service; another tenant's job returns 404.
 Evaluation body: `{ "operation": "evaluate", "postingText": "...", "postingUrl": "..." }`.
 Tailoring body: `{ "operation": "tailor", "evaluationJobId": "..." }`.
 The queued job uses server-owned `HOSTED_ENGINE_REVISION`. The HTTP request never
-starts a worker or migrates the database. Initial tenant/workspace provisioning
-remains a trusted internal capability until reviewed onboarding is implemented.
+starts a worker or migrates the database. Initial personal-workspace provisioning
+is now available through the reviewed onboarding service, not arbitrary roots.
 
 ## Server configuration (not provisioned)
 
@@ -96,8 +97,8 @@ external model, paid resource or public deployment is used by those tests.
 Known deployment work: legacy routes are blocked but still included in the Next
 build, which emits four upstream broad-filesystem-tracing warnings. Prepare a
 hosted-only build/package before deployment; do not bundle personal workspaces or
-hide warnings by weakening isolation. UI/onboarding, confirmed-fact provisioning,
-private object storage, Vercel-compatible worker execution, quotas, retention,
+hide warnings by weakening isolation. Job/report/PDF UI, live private-storage
+verification, Vercel-compatible worker execution, quotas, retention,
 recovery UI and real Google OAuth verification remain incomplete.
 
 Official references: [Better Auth Next.js integration](https://better-auth.com/docs/integrations/next),

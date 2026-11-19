@@ -4,6 +4,9 @@ import { createAuth } from '@hosted-career/control-plane/auth.mjs';
 import { Queue } from '@hosted-career/control-plane/queue.mjs';
 import { createApi, json } from '@hosted-career/control-plane/http.mjs';
 import { hostedMode } from './hosted-mode.mjs';
+import { Onboarding } from '@hosted-career/control-plane/onboarding.mjs';
+import { BlobSnapshotStore } from '@hosted-career/control-plane/blob-snapshots.mjs';
+import { SnapshotStore } from '@hosted-career/control-plane/snapshots.mjs';
 
 let services;
 function getServices() {
@@ -16,7 +19,11 @@ function getServices() {
   pool.on('error', () => {});
   const auth = createAuth({ pool, origin: process.env.BETTER_AUTH_URL, secret: process.env.BETTER_AUTH_SECRET, vercel: process.env.VERCEL === '1',
     google: { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET } });
-  services = { auth, api: createApi({ queue: new Queue(pool), auth, origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION }) };
+  const queue = new Queue(pool);
+  let store;
+  if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) store = new BlobSnapshotStore({ storeId: process.env.BLOB_STORE_ID, token: process.env.BLOB_READ_WRITE_TOKEN });
+  else if (process.env.VERCEL !== '1' && process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT) store = new SnapshotStore(process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT);
+  services = { auth, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION }) };
   return services;
 }
 export async function hostedRequest(request) {
@@ -30,4 +37,11 @@ export async function authRequest(request) {
     response.headers.set('Cache-Control', 'private, no-store');
     return response;
   } catch { return json({ error: 'service_unavailable' }, 503); }
+}
+export async function hostedSession(headers) {
+  if (!hostedMode()) return { user: null, unavailable: true };
+  try {
+    const session = await getServices().auth.api.getSession({ headers });
+    return { user: session ? { id: session.user.id, name: session.user.name } : null, unavailable: false };
+  } catch { return { user: null, unavailable: true }; }
 }

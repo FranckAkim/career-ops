@@ -6,6 +6,7 @@ import { RouteProgressHost } from "@/components/route-progress-host";
 import { ThemeProvider } from "@/components/theme-provider";
 import { readFollowupsEnabled } from "@/lib/followups-server";
 import "./globals.css";
+import { hostedMode } from '@/lib/hosted-mode.mjs';
 
 export const metadata: Metadata = {
   title: "career-ops — official web experience",
@@ -31,6 +32,7 @@ const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('career-ops:the
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   await connection();
+  if (hostedMode()) return <html lang="en" className={inter.variable}><body>{children}</body></html>;
   const followupsEnabled = readFollowupsEnabled();
   return (
     <html

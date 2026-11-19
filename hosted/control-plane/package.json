@@ -1,7 +1,12 @@
 {
   "name": "@hosted-career/control-plane",
   "version": "0.1.0",
-  "files": ["*.mjs", "schema.sql", "README.md"],
+  "files": [
+    "*.mjs",
+    "schema.sql",
+    "migrations/*.sql",
+    "README.md"
+  ],
   "private": true,
   "type": "module",
   "engines": {
@@ -12,6 +17,7 @@
     "test:postgres": "node tests/postgres-smoke.mjs"
   },
   "dependencies": {
+    "@vercel/blob": "2.9.0",
     "better-auth": "1.7.26",
     "pg": "8.23.1"
   }

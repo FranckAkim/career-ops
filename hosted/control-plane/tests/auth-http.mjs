@@ -5,8 +5,9 @@ import { authOptions } from '../auth.mjs';
 import { migrateAuth } from '../auth-migrate.mjs';
 import { createApi } from '../http.mjs';
 import { testOrigin, verifyWebAuth } from './web-auth.mjs';
+import { Onboarding } from '../onboarding.mjs';
 
-export async function verifyAuthHttp({ pool, queue, snapshot, engineRevision }) {
+export async function verifyAuthHttp({ pool, queue, snapshot, engineRevision, store }) {
   const origin = process.env.HOSTED_TEST_WEB === '1' ? await testOrigin() : 'http://localhost:3000';
   const secret = randomBytes(32).toString('hex');
   const options = authOptions({ pool, origin, secret });
@@ -30,7 +31,7 @@ export async function verifyAuthHttp({ pool, queue, snapshot, engineRevision }) 
     assert.ok(cookies.some(c => /HttpOnly/i.test(c) && /SameSite=Lax/i.test(c)));
     accounts.push({ id: value.user.id, cookie: cookies.map(c => c.split(';')[0]).join('; ') });
   }
-  const api = createApi({ queue, auth, origin, engineRevision });
+  const api = createApi({ queue, auth, origin, engineRevision, onboarding: new Onboarding({ queue, store }) });
   const call = (route, { account = accounts[0], method = 'GET', data, headers = {} } = {}) => api(new Request(`${origin}/api/hosted/${route}`, {
     method, headers: { ...(account ? { cookie: account.cookie } : {}), ...(method === 'POST' ? { origin, 'content-type': 'application/json' } : {}), ...headers },
     ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
@@ -62,7 +63,16 @@ export async function verifyAuthHttp({ pool, queue, snapshot, engineRevision }) 
   assert.equal((await cancellation.json()).status, 'cancelled');
   const read = await (await call(`${route}/${job.id}`)).json();
   assert.equal(read.events.at(-1).kind, 'cancelled');
-  if (process.env.HOSTED_TEST_WEB === '1') await verifyWebAuth({ pool, origin, secret, accounts, tenant, engineRevision });
+  const onboardingDraft = await call('onboarding/drafts', { method: 'POST', data: { fullName: 'Synthetic Alpha', cvMarkdown: '# Synthetic Alpha\n\nConfirmed synthetic source.' } });
+  assert.equal(onboardingDraft.status, 201);
+  const { draft } = await onboardingDraft.json();
+  assert.equal((await call(`onboarding/drafts/${draft.id}`, { account: accounts[1] })).status, 404);
+  assert.equal((await call(`onboarding/drafts/${draft.id}/confirm`, { method: 'POST', data: { expectedHash: draft.review_hash, acknowledged: false } })).status, 400);
+  if (process.env.HOSTED_TEST_WEB === '1') await verifyWebAuth({ pool, origin, secret, accounts, tenant, engineRevision, store });
+  else {
+    const confirmed = await call(`onboarding/drafts/${draft.id}/confirm`, { method: 'POST', data: { expectedHash: draft.review_hash, acknowledged: true } });
+    assert.equal(confirmed.status, 200);
+  }
   await pool.query('delete from auth_sessions where "userId"=$1', [accounts[0].id]);
   assert.equal((await call('session')).status, 401);
   // Remove the other synthetic session too; never leave an unclaimed queued

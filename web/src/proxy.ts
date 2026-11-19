@@ -23,6 +23,7 @@ import {
 // "cross-site", so every one of its requests is refused otherwise.
 export function proxy(req: NextRequest) {
   if (hostedMode()) {
+    if (req.nextUrl.pathname === '/') return NextResponse.redirect(new URL('/hosted', req.url));
     if (hostedPathAllowed(req.nextUrl.pathname)) return NextResponse.next();
     return NextResponse.json({ error: 'hosted_route_unavailable' }, { status: 404, headers: { 'Cache-Control': 'private, no-store' } });
   }

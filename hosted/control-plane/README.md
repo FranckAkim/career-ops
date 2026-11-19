@@ -107,7 +107,11 @@ set `HOSTED_TEST_IMAGE_ID` to the previously built image's immutable `.Id` and
 both tenant generations reach 2, and retains the existing worker regression suite.
 No real provider, cloud database or public deployment is used.
 
-Still required before a hosted beta: real OAuth setup/verification, upload/fact
-review and safe initial workspace provisioning, object-store adapter, process
+Reviewed pasted-text onboarding and a private Vercel Blob adapter are now
+implemented; see [onboarding](../../docs/hosted/onboarding.md). No live Blob store
+has been provisioned/tested.
+
+Still required before a hosted beta: real OAuth/storage verification, optional
+binary intake, job/report/PDF UI, Vercel-compatible worker execution, process
 service lifecycle/metrics, quotas/provider budget enforcement, recovery UI,
 retention/deletion, real-model quality evaluation and adversarial security review.

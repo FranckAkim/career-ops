@@ -8,7 +8,7 @@ export function safePath(root, relative) {
   if (typeof relative !== 'string' || !relative || relative.length > 1024 || relative.includes('\\') || relative.includes(':') || relative.split('/').some(p => !p || p === '.' || p === '..' || p.includes('\0'))) throw new ControlError('unsafe_path');
   return path.join(root, ...relative.split('/'));
 }
-function manifestValid(value, maxFiles, maxBytes) {
+export function manifestValid(value, maxFiles, maxBytes) {
   if (value?.schema !== 1 || !Array.isArray(value.files) || value.files.length > maxFiles) throw new ControlError('invalid_snapshot');
   let total = 0;
   const seen = new Set();
