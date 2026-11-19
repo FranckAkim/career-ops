@@ -88,4 +88,12 @@ The final implementation at `461b115` passed [Windows and Linux-container CI](ht
 
 Rendering uses a short private temporary directory for Chromium's Unix sockets. The nested tenant/job home can exceed the Unix socket path limit even when the source files themselves are valid. HOME stays workspace-scoped; the private browser temp directory is removed after process completion with containment checks. No diagnostic overlays or raw subprocess logging are part of the shipped worker.
 
-This package does not yet implement the durable queue, production leases/fencing, snapshot publication, authentication, upload review, billing or hosted UI integration. Directory checks and child processes are not a tenant security boundary. Standalone evaluation is text-only and needs research/quality comparison before replacing richer agent-backed workflows. A real provider credential and budget are still needed for live model quality/cost tests.
+The engine adapter runs individual private jobs; the separate control plane below owns orchestration. Authentication, upload review, billing and hosted UI integration remain unfinished. Directory checks and child processes are not a tenant security boundary. Standalone evaluation is text-only and needs research/quality comparison before replacing richer agent-backed workflows. A real provider credential and budget are still needed for live model quality/cost tests.
+
+## Durable orchestration
+
+The separate [control-plane package](control-plane/README.md) adds the private
+PostgreSQL queue, memberships, leases/fencing, immutable local snapshots and
+supervised container publication. Its integration test runs two tenant workflows
+through real worker containers and PDFs. Authentication, public API/UI integration
+and production object storage remain unfinished; the worker stays private.

@@ -51,11 +51,13 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - run: npm --prefix hosted test
+      - run: npm ci --prefix hosted/control-plane --ignore-scripts --no-audit --no-fund
+      - run: npm --prefix hosted/control-plane test
       - run: node validate-system-paths-coverage.mjs
 
   container:
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -77,5 +79,13 @@ jobs:
           --workdir=/opt/career-ops/hosted --entrypoint=node
           hosted-career-worker:local --test 'tests/*.test.mjs'
       - run: npm --prefix hosted run test:container
+        env:
+          HOSTED_TEST_SECCOMP: ${{ runner.temp }}/hosted-seccomp.json
+      - run: npm ci --prefix hosted/control-plane --ignore-scripts --no-audit --no-fund
+      - run: npm --prefix hosted/control-plane test
+      - name: Verify PostgreSQL recovery and supervised container publication
+        run: |
+          export HOSTED_TEST_IMAGE_ID="$(docker image inspect hosted-career-worker:local --format '{{.Id}}')"
+          npm --prefix hosted/control-plane run test:postgres
         env:
           HOSTED_TEST_SECCOMP: ${{ runner.temp }}/hosted-seccomp.json
