@@ -9,7 +9,8 @@ Better Auth 1.7.26 runs server-side with the existing PostgreSQL driver. Its SDK
 owns Google OAuth, signed HttpOnly/SameSite session cookies, session lookup and
 revocation. Production password authentication is disabled; no test login route
 or identity header exists. Google identity is account identity, never a source of
-confirmed career facts. Automatic account linking is disabled. SDK telemetry is
+confirmed career facts. OAuth tokens use the SDK's encrypted database storage;
+automatic account linking is disabled. SDK telemetry is
 disabled. Session cookie caching is disabled so revocation is checked against the
 database on each protected request. Sessions expire after seven days.
 

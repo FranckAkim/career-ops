@@ -12,6 +12,7 @@ export async function verifyAuthHttp({ pool, queue, snapshot, engineRevision }) 
   const options = authOptions({ pool, origin, secret });
   assert.equal(options.emailAndPassword.enabled, false);
   assert.equal(options.telemetry.enabled, false);
+  assert.equal(options.account.encryptOAuthTokens, true);
   // Password signup is enabled only in this synthetic test instance. Production
   // configuration exposes Google OAuth and no password/signup/test bypass.
   const auth = betterAuth({ ...options, emailAndPassword: { enabled: true } });

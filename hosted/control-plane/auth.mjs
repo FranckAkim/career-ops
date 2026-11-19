@@ -14,7 +14,7 @@ export function authOptions({ pool, origin, secret, google, vercel = false }) {
     emailAndPassword: { enabled: false },
     socialProviders: google ? { google: { clientId: google.clientId, clientSecret: google.clientSecret } } : {},
     user: { modelName: 'auth_users' },
-    account: { modelName: 'auth_accounts', accountLinking: { enabled: false } },
+    account: { modelName: 'auth_accounts', encryptOAuthTokens: true, accountLinking: { enabled: false } },
     session: { modelName: 'auth_sessions', cookieCache: { enabled: false }, expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
     verification: { modelName: 'auth_verifications' },
     advanced: { database: { generateId: 'uuid' }, useSecureCookies: url.protocol === 'https:',
