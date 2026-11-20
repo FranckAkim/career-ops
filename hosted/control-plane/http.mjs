@@ -24,7 +24,7 @@ async function body(request, fields) {
   } finally { clearTimeout(timer); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
-export function createApi({ queue, auth, origin, engineRevision, onboarding }) {
+export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts }) {
   if (new URL(origin).origin !== origin || !/^[a-f0-9]{40}$/.test(engineRevision)) throw new ControlError('invalid_api_config');
   return async request => {
     try {
@@ -58,6 +58,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding }) {
       }
       const [prefix, tenantId, collection, jobId, action] = route;
       if (prefix !== 'tenants' || route.length > 5) return json({ error: 'not_found' }, 404);
+      if (collection === 'artifacts' && jobId && action && request.method === 'GET' && artifacts) return await artifacts.download({ tenantId, userId, jobId, kind: action });
       if (collection === 'jobs' && !jobId) {
         if (request.method === 'GET') return json({ jobs: await queue.list({ tenantId, userId }) });
         if (request.method === 'POST') {
@@ -76,8 +77,8 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding }) {
       return json({ error: 'not_found' }, 404);
     } catch (error) {
       const code = error instanceof ControlError ? error.code : 'service_unavailable';
-      const status = code === 'not_found' || code === 'evaluation_not_found' ? 404
-        : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit'].includes(code) ? 409 : code === 'input_limit' ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit'].includes(code) ? 503 : 400;
+      const status = ['not_found','evaluation_not_found','artifact_missing'].includes(code) ? 404
+        : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit'].includes(code) ? 409 : code === 'input_limit' ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
       return json({ error: code }, status);
     }
   };

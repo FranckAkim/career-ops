@@ -32,6 +32,7 @@ snapshot import/export) before production. Consult current Vercel execution
 products and limits at that point. The Next.js request must enqueue and return;
 it must not keep a durable supervisor loop or model process alive after response.
 
-Still needed: job/report/PDF UI, live storage verification and worker
+The job/report/PDF UI and protected downloads are implemented; see `workspace.md`.
+Still needed: live storage verification and worker
 adapter, quotas, recovery UI, retention/deletion, real Google OAuth verification,
 real-model quality/budget checks, deployment/environment setup and security review.

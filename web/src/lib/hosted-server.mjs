@@ -7,6 +7,7 @@ import { hostedMode } from './hosted-mode.mjs';
 import { Onboarding } from '@hosted-career/control-plane/onboarding.mjs';
 import { BlobSnapshotStore } from '@hosted-career/control-plane/blob-snapshots.mjs';
 import { SnapshotStore } from '@hosted-career/control-plane/snapshots.mjs';
+import { Artifacts } from '@hosted-career/control-plane/artifacts.mjs';
 
 let services;
 function getServices() {
@@ -23,7 +24,7 @@ function getServices() {
   let store;
   if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) store = new BlobSnapshotStore({ storeId: process.env.BLOB_STORE_ID, token: process.env.BLOB_READ_WRITE_TOKEN });
   else if (process.env.VERCEL !== '1' && process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT) store = new SnapshotStore(process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT);
-  services = { auth, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION }) };
+  services = { auth, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store }), artifacts: new Artifacts({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION }) };
   return services;
 }
 export async function hostedRequest(request) {

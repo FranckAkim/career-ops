@@ -98,7 +98,8 @@ outside AI workers. Large transfers need measured limits/durable execution.
   behavior, guest sign-in, tenant denial and blocked legacy endpoints. All data
   is synthetic; no real provider or paid service is used.
 
-Still needed: job/report/PDF UI and authorized artifact delivery, optional binary
+The job/report/PDF UI and protected downloads are now implemented; see
+[workspace.md](workspace.md). Still needed: optional binary
 intake, leased profile updates, retention/deletion, storage/model quotas,
 hosted-only packaging, Vercel-compatible isolated worker execution, live Blob/OAuth
 checks and real-model quality/budget evaluation. The prior full upstream web-suite

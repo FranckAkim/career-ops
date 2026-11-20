@@ -100,14 +100,19 @@ export class SnapshotStore {
     await fs.mkdir(destination, { mode: 0o700 });
     return this.verify(id, destination);
   }
-  async read(id, relative) {
+  async readBytes(id, relative, { maxBytes = this.maxBytes } = {}) {
     const manifest = await this.manifest(id);
     const file = manifest.files.find(f => f.path === relative);
     if (!file) throw new ControlError('artifact_missing');
+    if (file.bytes > maxBytes) throw new ControlError('artifact_limit');
     const source = safePath(path.join(this.root, id, 'files'), relative);
-    if (!(await fs.lstat(source)).isFile()) throw new ControlError('snapshot_corrupt');
+    const stat = await fs.lstat(source);
+    if (!stat.isFile() || stat.size !== file.bytes) throw new ControlError('snapshot_corrupt');
     const data = await fs.readFile(source);
     if (data.length !== file.bytes || hash(data) !== file.sha256) throw new ControlError('snapshot_corrupt');
-    return data.toString('utf8');
+    return data;
+  }
+  async read(id, relative) {
+    return (await this.readBytes(id, relative)).toString('utf8');
   }
 }

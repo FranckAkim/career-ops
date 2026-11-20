@@ -29,6 +29,8 @@ test('private Blob contract: immutable round trip, dedupe, binary files and inte
   const saved = await store.capture(source);
   assert.equal((await store.capture(source)).id, saved.id);
   assert.equal(await store.read(saved.id, 'cv.md'), '# Synthetic candidate');
+  assert.deepEqual(await store.readBytes(saved.id, 'cv.pdf'), binary);
+  await assert.rejects(store.readBytes(saved.id, 'cv.pdf', { maxBytes: 3 }), /artifact_limit/);
   await store.materialize(saved.id, path.join(root, 'clone'));
   assert.deepEqual(await fs.readFile(path.join(root, 'clone/cv.pdf')), binary);
   assert.ok(fake.calls.every(call => call.access === 'private'));

@@ -41,6 +41,7 @@ checks happen inside the queue service; another tenant's job returns 404.
 | POST | `/api/hosted/tenants/{tenant}/jobs` | Enqueue `evaluate` or `tailor`; requires `Idempotency-Key` |
 | GET | `/api/hosted/tenants/{tenant}/jobs/{job}?after=0` | Status/result and up to 100 ordered durable events |
 | POST | `/api/hosted/tenants/{tenant}/jobs/{job}/cancel` | Cancel with empty JSON `{}` |
+| GET | `/api/hosted/tenants/{tenant}/artifacts/{job}/{kind}` | Protected committed `report` or binary `pdf` attachment |
 | POST | `/api/hosted/tenants/{tenant}/recovery/discard` | Owner-only explicit discard with empty JSON `{}` |
 
 Evaluation body: `{ "operation": "evaluate", "postingText": "...", "postingUrl": "..." }`.
@@ -97,7 +98,8 @@ external model, paid resource or public deployment is used by those tests.
 Known deployment work: legacy routes are blocked but still included in the Next
 build, which emits four upstream broad-filesystem-tracing warnings. Prepare a
 hosted-only build/package before deployment; do not bundle personal workspaces or
-hide warnings by weakening isolation. Job/report/PDF UI, live private-storage
+hide warnings by weakening isolation. The [job workspace](workspace.md) is now
+implemented. Live private-storage
 verification, Vercel-compatible worker execution, quotas, retention,
 recovery UI and real Google OAuth verification remain incomplete.
 

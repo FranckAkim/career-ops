@@ -85,10 +85,14 @@ export class BlobSnapshotStore {
     await fs.mkdir(destination, { mode: 0o700 });
     return this.verify(id, destination);
   }
-  async read(id, relative) {
+  async readBytes(id, relative, { maxBytes = this.maxBytes } = {}) {
     const manifest = await this.manifest(id);
     const file = manifest.files.find(f => f.path === relative);
     if (!file) throw new ControlError('artifact_missing');
-    return (await this.file(id, file)).toString('utf8');
+    if (file.bytes > maxBytes) throw new ControlError('artifact_limit');
+    return this.file(id, file);
+  }
+  async read(id, relative) {
+    return (await this.readBytes(id, relative)).toString('utf8');
   }
 }

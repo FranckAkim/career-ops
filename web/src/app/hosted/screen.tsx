@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import styles from './screen.module.css';
+import { Workspace } from './workspace';
 
 type Profile = { fullName: string; cvMarkdown: string; targetRole: string; language: string };
 type Draft = { id: string; review_hash: string; revision: number; content: Profile };
@@ -23,6 +24,7 @@ async function api(path: string, data?: unknown) {
 export function OnboardingScreen({ user, unavailable }: { user: User | null; unavailable: boolean }) {
   const [profile, setProfile] = useState<Profile>({ fullName: user?.name || '', cvMarkdown: '', targetRole: '', language: 'en' });
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [step, setStep] = useState<'edit' | 'review' | 'ready'>('edit');
   const [checked, setChecked] = useState(false);
   const [loading, setLoading] = useState(Boolean(user));
@@ -34,7 +36,7 @@ export function OnboardingScreen({ user, unavailable }: { user: User | null; una
     (async () => {
       const status = await api('onboarding/status');
       if (!active) return;
-      if (status.workspace) { setStep('ready'); return; }
+      if (status.workspace) { setTenantId(status.workspace.tenant_id); setStep('ready'); return; }
       const { drafts } = await api('onboarding/drafts');
       if (drafts.length) {
         const { draft: saved } = await api(`onboarding/drafts/${drafts[0].id}`);
@@ -71,10 +73,11 @@ export function OnboardingScreen({ user, unavailable }: { user: User | null; una
   async function confirm() {
     if (!draft || !checked) return;
     setBusy(true); setError('');
-    try { await api(`onboarding/drafts/${draft.id}/confirm`, { expectedHash: draft.review_hash, acknowledged: true }); setStep('ready'); }
+    try { const result = await api(`onboarding/drafts/${draft.id}/confirm`, { expectedHash: draft.review_hash, acknowledged: true }); setTenantId(result.tenantId); setStep('ready'); }
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
+  if (user && step === 'ready' && tenantId) return <Workspace tenantId={tenantId} onSignOut={signOut} pageError={error} signingOut={busy} />;
   return <main className={styles.page}>
     <header className={styles.header}><a className={styles.brand} href="/hosted"><span className={styles.mark}>CW</span>Career Workspace</a>{user && <button className={styles.quiet} onClick={signOut} disabled={busy}>Sign out</button>}</header>
     <div className={styles.layout}>

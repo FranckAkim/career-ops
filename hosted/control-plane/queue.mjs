@@ -64,7 +64,7 @@ export class Queue {
     check(uuid.test(jobId) && /^\d{1,19}$/.test(String(after)) && BigInt(after) <= 9223372036854775807n);
     return this.transaction(async db => {
       await this.authorize(db, tenantId, userId);
-      const { rows: [job] } = await db.query('select id,status,result,error_code,created_at,finished_at from jobs where tenant_id=$1 and id=$2', [tenantId, jobId]);
+      const { rows: [job] } = await db.query("select id,status,result,error_code,created_at,finished_at,payload->>'operation' as operation from jobs where tenant_id=$1 and id=$2", [tenantId, jobId]);
       check(job, 'not_found');
       const { rows: events } = await db.query('select sequence,kind,created_at from job_events where tenant_id=$1 and job_id=$2 and sequence>$3 order by sequence limit 100', [tenantId, jobId, after]);
       return { ...job, events };
@@ -78,7 +78,7 @@ export class Queue {
   async list({ tenantId, userId }) {
     return this.transaction(async db => {
       await this.authorize(db, tenantId, userId);
-      const { rows } = await db.query("select id,status,payload->>'operation' as operation,created_at,finished_at,error_code from jobs where tenant_id=$1 order by created_at desc,id desc limit 100", [tenantId]);
+      const { rows } = await db.query("select id,status,payload->>'operation' as operation,result->>'company' as company,result->>'role' as role,created_at,finished_at,error_code from jobs where tenant_id=$1 order by created_at desc,id desc limit 100", [tenantId]);
       return rows;
     });
   }

@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import net from 'node:net';
 import fs from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { verifyWorkspace } from './workspace.mjs';
 
 export async function testOrigin() {
   const server = net.createServer();
@@ -13,7 +14,7 @@ export async function testOrigin() {
   await new Promise(resolve => server.close(resolve));
   return `http://127.0.0.1:${port}`;
 }
-export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, engineRevision, store }) {
+export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, engineRevision, store, runner, queue, workRoot }) {
   const webRoot = fileURLToPath(new URL('../../../web/', import.meta.url));
   const database = new URL('postgresql://127.0.0.1');
   database.username = pool.options.user; database.password = pool.options.password;
@@ -54,8 +55,8 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     assert.equal((await page.goto(`${origin}/`)).status(), 200);
     assert.equal(new URL(page.url()).pathname, '/hosted');
     await page.getByLabel('Full name', { exact: true }).waitFor();
-    await page.getByLabel('Full name', { exact: true }).fill('Synthetic Browser Candidate');
-    await page.getByLabel('CV text', { exact: true }).fill('# Synthetic Browser Candidate\n\n## Experience\n- Built Python tools for 4 engineers.');
+    await page.getByLabel('Full name', { exact: true }).fill('Synthetic Alpha');
+    await page.getByLabel('CV text', { exact: true }).fill('# Synthetic Alpha\n\n## Experience\n\n### Example Labs — Remote\n**Software Engineer**\n2022–2025\n\n- Built internal reporting tools with Python.\n- Led a team of 4 engineers.\n');
     await page.getByRole('button', { name: 'Review profile', exact: true }).click();
     await page.getByRole('heading', { name: 'Check the details.' }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Confirm and create workspace' }).isDisabled(), true);
@@ -72,11 +73,11 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     }
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Confirm and create workspace' }).click();
-    await page.getByRole('heading', { name: 'Your workspace is ready.' }).waitFor();
+    await page.getByRole('heading', { name: 'Your workspace', exact:true }).waitFor();
     const personal = (await pool.query('select t.snapshot from personal_workspaces p join tenants t on p.tenant_id=t.id where p.user_id=$1', [accounts[0].id])).rows[0];
-    assert.ok((await store.read(personal.snapshot, 'cv.md')).includes('Synthetic Browser Candidate'));
+    assert.ok((await store.read(personal.snapshot, 'cv.md')).includes('Synthetic Alpha'));
     await page.reload();
-    await page.getByRole('heading', { name: 'Your workspace is ready.' }).waitFor();
+    await page.getByRole('heading', { name: 'Your workspace', exact:true }).waitFor();
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     const cancellation = await page.evaluate(async ({ tenant, jobId }) => {
@@ -84,16 +85,23 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
       return { status: response.status, data: await response.json() };
     }, { tenant, jobId });
     assert.equal(cancellation.status, 200); assert.equal(cancellation.data.status, 'cancelled');
+    let pdfUrl;
+    if (runner) {
+      await page.setViewportSize({width:1280,height:720});
+      pdfUrl = await verifyWorkspace({page,pool,queue,store,runner,workRoot,userId:accounts[0].id,origin});
+    }
     const other = await browser.newContext();
     await other.addCookies(accounts[1].cookie.split('; ').map(pair => {
       const split = pair.indexOf('='); return { name: pair.slice(0, split), value: pair.slice(split + 1), url: origin, httpOnly: true, sameSite: 'Lax' };
     }));
     const otherPage = await other.newPage();
     assert.equal((await otherPage.goto(`${origin}/api/hosted/tenants/${tenant}/jobs/${jobId}`)).status(), 404);
+    if (pdfUrl) assert.equal((await other.request.get(pdfUrl)).status(),404);
     const guest = await browser.newContext();
     const guestPage = await guest.newPage();
     await guestPage.goto(`${origin}/hosted`);
     await guestPage.getByRole('button', { name: 'Continue with Google' }).waitFor();
+    if (pdfUrl) assert.equal((await guest.request.get(pdfUrl)).status(),401);
     console.log('PASS browser onboarding edit/review/confirmation, reload/mobile layout, auth/tenant DB and enqueue/cancel; legacy routes blocked');
   } finally {
     if (browser) await browser.close();

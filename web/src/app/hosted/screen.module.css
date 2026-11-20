@@ -56,3 +56,30 @@
 }
 @media(prefers-reduced-motion:reduce){.primary,.quiet{transition:none}
 }
+.workspace{max-width:1200px;margin:44px auto}
+.workspaceTitle{display:flex;justify-content:space-between;gap:24px;align-items:center;margin-bottom:30px}
+.workspaceTitle h1{font-size:2.8rem;font-weight:500;line-height:1.15;letter-spacing:-.05em;margin:0}
+.workspaceTitle .eyebrow{margin-bottom:10px}
+.workspaceTitle>p{color:#bac7d7;font-size:.95rem;line-height:1.7}
+.workspaceGrid{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(0,1.2fr);align-items:start;gap:28px}
+.workspaceGrid .card{min-width:0;padding:28px}
+.historyTitle{font-size:1rem;font-weight:600;border-top:1px solid #d6dce3;padding-top:24px;margin-top:28px}
+.jobList{list-style:none;margin:12px 0 0;padding:0;max-height:420px;overflow:auto}
+.jobList button{width:100%;text-align:left;border:1px solid transparent;border-radius:8px;cursor:pointer;padding:13px 10px;background:transparent;color:#202c3d;display:grid;gap:4px}
+.jobList button:hover,.jobList button[aria-current]{background:#eef5e9;border-color:#c7d5bd}
+.jobList strong{font-size:.95rem;font-weight:500;overflow-wrap:anywhere}
+.jobList span{font-size:.85rem;color:#556476}
+.card .jobStatus{display:inline-block;background:#eef5e9;color:#2a4b30;border-radius:6px;padding:6px 10px;font-size:.9rem;font-weight:500}
+.events{list-style:none;padding:0;margin:24px 0;border-top:1px solid #d6dce3;border-bottom:1px solid #d6dce3}
+.events li{display:flex;justify-content:space-between;gap:15px;font-size:.9rem;padding:10px 0}
+.events time{color:#627084;font-size:.85rem}
+.report{font:inherit;font-size:.9rem;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;max-height:650px;overflow:auto;border:1px solid #c4cdd8;background:#f8fafb;padding:18px;border-radius:8px;margin-top:16px}
+.download{display:inline-block;padding:10px 14px;border:1px solid #8b9aab;color:#213e31;border-radius:7px;text-decoration:none;font-size:.95rem}
+.download:hover{background:#eef5e9}
+.download:focus-visible{outline:3px solid #6c913e;outline-offset:3px}
+.workspaceError{background:#ffe9e6;color:#8c2525;padding:16px;border-radius:8px;margin-bottom:20px}
+.recovery{padding:24px;background:#fff0d1;color:#493812;border-radius:12px;margin-bottom:24px}
+.recovery h2{font-size:1.3rem;font-weight:600;margin-bottom:10px}
+.recovery label{display:block;font-size:.95rem;margin:14px 0}
+.recovery input{width:18px;height:18px;accent-color:#213e31}
+@media(max-width:850px){.workspaceTitle{display:block}.workspaceTitle>p{margin-top:16px}.workspaceGrid{grid-template-columns:1fr}.jobList{max-height:260px}.workspaceTitle h1{font-size:2.3rem}.workspaceGrid .card{padding:24px}}

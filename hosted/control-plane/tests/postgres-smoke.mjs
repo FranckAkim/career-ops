@@ -15,6 +15,7 @@ import { createEngine } from '../../engine.mjs';
 import { candidate, modelServer, engineRevision } from '../../tests/fixtures.mjs';
 import { verifyAuthHttp } from './auth-http.mjs';
 import { verifyOnboarding } from './onboarding.mjs';
+import { verifyArtifacts } from './artifacts.mjs';
 
 const name = `hc-postgres-test-${randomUUID()}`;
 const cleanup = [];
@@ -145,7 +146,8 @@ try {
   await queue.finish(conflict); await queue.discardRecovery({ tenantId: tenantA, userId: userA });
   console.log('PASS generation compare-and-swap rejects stale base');
   await verifyOnboarding({ pool, queue, store, model, engineRevision });
-  await verifyAuthHttp({ pool, queue, snapshot: initial.id, engineRevision, store });
+  await verifyArtifacts({ queue, store, snapshot: initial.id, engineRevision });
+  let webRunner, webRevision = engineRevision;
 
   if (process.env.HOSTED_TEST_IMAGE_ID) {
     const image = process.env.HOSTED_TEST_IMAGE_ID;
@@ -162,6 +164,7 @@ try {
       provider: { baseUrl: 'http://127.0.0.1:9000/v1', model: 'synthetic-fixture-model' }, allowLocalProvider: true,
       uid: typeof process.getuid === 'function' ? `${process.getuid()}:${process.getgid()}` : undefined });
     const containerSupervisor = new Supervisor({ queue, store, runner: containerRunner, workRoot: path.join(root, 'workspaces'), heartbeatMs: 500 });
+    webRunner = containerRunner; webRevision = revision;
     const tenants = await Promise.all([userA,userB].map((userId, i) => queue.provision({ userId, snapshot: [initial,initialB][i].id })));
     const evaluations = await Promise.all(tenants.map((tenantId, i) => queue.enqueue({ tenantId, userId: [userA,userB][i], idempotencyKey: 'eval', operation: 'evaluate', postingText: 'Python role', engineRevision: revision })));
     for (const outcome of await Promise.all([containerSupervisor.runOnce(),containerSupervisor.runOnce()])) assert.equal(outcome.status, 'succeeded');
@@ -174,6 +177,7 @@ try {
     }
     console.log('PASS two tenants: durable queue -> constrained worker containers -> real PDFs -> atomic generation 2');
   }
+  await verifyAuthHttp({ pool, queue, snapshot: initial.id, engineRevision: webRevision, store, runner: webRunner, workRoot: path.join(root, 'workspaces') });
 } finally {
   if (pool) await pool.end();
   for (const fn of cleanup.reverse()) await fn();
