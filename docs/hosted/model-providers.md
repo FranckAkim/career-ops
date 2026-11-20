@@ -43,3 +43,12 @@ credentials and a separately reviewed integration; it is not implemented here.
 Sources checked 2026-11-20: [Google compatibility](https://ai.google.dev/gemini-api/docs/openai),
 [pricing](https://ai.google.dev/gemini-api/docs/pricing),
 [Claude Code product integration](https://code.claude.com/docs/en/legal-and-compliance).
+
+## Live validation status
+
+Real Gemini evaluation passed through the deployed private queue and isolated
+engine. Tailoring has not passed: the latest synthetic generation reached the
+CV fact checker and was rejected. No PDF was published. Worker and frontend
+admission are disabled pending quality work and the separate Blob token cleanup.
+The personal Claude Code backup remains manual; no shared subscription login
+or automatic recovery/import exists.

@@ -26,7 +26,9 @@ the private queue consumer remain enforced. This is not an activated beta.
    Worker Production has `GEMINI_API_KEY` (secret) and `HOSTED_MODEL_PROVIDER`.
    Keep the Google project on the free tier without enabling billing. Follow
    `model-providers.md`; Claude Code subscription is a personal manual backup,
-   not an automatic shared hosted provider. Live model quality remains unproven.
+   not an automatic shared hosted provider. Live evaluation succeeded, but bounded
+   tailoring tests failed; the latest generated CV was rejected by fact checks.
+   No PDF was published. Improve and verify model output without weakening facts.
 3. Revoke/regenerate the old read/write token for `career-workspace-private` in
    Vercel Storage. It was included in the rejected private image caught before
    Sandbox execution. The image records/local tag were removed; DB owner/runtime
@@ -43,9 +45,10 @@ Google settings are deployed, anonymous session returns 401, and real Google
 login/session persistence is verified. Complete logout/revocation checks and
 verify all production entry aliases use the exact OAuth origin.
 
-Enable worker `HOSTED_WORKER_ENABLED=1` for a controlled smoke check while
-frontend job admission remains off. Verify its authenticated `/api/wake` publishes
-to the private queue consumer. Local development tokens cannot publish messages
+Worker was temporarily enabled for synthetic tests and is reset to 0.
+Authenticated deployed `/api/wake` returned 202, published to the private queue
+consumer and launched actual jobs. Re-enable only for the next reviewed check,
+while frontend admission remains off. Local development tokens cannot publish messages
 pinned to production deployments; an explicit probe was denied before publication.
 Use the real deployed producer rather than bypassing that environment boundary.
 
