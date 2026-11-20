@@ -8,7 +8,7 @@ the private queue consumer remain enforced. This is not an activated beta.
 
 ## Account-holder actions
 
-1. Complete the initial Google sign-in in the deployed app. Google OAuth is now
+1. Initial Google sign-in is verified in the deployed app. Google OAuth is now
    configured in project `career-workspace-515317` (Career Workspace), with an
    External/Testing Web client and the approved initial test user. Sensitive
    `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are configured in frontend
@@ -16,7 +16,9 @@ the private queue consumer remain enforced. This is not an activated beta.
    `https://career-workspace-franck-the-tank.vercel.app`. Redirect URI:
    `https://career-workspace-franck-the-tank.vercel.app/api/auth/callback/google`.
    Anonymous session returns 401, and sign-in initiation returns 200 with the
-   exact callback and email/profile/openid scopes. Actual login is not yet proven.
+   exact callback and email/profile/openid scopes. User-completed Google login
+   reached authenticated CV onboarding and remained authenticated after reload.
+   Live logout/revocation has not yet been exercised.
    Keep credentials and contact details outside source/chat. Keep preview origins
    separate; do not wildcard trusted origins. Testing restricts access to test users.
 2. Complete Vercel AI Gateway's credit-card verification directly. Brokered live
@@ -36,8 +38,9 @@ the private queue consumer remain enforced. This is not an activated beta.
 ## Operator continuation after those actions
 
 Keep frontend `HOSTED_JOBS_ENABLED` unset/0 until the worker is verified.
-Google settings are deployed and anonymous session returns 401. Complete real Google login/logout and
-revocation, and verify all production entry aliases use the exact OAuth origin.
+Google settings are deployed, anonymous session returns 401, and real Google
+login/session persistence is verified. Complete logout/revocation checks and
+verify all production entry aliases use the exact OAuth origin.
 
 Enable worker `HOSTED_WORKER_ENABLED=1` for a controlled smoke check while
 frontend job admission remains off. Verify its authenticated `/api/wake` publishes
