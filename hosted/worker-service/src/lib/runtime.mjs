@@ -2,17 +2,18 @@ import path from 'node:path';
 import os from 'node:os';
 import pg from 'pg';
 import { Sandbox } from '@vercel/sandbox';
-import { getVercelOidcToken } from '@vercel/oidc';
 import { send } from '@vercel/queue';
 import { Queue } from '@hosted-career/control-plane/queue.mjs';
 import { Supervisor } from '@hosted-career/control-plane/supervisor.mjs';
 import { BlobSnapshotStore } from '@hosted-career/control-plane/blob-snapshots.mjs';
 import { sandboxRunner } from './generated/runner.mjs';
 import { attemptJournal } from './generated/journal.mjs';
+import { modelProvider } from './provider.mjs';
 
 let services;
 function configured() {
   if (process.env.HOSTED_WORKER_ENABLED !== '1') throw new Error('worker_disabled');
+  modelProvider();
   if (services) return services;
   if (!process.env.DATABASE_URL || !process.env.HOSTED_ENGINE_IMAGES || (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID)) throw new Error('worker_configuration_required');
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 3, connectionTimeoutMillis: 5000, statement_timeout: 5000 });
@@ -45,9 +46,8 @@ export async function consume() {
   const services = configured();
   await services.queue.reapExpired();
   await cleanup(services);
-  const token = await getVercelOidcToken();
   const runner = sandboxRunner({ images:services.images,
-    provider:{baseUrl:'https://ai-gateway.vercel.sh/v1',model:'openai/gpt-4.1-mini',apiKey:token},
+    provider:modelProvider(),
     journal:attemptJournal(services.queue,{maxDailyAttempts:20}) });
   const supervisor = new Supervisor({ ...services, runner, workRoot:path.join(os.tmpdir(),'hc-supervisor'),heartbeatMs:10000 });
   const result = await supervisor.runOnce();

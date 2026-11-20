@@ -21,11 +21,12 @@ the private queue consumer remain enforced. This is not an activated beta.
    Live logout/revocation has not yet been exercised.
    Keep credentials and contact details outside source/chat. Keep preview origins
    separate; do not wildcard trusted origins. Testing restricts access to test users.
-2. Complete Vercel AI Gateway's credit-card verification directly. Brokered live
-   requests currently return HTTP 403 with that requirement. No successful real
-   model request or quality evaluation has occurred, and no credits were bought.
-   The controller fixes the model to `openai/gpt-4.1-mini` and globally reserves
-   at most 20 VM attempts per rolling day. This is not a dollar spending limit.
+2. Verify Gemini free-tier access and real-model output quality. The user replaced
+   AI Gateway with direct Gemini; card verification is no longer the chosen path.
+   Worker Production has `GEMINI_API_KEY` (secret) and `HOSTED_MODEL_PROVIDER`.
+   Keep the Google project on the free tier without enabling billing. Follow
+   `model-providers.md`; Claude Code subscription is a personal manual backup,
+   not an automatic shared hosted provider. Live model quality remains unproven.
 3. Revoke/regenerate the old read/write token for `career-workspace-private` in
    Vercel Storage. It was included in the rejected private image caught before
    Sandbox execution. The image records/local tag were removed; DB owner/runtime

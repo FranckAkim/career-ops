@@ -22,10 +22,15 @@ approved image digests, generated `HOSTED_DISPATCH_SECRET` and `CRON_SECRET`.
 Set `HOSTED_WORKER_ENABLED=1` only after live checks and model access verification.
 Separately set frontend `HOSTED_JOBS_ENABLED=1` when its worker is ready; production
 API admission stays off by default even if Google credentials are added first.
-The service uses AI Gateway OIDC outside the VM and brokers its bearer header
+The service uses `GEMINI_API_KEY` outside the VM and brokers its bearer header
 through the exact chat-completions POST firewall rule. All other methods/paths
 on that host are explicitly denied, as are all unrelated hosts. Model selection
-is fixed to `openai/gpt-4.1-mini`; output is bounded by the engine.
+is fixed to `gemini-3.5-flash-lite` at Google's OpenAI-compatible endpoint;
+output is bounded by the existing engine. `HOSTED_MODEL_PROVIDER=gemini-free`
+is the supported operator setting. Missing keys fail closed, with no AI Gateway,
+paid model or Claude subscription fallback. Keep billing disabled on the Google
+project; selecting this provider cannot itself verify or enforce Google billing.
+See `docs/hosted/model-providers.md` for free-tier limits and the manual backup.
 
 Beta limits: 10 enqueued jobs per workspace per rolling 24 hours, 20 journaled VM
 attempts across the product per rolling 24 hours, one vCPU/240-second VM, queue
