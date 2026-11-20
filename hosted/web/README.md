@@ -2,7 +2,11 @@
 
 Use **`hosted/web` as the Vercel project Root Directory**. This is a native Next.js
 16.4.6 app targeting Node 24.x (tested with 24.15.0). Do not deploy the repository
-root or the legacy `web/` app. Nothing has been linked, provisioned or deployed.
+root or the legacy `web/` app. The `career-workspace` project now exists in the
+user's `franck-the-tank` Vercel team. Node 24, Next.js, the hosted root, shared
+sources and build commands were configured through the connected Vercel API.
+Git, environment variables and service resources remain unconfigured; there is
+no deployment. Local `.vercel/` linkage is private and ignored.
 
 The hosted UI and APIs remain authored in `../../web/src/`. Preparation copies
 only the listed hosted screens, API handlers, server boundary and vendored Inter
@@ -31,7 +35,7 @@ routes do not exist in this build. The source guard also rejects unexpected
 public files. Common security headers must not override the download handler's
 stricter CSP; browser tests verify this through an actual PDF response.
 
-## Future Vercel project setup
+## Vercel project setup
 
 | Setting | Value |
 | --- | --- |
