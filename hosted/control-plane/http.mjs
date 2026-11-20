@@ -24,7 +24,7 @@ async function body(request, fields) {
   } finally { clearTimeout(timer); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
-export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts }) {
+export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true }) {
   if (new URL(origin).origin !== origin || !/^[a-f0-9]{40}$/.test(engineRevision)) throw new ControlError('invalid_api_config');
   return async request => {
     try {
@@ -62,8 +62,12 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       if (collection === 'jobs' && !jobId) {
         if (request.method === 'GET') return json({ jobs: await queue.list({ tenantId, userId }) });
         if (request.method === 'POST') {
+          if (!jobsEnabled) throw new ControlError('service_unavailable');
           const input = await body(request, ['operation','postingText','postingUrl','evaluationJobId']);
           const job = await queue.enqueue({ ...input, tenantId, userId, idempotencyKey: request.headers.get('idempotency-key'), engineRevision });
+          // The database commit is authoritative. An uncertain notification must
+          // not remove the job or repeat model execution. Worker sweep repairs it.
+          if (job.status === 'queued' && notifyQueue) await notifyQueue(job.id).catch(() => {});
           return json({ job: { id: job.id, status: job.status } }, 202);
         }
       }
@@ -78,7 +82,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
     } catch (error) {
       const code = error instanceof ControlError ? error.code : 'service_unavailable';
       const status = ['not_found','evaluation_not_found','artifact_missing'].includes(code) ? 404
-        : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit'].includes(code) ? 409 : code === 'input_limit' ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
+        : code === 'daily_job_limit' ? 429 : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit'].includes(code) ? 409 : code === 'input_limit' ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
       return json({ error: code }, status);
     }
   };

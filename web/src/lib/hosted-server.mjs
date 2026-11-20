@@ -20,11 +20,19 @@ function getServices() {
   pool.on('error', () => {});
   const auth = createAuth({ pool, origin: process.env.BETTER_AUTH_URL, secret: process.env.BETTER_AUTH_SECRET, vercel: process.env.VERCEL === '1',
     google: { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET } });
-  const queue = new Queue(pool);
+  const queue = new Queue(pool, { maxDailyJobs: process.env.VERCEL === '1' ? 10 : 0 });
+  const workerUrl = process.env.HOSTED_WORKER_URL, workerSecret = process.env.HOSTED_DISPATCH_SECRET;
+  const workerReady = workerUrl && /^https:\/\/[a-z0-9.-]+\.vercel\.app$/.test(workerUrl) && workerSecret?.length >= 32;
+  const notifyQueue = workerReady ? async jobId => {
+    const response = await fetch(`${workerUrl}/api/wake`, { method: 'POST', headers: { Authorization: `Bearer ${workerSecret}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId }), signal: AbortSignal.timeout(5000), redirect: 'error' });
+    if (!response.ok) throw new Error('worker_notification_failed');
+  } : undefined;
   let store;
   if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) store = new BlobSnapshotStore({ storeId: process.env.BLOB_STORE_ID, token: process.env.BLOB_READ_WRITE_TOKEN });
   else if (process.env.VERCEL !== '1' && process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT) store = new SnapshotStore(process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT);
-  services = { auth, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store }), artifacts: new Artifacts({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION }) };
+  services = { auth, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store }), artifacts: new Artifacts({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION,
+    notifyQueue, jobsEnabled: process.env.VERCEL !== '1' || !!workerReady }) };
   return services;
 }
 export async function hostedRequest(request) {

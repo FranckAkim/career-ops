@@ -58,6 +58,9 @@ try {
   const first = await enqueue(tenantA, userA, 'first');
   const copies = await Promise.all(Array.from({ length: 8 }, () => enqueue(tenantA, userA, 'first')));
   assert.ok(copies.every(j => j.id === first.id));
+  const limitedQueue = new Queue(pool, { maxDailyJobs: 1 });
+  await assert.rejects(limitedQueue.enqueue({ tenantId:tenantA,userId:userA,idempotencyKey:'quota-rejected',operation:'evaluate',postingText:'Synthetic role',engineRevision }), /daily_job_limit/);
+  assert.equal((await limitedQueue.enqueue({ tenantId:tenantA,userId:userA,idempotencyKey:'first',operation:'evaluate',postingText:'Example Employer needs a Python engineer.',engineRevision })).id,first.id);
   await assert.rejects(queue.enqueue({ tenantId: tenantA, userId: userA, idempotencyKey: 'first', operation: 'evaluate', postingText: 'Different', engineRevision }), /idempotency_conflict/);
   await assert.rejects(enqueue(tenantA, userB), /not_found/);
   await assert.rejects(queue.read({ tenantId: tenantA, userId: userB, jobId: first.id }), /not_found/);
@@ -69,6 +72,7 @@ try {
   const a = claims.find(j => j.tenant_id === tenantA), b = claims.find(j => j.tenant_id === tenantB);
   const journal = attemptJournal(queue), attemptName = `hc-${randomUUID()}`;
   await journal({ name: attemptName, jobId: a.id, claim: a, state: 'creating' });
+  await assert.rejects(attemptJournal(queue,{maxDailyAttempts:1})({name:`hc-${randomUUID()}`,jobId:b.id,claim:b,state:'creating'}), /worker_daily_limit/);
   await assert.rejects(journal({ name: `hc-${randomUUID()}`, jobId: a.id, claim: a, state: 'creating' }), /unique|duplicate/);
   await journal({ name: attemptName, jobId: a.id, claim: a, sessionId: 'synthetic-session', state: 'running' });
   await queue.cancel({ tenantId: tenantA, userId: userA, jobId: a.id });

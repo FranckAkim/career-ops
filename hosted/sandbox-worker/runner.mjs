@@ -41,7 +41,12 @@ export function sandboxRunner({ images, provider, journal, credentials = {}, tim
       // A bounded create request plus VM lifetime also bounds ambiguous failure.
       const sandbox = await create({ ...credentials, name, image, persistent: false, ports: [], resources: { vcpus: 1 }, timeout: timeoutMs,
         signal: AbortSignal.timeout(60000),
-        networkPolicy: { allow: { [endpoint.hostname]: [{ match: { path: { exact: completionPath }, method: ['POST'] }, transform: [{ headers: { Authorization: `Bearer ${provider.apiKey}` } }] }] } },
+        networkPolicy: { allow: { [endpoint.hostname]: [
+          { match: { path: { exact: completionPath }, method: ['POST'] }, transform: [{ headers: { Authorization: `Bearer ${provider.apiKey}` } }] },
+          // Allowed domains otherwise permit unmatched requests. Explicitly
+          // deny every other method/path on the provider host as well.
+          { response: { statusCode:403,contentType:'application/json',body:'{"error":"worker_egress_denied"}' } },
+        ] } },
         env: { HOSTED_MODEL_BASE_URL: provider.baseUrl, HOSTED_MODEL: provider.model, HOSTED_MODEL_API_KEY: 'brokered-outside-vm', HOSTED_WORKSPACE_ROOT: '/tmp/hc-workspace', HOSTED_TIMEOUT_MS: String(Math.min(timeoutMs, 900000)), NODE_EXTRA_CA_CERTS: '/etc/ssl/certs/ca-certificates.crt', NODE_USE_SYSTEM_CA: '1' },
       });
       session = sandbox.currentSession();

@@ -46,6 +46,7 @@ test('fresh pinned VM, brokered credentials and stop before local publication', 
   assert.equal(options.persistent, false); assert.deepEqual(options.ports, []);
   assert.equal(JSON.stringify(options.env).includes(provider.apiKey), false);
   assert.deepEqual(options.networkPolicy.allow['api.example.com'][0].match, { path: { exact: '/v1/chat/completions' }, method: ['POST'] });
+  assert.equal(options.networkPolicy.allow['api.example.com'][1].response.statusCode,403);
   assert.deepEqual(await exportWorkspace(workspace), bundle);
 }));
 test('cancellation during create stops the original VM without running work', async () => fixture(async workspace => {

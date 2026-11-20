@@ -8,7 +8,7 @@ sources and build commands were configured through the connected Vercel API.
 A private Blob store and Free-plan Neon database are connected. Database schemas
 and restricted runtime roles have been verified, along with a synthetic private
 Blob round trip. Git, OAuth and worker activation remain unfinished; there is no
-deployment. Local `.vercel/` linkage and environment files are private and ignored.
+deployment yet. Local `.vercel/` linkage and environment files are private and ignored.
 
 The hosted UI and APIs remain authored in `../../web/src/`. Preparation copies
 only the listed hosted screens, API handlers, server boundary and vendored Inter
@@ -68,7 +68,9 @@ about 7.3 MB before Vercel's packaging; that is not a billed/deployed bundle-siz
 measurement. Vercel's actual deployment artifact still needs inspection once
 the project is linked. No cloud compatibility claim is made from local builds.
 
-The worker remains a separate trust/deployment boundary. See
+The worker remains a separate trust/deployment boundary at `hosted/worker-service`.
+The frontend uses a server-only notification URL/secret after committing a job;
+Vercel queue delivery runs the separate supervisor. See
 [`docs/hosted/sandbox-worker-plan.md`](../../docs/hosted/sandbox-worker-plan.md).
 Live OAuth/Blob/database configuration, quotas, retention and an authorized
 model budget remain required before beta.

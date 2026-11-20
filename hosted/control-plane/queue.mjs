@@ -10,9 +10,10 @@ const event = (db, job, kind) => db.query('insert into job_events(tenant_id,job_
 // Caller identity must come from verified server-side auth, never a request body.
 // Worker/admin methods below are private capabilities, not public API handlers.
 export class Queue {
-  constructor(pool, { leaseSeconds = 60 } = {}) {
+  constructor(pool, { leaseSeconds = 60, maxDailyJobs = 0 } = {}) {
     check(Number.isInteger(leaseSeconds) && leaseSeconds >= 5 && leaseSeconds <= 3600);
-    this.pool = pool; this.leaseSeconds = leaseSeconds;
+    check(Number.isInteger(maxDailyJobs) && maxDailyJobs >= 0 && maxDailyJobs <= 1000);
+    this.pool = pool; this.leaseSeconds = leaseSeconds; this.maxDailyJobs = maxDailyJobs;
   }
   async transaction(fn) {
     const db = await this.pool.connect();
@@ -52,6 +53,10 @@ export class Queue {
       await db.query('select id from tenants where id=$1 for update', [tenantId]);
       const prior = await db.query('select * from jobs where tenant_id=$1 and idempotency_key=$2', [tenantId, idempotencyKey]);
       if (prior.rows.length) { check(prior.rows[0].request_hash === fingerprint, 'idempotency_conflict'); return prior.rows[0]; }
+      if (this.maxDailyJobs) {
+        const usage = await db.query("select count(*) from jobs where tenant_id=$1 and created_at >= clock_timestamp()-interval '24 hours'", [tenantId]);
+        check(Number(usage.rows[0].count) < this.maxDailyJobs, 'daily_job_limit');
+      }
       if (operation === 'tailor') {
         const source = await db.query("select id from jobs where tenant_id=$1 and id=$2 and status='succeeded' and payload->>'operation'='evaluate'", [tenantId, evaluationJobId]);
         check(source.rows.length, 'evaluation_not_found');
