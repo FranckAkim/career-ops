@@ -111,7 +111,10 @@ Reviewed pasted-text onboarding and a private Vercel Blob adapter are now
 implemented; see [onboarding](../../docs/hosted/onboarding.md). No live Blob store
 has been provisioned/tested.
 
+The [job workspace](../../docs/hosted/workspace.md) now provides job/report/PDF UI,
+protected binary downloads, cancellation and explicit recovery discard.
+
 Still required before a hosted beta: real OAuth/storage verification, optional
-binary intake, job/report/PDF UI, Vercel-compatible worker execution, process
-service lifecycle/metrics, quotas/provider budget enforcement, recovery UI,
+binary intake, Vercel-compatible worker execution, process
+service lifecycle/metrics, quotas/provider budget enforcement, resumable checkpoints,
 retention/deletion, real-model quality evaluation and adversarial security review.
