@@ -36,6 +36,7 @@ export async function runWorker({ input = process.stdin, env = process.env, writ
       engineRevision: env.HOSTED_ENGINE_REVISION,
       timeoutMs: Number(env.HOSTED_TIMEOUT_MS || 120000),
       allowLocalProvider: env.HOSTED_ALLOW_LOCAL_PROVIDER === '1',
+      tailoringFormat: env.HOSTED_TAILOR_FORMAT || 'html',
       browserExecutable: chromium.executablePath(),
     });
     const result = await engine[operation]({ ...job, workspace: env.HOSTED_WORKSPACE_ROOT || '/workspace', signal: abort.signal });

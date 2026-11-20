@@ -53,7 +53,7 @@ export function sandboxRunner({ images, provider, journal, credentials = {}, tim
           // deny every other method/path on the provider host as well.
           { response: { statusCode:403,contentType:'application/json',body:'{"error":"worker_egress_denied"}' } },
         ] } },
-        env: { HOSTED_MODEL_BASE_URL: provider.baseUrl, HOSTED_MODEL: provider.model, HOSTED_MODEL_API_KEY: 'brokered-outside-vm', HOSTED_WORKSPACE_ROOT: '/tmp/hc-workspace', HOSTED_TIMEOUT_MS: String(Math.min(timeoutMs, 900000)), NODE_EXTRA_CA_CERTS: '/etc/ssl/certs/ca-certificates.crt', NODE_USE_SYSTEM_CA: '1' },
+        env: { HOSTED_TAILOR_FORMAT:endpoint.hostname==='generativelanguage.googleapis.com'?'json':'html', HOSTED_MODEL_BASE_URL: provider.baseUrl, HOSTED_MODEL: provider.model, HOSTED_MODEL_API_KEY: 'brokered-outside-vm', HOSTED_WORKSPACE_ROOT: '/tmp/hc-workspace', HOSTED_TIMEOUT_MS: String(Math.min(timeoutMs, 900000)), NODE_EXTRA_CA_CERTS: '/etc/ssl/certs/ca-certificates.crt', NODE_USE_SYSTEM_CA: '1' },
       });
       session = sandbox.currentSession();
       await journal({ name, jobId: job.jobId, claim, sessionId: session.sessionId, state: 'running' });

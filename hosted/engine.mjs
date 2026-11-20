@@ -23,7 +23,8 @@ function postingInput(postingText, postingUrl) {
 }
 
 /** Trusted worker API. All configuration/workspace paths are supervisor-owned. */
-export function createEngine({ provider, engineRevision, browserExecutable, allowLocalProvider = false, timeoutMs = 120_000 } = {}) {
+export function createEngine({ provider, engineRevision, browserExecutable, allowLocalProvider = false, timeoutMs = 120_000, tailoringFormat = 'html' } = {}) {
+  if (!['html','json'].includes(tailoringFormat)) throw new EngineError('invalid_tailoring_format');
   if (!/^[0-9a-f]{40}$/.test(engineRevision || '')) throw new EngineError('engine_revision_required');
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 900_000) throw new EngineError('invalid_timeout');
   if (browserExecutable != null && (typeof browserExecutable !== 'string' || !path.isAbsolute(browserExecutable))) throw new EngineError('invalid_browser_executable');
@@ -90,7 +91,12 @@ export function createEngine({ provider, engineRevision, browserExecutable, allo
         const jd = path.join(stage, 'posting.txt');
         await fs.copyFile(path.join(root, '.hosted', evaluationJobId, 'posting.txt'), jd);
         const stageEnv = await childEnv(stage, path.join(dir, 'model-home'), config.provider);
-        await run('openai-tailor.mjs', ['--jd', jd, '--report', report], { runRoot: stage, runEnv: stageEnv, failureCode: 'tailoring_failed' });
+        const payloadPath = path.join(stage, 'tailored-cv.json');
+        await run('openai-tailor.mjs', ['--jd', jd, '--report', report, ...(tailoringFormat === 'json' ? ['--json-output', payloadPath] : [])], { runRoot: stage, runEnv: stageEnv, failureCode: 'tailoring_failed' });
+        if (tailoringFormat === 'json') {
+          await fs.mkdir(path.join(stage, 'output'), {recursive:true});
+          await run('build-cv-html.mjs', [payloadPath, path.join(stage, 'output', 'cv.html')], {runRoot:stage,runEnv:{...stageEnv,OPENAI_API_KEY:''},failureCode:'cv_render_failed'});
+        }
         const output = path.join(stage, 'output');
         const files = (await fs.readdir(output)).filter(f => f.endsWith('.html'));
         if (files.length !== 1) throw new EngineError('tailored_html_missing');

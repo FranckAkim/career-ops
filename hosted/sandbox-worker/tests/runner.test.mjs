@@ -16,7 +16,7 @@ async function fixture(run) {
     await run(workspace);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 }
-function harness(bundle, { stopFails = false, wrongRevision = false, cancelAtCreate, workerError } = {}) {
+function harness(bundle, { stopFails = false, wrongRevision = false, cancelAtCreate, workerError, providerSettings = provider } = {}) {
   const events = []; let createOptions, calls = 0;
   const session = {
     sessionId: 'synthetic-session',
@@ -32,7 +32,7 @@ function harness(bundle, { stopFails = false, wrongRevision = false, cancelAtCre
       return { exitCode: calls === 3 && workerError ? 1 : 0 };
     },
   };
-  const runner = sandboxRunner({ images: { [revision]: `worker@sha256:${'1'.repeat(64)}` }, provider,
+  const runner = sandboxRunner({ images: { [revision]: `worker@sha256:${'1'.repeat(64)}` }, provider:providerSettings,
     journal: async record => { events.push(record.state); },
     create: async options => { createOptions = options; cancelAtCreate?.abort(); return { currentSession: () => session }; },
   });
@@ -53,6 +53,17 @@ test('cancellation during create stops the original VM without running work', as
   const abort = new AbortController(), h = harness(await exportWorkspace(workspace), { cancelAtCreate: abort });
   await assert.rejects(h.runner({ workspace, job: { jobId }, engineRevision: revision, signal: abort.signal }), { code: 'cancelled' });
   assert.equal(h.calls(), 0); assert.ok(h.events.includes('stop'));
+}));
+test('Gemini selects structured CV output and brokers only its exact completion path', async () => fixture(async workspace => {
+  const google={baseUrl:'https://generativelanguage.googleapis.com/v1beta/openai',model:'synthetic',apiKey:'synthetic-key'};
+  const h=harness(await exportWorkspace(workspace),{providerSettings:google});
+  await h.runner({workspace,job:{jobId},engineRevision:revision});
+  const options=h.options();
+  assert.equal(options.env.HOSTED_TAILOR_FORMAT,'json');
+  assert.ok(!JSON.stringify(options.env).includes(google.apiKey));
+  const rules=options.networkPolicy.allow['generativelanguage.googleapis.com'];
+  assert.equal(rules[0].match.path.exact,'/v1beta/openai/chat/completions');
+  assert.equal(rules[1].response.statusCode,403);
 }));
 test('worker failures expose only reviewed categories and never publish', async () => fixture(async workspace => {
   const before = await exportWorkspace(workspace);
