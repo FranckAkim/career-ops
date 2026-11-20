@@ -76,7 +76,8 @@ jobs:
         with:
           node-version: '24.15.0'
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: docker build -f hosted/Dockerfile --build-arg ENGINE_REVISION=${{ github.sha }} -t hosted-career-worker:local .
+      - run: node hosted/image-context.mjs "${RUNNER_TEMP}/hc-image-context"
+      - run: docker build --build-arg ENGINE_REVISION=${{ github.sha }} -t hosted-career-worker:local "${RUNNER_TEMP}/hc-image-context"
       - run: node hosted/prepare-seccomp.mjs "${RUNNER_TEMP}/hosted-seccomp.json"
       - name: Run the full Linux suite in the constrained worker image
         run: >-

@@ -20,7 +20,7 @@ COPY templates/ ./templates/
 COPY modes/ ./modes/
 COPY fonts/ ./fonts/
 COPY config/ ./config/
-COPY hosted/ ./hosted/
+COPY hosted/*.mjs hosted/package.json ./hosted/
 
 ARG ENGINE_REVISION
 ENV HOSTED_ENGINE_REVISION=${ENGINE_REVISION}
