@@ -1,4 +1,4 @@
-# Vercel worker adapter: SDK protocol implemented, live checks pending
+# Vercel worker adapter: synthetic cloud flow verified
 
 The hosted frontend now has its own deployment root. The next worker target is a
 separate trusted supervisor invoking a fresh Vercel Sandbox for each claimed job.
@@ -15,8 +15,13 @@ journal. Four synthetic SDK contract tests pass, including cancellation during
 creation and failed stop. Migration 004 journals random names before creation,
 then session IDs; a duplicate attempt at the same job/fence is rejected. The
 supervisor quarantines failed Sandbox cleanup. Fixed system CA trust is preserved
-without forwarding arbitrary environment variables. No Sandbox has yet run and
-the worker image has not been pushed. Live compatibility remains unproven.
+without forwarding arbitrary environment variables. The clean pinned image is
+published privately. Two synthetic tenants completed actual evaluation, tracker
+merge, strict tailoring, one-page Chromium PDFs and fenced Blob publication in
+fresh Vercel VMs, all confirmed stopped. Creation-time cancellation also passed.
+Model replies were fixed proxy fixtures. Real Gateway calls reach the account's
+card-verification requirement; real-model quality and production queue delivery
+remain pending. The separate service is deployed but disabled.
 
 ## Preserve the existing execution contract
 

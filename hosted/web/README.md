@@ -7,8 +7,9 @@ user's `franck-the-tank` Vercel team. Node 24, Next.js, the hosted root, shared
 sources and build commands were configured through the connected Vercel API.
 A private Blob store and Free-plan Neon database are connected. Database schemas
 and restricted runtime roles have been verified, along with a synthetic private
-Blob round trip. Git, OAuth and worker activation remain unfinished; there is no
-deployment yet. Local `.vercel/` linkage and environment files are private and ignored.
+Blob round trip. Git is connected and the production app is deployed at
+https://career-workspace-franck-the-tank.vercel.app . OAuth and worker activation
+remain unfinished. Local `.vercel/` linkage and environment files are private and ignored.
 
 The hosted UI and APIs remain authored in `../../web/src/`. Preparation copies
 only the listed hosted screens, API handlers, server boundary and vendored Inter
@@ -63,10 +64,12 @@ before live-resource migrations or runtime testing.
 CI runs the real PostgreSQL/browser/worker/PDF tests against this app using
 `HOSTED_TEST_APP=deployment`, including an intentionally requested local mode.
 The browser flow verifies the shared implementation still works while legacy
-routes remain absent. Local build traces currently include 1211 unique files,
-about 7.3 MB before Vercel's packaging; that is not a billed/deployed bundle-size
-measurement. Vercel's actual deployment artifact still needs inspection once
-the project is linked. No cloud compatibility claim is made from local builds.
+routes remain absent. Latest local traces include 1137 unique files, about 6.8 MB
+before Vercel packaging; that is not a billed bundle-size measurement. Vercel's
+build completed its route/trace audit and the live hosted/legacy-route checks
+passed. The deployment-file-tree API returned 404, so a separate full packaged
+artifact listing has not been verified. Cloud engine evidence is recorded in
+the shared handoff; local builds alone do not establish it.
 
 The worker remains a separate trust/deployment boundary at `hosted/worker-service`.
 The frontend uses a server-only notification URL/secret after committing a job;

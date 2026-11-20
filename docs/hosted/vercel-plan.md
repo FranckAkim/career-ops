@@ -1,8 +1,12 @@
 # Deployment target: Vercel
 
 The user selected Vercel on 2026-11-19. Preserve this decision across agents.
-Implementation/testing is authorized now; public deployment and paid resource
-provisioning are not part of this milestone.
+The user expanded authorization to implementation and Vercel setup/deployment on
+2026-11-20, and separately approved public production app and worker entry points.
+Both dedicated projects are deployed; previews retain Vercel protection. Neon
+uses its Free plan and private Blob uses project OIDC. Worker/model activation
+remains disabled pending the account steps in `live-activation.md`. Payment-card
+entry and plan commitments require the account holder.
 
 Deploy the dedicated Next.js entry at `hosted/web/`, which allowlist-copies the
 shared hosted UI/API source from `web/`, using native Node.js Route Handlers

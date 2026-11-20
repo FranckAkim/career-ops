@@ -70,10 +70,11 @@ Receipts under `.hosted/<job-id>/` include operation, input/source/model/engine 
 
 Server-owned environment configuration: `HOSTED_MODEL_BASE_URL`, `HOSTED_MODEL`, `HOSTED_MODEL_API_KEY`, `HOSTED_ENGINE_REVISION`, optional `HOSTED_TIMEOUT_MS`, and `HOSTED_WORKSPACE_ROOT` (default `/workspace`). `HOSTED_ALLOW_LOCAL_PROVIDER=1` is for explicit loopback-only development fixtures. Payloads cannot choose a provider, executable, workspace or flags.
 
-Build from the repository root:
+Prepare a new absolute context directory outside the repository before building:
 
 ```sh
-docker build -f hosted/Dockerfile --build-arg ENGINE_REVISION=<source-commit> -t hosted-career-worker .
+node hosted/image-context.mjs /tmp/career-worker-context
+docker build --build-arg ENGINE_REVISION=<source-commit-from-preparation> -t hosted-career-worker /tmp/career-worker-context
 ```
 
 The image uses a non-root user, pinned Node/dependencies/browser and a build-context allowlist that excludes user-layer documents and credentials. It exposes no HTTP port. The supervisor must supply exactly one tenant workspace and enforce read-only image files, resource/PID limits, restricted egress, no host credentials/Docker socket, and a sandbox-compatible container security profile. Chromium sandbox startup failures are hard failures; do not add `--no-sandbox`, privileged mode or broad host mounts to make a job pass. See the [official Playwright container guidance](https://playwright.dev/docs/docker) for non-root user namespace requirements.
