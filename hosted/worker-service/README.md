@@ -20,6 +20,8 @@ Runtime settings: restricted worker `DATABASE_URL`, private `BLOB_STORE_ID` with
 OIDC project access, `HOSTED_ENGINE_IMAGES` JSON map of full engine revisions to
 approved image digests, generated `HOSTED_DISPATCH_SECRET` and `CRON_SECRET`.
 Set `HOSTED_WORKER_ENABLED=1` only after live checks and model access verification.
+Separately set frontend `HOSTED_JOBS_ENABLED=1` when its worker is ready; production
+API admission stays off by default even if Google credentials are added first.
 The service uses AI Gateway OIDC outside the VM and brokers its bearer header
 through the exact chat-completions POST firewall rule. All other methods/paths
 on that host are explicitly denied, as are all unrelated hosts. Model selection

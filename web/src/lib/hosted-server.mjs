@@ -32,7 +32,7 @@ function getServices() {
   if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) store = new BlobSnapshotStore({ storeId: process.env.BLOB_STORE_ID, token: process.env.BLOB_READ_WRITE_TOKEN });
   else if (process.env.VERCEL !== '1' && process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT) store = new SnapshotStore(process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT);
   services = { auth, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store }), artifacts: new Artifacts({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION,
-    notifyQueue, jobsEnabled: process.env.VERCEL !== '1' || !!workerReady }) };
+    notifyQueue, jobsEnabled: process.env.VERCEL !== '1' || (process.env.HOSTED_JOBS_ENABLED === '1' && !!workerReady) }) };
   return services;
 }
 export async function hostedRequest(request) {
