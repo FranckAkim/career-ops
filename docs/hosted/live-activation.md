@@ -8,17 +8,17 @@ the private queue consumer remain enforced. This is not an activated beta.
 
 ## Account-holder actions
 
-1. Configure a Google OAuth Web application client. Authorized origin:
-   A dedicated Cloud project now exists: `career-workspace-515317`, named
-   Career Workspace. Its app-identity form is started; support/contact email
-   selection is pending the user's choice. Reuse this project.
-   Authorized origin:
+1. Complete the initial Google sign-in in the deployed app. Google OAuth is now
+   configured in project `career-workspace-515317` (Career Workspace), with an
+   External/Testing Web client and the approved initial test user. Sensitive
+   `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are configured in frontend
+   Production and the redeployment is READY. Authorized origin:
    `https://career-workspace-franck-the-tank.vercel.app`. Redirect URI:
    `https://career-workspace-franck-the-tank.vercel.app/api/auth/callback/google`.
-   Store `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` directly in the frontend
-   project's production environment, never in chat, source or browser variables.
-   Use only the required identity/profile/email scopes. Keep preview origins
-   separate; do not wildcard trusted origins.
+   Anonymous session returns 401, and sign-in initiation returns 200 with the
+   exact callback and email/profile/openid scopes. Actual login is not yet proven.
+   Keep credentials and contact details outside source/chat. Keep preview origins
+   separate; do not wildcard trusted origins. Testing restricts access to test users.
 2. Complete Vercel AI Gateway's credit-card verification directly. Brokered live
    requests currently return HTTP 403 with that requirement. No successful real
    model request or quality evaluation has occurred, and no credits were bought.
@@ -36,8 +36,7 @@ the private queue consumer remain enforced. This is not an activated beta.
 ## Operator continuation after those actions
 
 Keep frontend `HOSTED_JOBS_ENABLED` unset/0 until the worker is verified.
-Redeploy to load the new Google settings. Confirm anonymous hosted APIs now
-return 401 instead of configuration 503, complete real Google login/logout and
+Google settings are deployed and anonymous session returns 401. Complete real Google login/logout and
 revocation, and verify all production entry aliases use the exact OAuth origin.
 
 Enable worker `HOSTED_WORKER_ENABLED=1` for a controlled smoke check while
