@@ -16,7 +16,7 @@ async function fixture(run) {
     await run(workspace);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 }
-function harness(bundle, { stopFails = false, wrongRevision = false, cancelAtCreate } = {}) {
+function harness(bundle, { stopFails = false, wrongRevision = false, cancelAtCreate, workerError } = {}) {
   const events = []; let createOptions, calls = 0;
   const session = {
     sessionId: 'synthetic-session',
@@ -26,10 +26,10 @@ function harness(bundle, { stopFails = false, wrongRevision = false, cancelAtCre
       let output;
       if (calls === 1) output = { revision: wrongRevision ? 'b'.repeat(40) : revision, uid: 1000 };
       else if (calls === 2) output = { imported: true };
-      else if (calls === 3) output = { ok: true, result: { jobId, engineRevision: revision } };
+      else if (calls === 3) output = workerError ? { ok:false,error:workerError } : { ok: true, result: { jobId, engineRevision: revision } };
       else output = bundle;
       options.stdout.write(JSON.stringify(output));
-      return { exitCode: 0 };
+      return { exitCode: calls === 3 && workerError ? 1 : 0 };
     },
   };
   const runner = sandboxRunner({ images: { [revision]: `worker@sha256:${'1'.repeat(64)}` }, provider,
@@ -53,6 +53,15 @@ test('cancellation during create stops the original VM without running work', as
   const abort = new AbortController(), h = harness(await exportWorkspace(workspace), { cancelAtCreate: abort });
   await assert.rejects(h.runner({ workspace, job: { jobId }, engineRevision: revision, signal: abort.signal }), { code: 'cancelled' });
   assert.equal(h.calls(), 0); assert.ok(h.events.includes('stop'));
+}));
+test('worker failures expose only reviewed categories and never publish', async () => fixture(async workspace => {
+  const before = await exportWorkspace(workspace);
+  for (const [workerError, code] of [['cv_facts_failed','cv_facts_failed'], ['private model output secret','worker_failed']]) {
+    const h = harness(before, {workerError});
+    await assert.rejects(h.runner({workspace,job:{jobId},engineRevision:revision}), {code});
+    assert.deepEqual(await exportWorkspace(workspace),before);
+    assert.deepEqual(h.events,['creating','running','stop','stopped']);
+  }
 }));
 test('failed cleanup cannot return success or publish files', async () => fixture(async workspace => {
   const before = await exportWorkspace(workspace), h = harness(before, { stopFails: true });

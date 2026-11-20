@@ -18,7 +18,7 @@ idempotent resubmission. Higher-frequency repair requires a suitable plan.
 
 Runtime settings: restricted worker `DATABASE_URL`, private `BLOB_STORE_ID` with
 OIDC project access, `HOSTED_ENGINE_IMAGES` JSON map of full engine revisions to
-approved image digests, generated `HOSTED_DISPATCH_SECRET` and `CRON_SECRET`.
+approved image digests in this worker project's own private registry, generated `HOSTED_DISPATCH_SECRET` and `CRON_SECRET`.
 Set `HOSTED_WORKER_ENABLED=1` only after live checks and model access verification.
 Separately set frontend `HOSTED_JOBS_ENABLED=1` when its worker is ready; production
 API admission stays off by default even if Google credentials are added first.

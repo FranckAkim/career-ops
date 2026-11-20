@@ -8,6 +8,10 @@ import { ControlError } from '../control-plane/queue.mjs';
 
 const codeRoot = '/opt/career-ops';
 const fail = code => { throw new ControlError(code); };
+const workerErrors = new Set(['tailoring_failed', 'cv_facts_failed', 'invalid_cv_html',
+  'tailored_html_missing', 'invalid_pdf', 'invalid_pdf_pages', 'pdf_not_indexed',
+  'pdf_not_marked_ready', 'evaluation_stale', 'evaluation_not_in_tracker',
+  'browser_required', 'fact_config_required', 'timed_out', 'output_limit']);
 // Configuration is operator-owned. Credentials are brokered outside the VM.
 export function sandboxRunner({ images, provider, journal, credentials = {}, timeoutMs = 240000, create = options => Sandbox.create(options) }) {
   let endpoint;
@@ -64,7 +68,13 @@ export function sandboxRunner({ images, provider, journal, credentials = {}, tim
         stdout.on('error', () => {}); stderr.on('error', () => {});
         const result = await session.runCommand({ cmd: '/usr/local/bin/node', args: [`${codeRoot}/hosted/${script}`, ...args], cwd: codeRoot,
           stdin: Readable.from([input]), stdout, stderr, signal, timeoutMs });
-        if (result.exitCode !== 0) fail('worker_failed');
+        if (result.exitCode !== 0) {
+          // Preserve only reviewed error categories, never model output, paths,
+          // provider response bodies or arbitrary worker-supplied error text.
+          let reply;
+          try { reply = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch {}
+          fail(script === 'worker.mjs' && reply?.ok === false && workerErrors.has(reply.error) ? reply.error : 'worker_failed');
+        }
         try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { fail('invalid_worker_response'); }
       };
       const probe = await command('transfer-worker.mjs', ['probe']);
