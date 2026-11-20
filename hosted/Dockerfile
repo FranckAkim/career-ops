@@ -6,7 +6,8 @@ ENV NODE_ENV=production \
 
 WORKDIR /opt/career-ops
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts --no-audit --no-fund \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && npm ci --ignore-scripts --no-audit --no-fund \
     && npx playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir /workspace \
