@@ -1,11 +1,17 @@
-# Vercel worker adapter: selected direction, not implemented
+# Vercel worker adapter: transport foundation implemented
 
 The hosted frontend now has its own deployment root. The next worker target is a
 separate trusted supervisor invoking a fresh Vercel Sandbox for each claimed job.
 Keep its SDK, operator credentials and lifecycle outside the frontend bundle.
 The current Docker runner remains the runtime-verified reference implementation.
-No Sandbox was created, SDK runner shipped, registry pushed or paid resource used
-for this design work. Live compatibility remains unproven.
+`hosted/workspace-transfer.mjs` now provides a dependency-free, bounded binary
+bundle protocol with hash verification, fresh-directory import and confirmed
+source retention checks. It rejects links, hard links, unsafe/colliding paths,
+file/directory conflicts and excessive traversal. The default payload limit is
+20 MB; callers must also bound raw SDK streams before JSON parsing. Export requires
+a quiescent workspace and import requires an operator-owned parent directory.
+It is not yet wired to a Sandbox runner. No Sandbox was created, registry pushed
+or paid resource used. Live compatibility remains unproven.
 
 ## Preserve the existing execution contract
 

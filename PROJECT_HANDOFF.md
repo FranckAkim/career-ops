@@ -67,6 +67,7 @@ After each meaningful implementation chunk, update the Progress section below wi
 
 ## Progress
 
+- 2026-11-19: Added `hosted/workspace-transfer.mjs` as the first Sandbox adapter foundation: bounded base64 binary bundles, SHA-256 verification, new-directory import, cross-platform safe paths, hard-link/symlink rejection, traversal limits and primary-source retention checks. Local `node --test hosted/tests/workspace-transfer.test.mjs`: one passed, one Linux-only symlink test skipped on Windows. The existing CI engine test glob includes these tests. SDK runner, bounded remote streams, cloud lifecycle, brokered TLS trust and live Sandbox compatibility are still unfinished; no resources or model calls were created.
 - 2026-11-19: Source review completed at the pinned upstream commit. Existing web app, standalone model entrypoints, canonical storage and local-only assumptions inspected.
 - 2026-11-19: Multi-user hosted direction explicitly confirmed by user; implementation and publishing shared documentation authorized.
 - 2026-11-19: Documentation published before implementation in commit `4f5356b`; verified PROJECT_HANDOFF.md through the GitHub connector. The existing fork is writable; no browser sign-in was needed.
