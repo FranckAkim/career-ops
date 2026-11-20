@@ -5,8 +5,10 @@ Use **`hosted/web` as the Vercel project Root Directory**. This is a native Next
 root or the legacy `web/` app. The `career-workspace` project now exists in the
 user's `franck-the-tank` Vercel team. Node 24, Next.js, the hosted root, shared
 sources and build commands were configured through the connected Vercel API.
-Git, environment variables and service resources remain unconfigured; there is
-no deployment. Local `.vercel/` linkage is private and ignored.
+A private Blob store and Free-plan Neon database are connected. Database schemas
+and restricted runtime roles have been verified, along with a synthetic private
+Blob round trip. Git, OAuth and worker activation remain unfinished; there is no
+deployment. Local `.vercel/` linkage and environment files are private and ignored.
 
 The hosted UI and APIs remain authored in `../../web/src/`. Preparation copies
 only the listed hosted screens, API handlers, server boundary and vendored Inter

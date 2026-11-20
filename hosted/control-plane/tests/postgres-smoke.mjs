@@ -16,6 +16,7 @@ import { candidate, modelServer, engineRevision } from '../../tests/fixtures.mjs
 import { verifyAuthHttp } from './auth-http.mjs';
 import { verifyOnboarding } from './onboarding.mjs';
 import { verifyArtifacts } from './artifacts.mjs';
+import { attemptJournal } from '../../sandbox-worker/journal.mjs';
 
 const name = `hc-postgres-test-${randomUUID()}`;
 const cleanup = [];
@@ -66,10 +67,17 @@ try {
   const claims = (await Promise.all(Array.from({ length: 8 }, () => queue.claim()))).filter(Boolean);
   assert.equal(claims.length, 2); assert.equal(new Set(claims.map(j => j.tenant_id)).size, 2);
   const a = claims.find(j => j.tenant_id === tenantA), b = claims.find(j => j.tenant_id === tenantB);
+  const journal = attemptJournal(queue), attemptName = `hc-${randomUUID()}`;
+  await journal({ name: attemptName, jobId: a.id, claim: a, state: 'creating' });
+  await assert.rejects(journal({ name: `hc-${randomUUID()}`, jobId: a.id, claim: a, state: 'creating' }), /unique|duplicate/);
+  await journal({ name: attemptName, jobId: a.id, claim: a, sessionId: 'synthetic-session', state: 'running' });
   await queue.cancel({ tenantId: tenantA, userId: userA, jobId: a.id });
   assert.equal(await queue.heartbeat(a), false);
   await assert.rejects(queue.publish(a, { snapshot: initial.id, result: { jobId: a.id, engineRevision }, artifacts: [] }), /cancelled/);
   assert.equal(await queue.finish(a), 'cancelled');
+  await journal({ name: attemptName, jobId: a.id, claim: a, sessionId: 'synthetic-session', state: 'stopped' });
+  assert.equal((await pool.query('select state from worker_attempts where name=$1', [attemptName])).rows[0].state, 'stopped');
+  await assert.rejects(journal({ name: `hc-${randomUUID()}`, jobId: a.id, claim: a, state: 'creating' }), /lease_lost/);
   await queue.finish(b, { ambiguous: false, code: 'synthetic_failure' });
   console.log('PASS concurrent tenant serialization and cancellation before publication');
 

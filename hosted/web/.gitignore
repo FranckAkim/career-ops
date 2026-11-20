@@ -10,3 +10,5 @@
 /src/assets/
 /public/
 .env*
+
+.env*

@@ -54,6 +54,9 @@ jobs:
       - run: npm --prefix hosted test
       - run: npm ci --prefix hosted/control-plane --ignore-scripts --no-audit --no-fund
       - run: npm --prefix hosted/control-plane test
+      - run: npm ci --prefix hosted/sandbox-worker --ignore-scripts --no-audit --no-fund
+      - run: npm --prefix hosted/sandbox-worker test
+      - run: npm --prefix hosted/sandbox-worker audit --omit=dev --audit-level=high
       - run: node validate-system-paths-coverage.mjs
       - run: npm ci --prefix web --ignore-scripts --no-audit --no-fund
       - run: npm --prefix web run typecheck

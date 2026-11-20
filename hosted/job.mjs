@@ -47,6 +47,11 @@ export async function childEnv(root, home, provider) {
   await fs.mkdir(home, { recursive: true });
   const env = {};
   for (const name of ['SystemRoot', 'WINDIR', 'COMSPEC', 'PATH', 'PATHEXT', 'LANG', 'TZ']) if (process.env[name]) env[name] = process.env[name];
+  // Trust only the platform's fixed system bundle; never an arbitrary host path.
+  if (process.env.NODE_EXTRA_CA_CERTS === '/etc/ssl/certs/ca-certificates.crt' && process.env.NODE_USE_SYSTEM_CA === '1') {
+    env.NODE_EXTRA_CA_CERTS = '/etc/ssl/certs/ca-certificates.crt';
+    env.NODE_USE_SYSTEM_CA = '1';
+  }
   return Object.assign(env, {
     HOME: home, USERPROFILE: home, TMP: home, TEMP: home, TMPDIR: home,
     APPDATA: home, LOCALAPPDATA: home, XDG_CONFIG_HOME: home, XDG_CACHE_HOME: home,

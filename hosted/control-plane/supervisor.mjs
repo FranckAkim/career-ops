@@ -31,7 +31,7 @@ export class Supervisor {
       await this.store.materialize(claim.base_snapshot, workspace);
       if (signal?.aborted) abort.abort();
       // runner must settle only after the worker/container is fully stopped.
-      const result = await this.runner({ workspace, job: { ...claim.payload, jobId: claim.id }, engineRevision: claim.engine_revision, signal: abort.signal });
+      const result = await this.runner({ workspace, job: { ...claim.payload, jobId: claim.id }, engineRevision: claim.engine_revision, claim, signal: abort.signal });
       if (lost || abort.signal.aborted) throw new ControlError('cancelled');
       const snapshot = await this.store.capture(workspace);
       // Read the verified regular-file copy, never a worker-created host link.
@@ -48,7 +48,7 @@ export class Supervisor {
     } catch (error) {
       abort.abort(); await stopHeartbeat();
       const code = error instanceof ControlError ? error.code : 'supervisor_failed';
-      quarantine = code === 'container_cleanup_failed';
+      quarantine = ['container_cleanup_failed', 'sandbox_cleanup_failed'].includes(code);
       try { return { jobId: claim.id, status: await this.queue.finish(claim, { ambiguous: true, code }) }; }
       catch (failure) { if (failure.code !== 'lease_lost') throw failure; return { jobId: claim.id, status: 'lease_lost' }; }
     } finally {

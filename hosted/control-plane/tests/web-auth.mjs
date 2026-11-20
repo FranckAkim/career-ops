@@ -22,6 +22,9 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
   const child = spawn(process.execPath, [path.join(webRoot, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', new URL(origin).port], {
     cwd: webRoot, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore','pipe','pipe'],
     env: { ...process.env, CAREER_OPS_MODE: process.env.HOSTED_TEST_APP === 'deployment' ? 'local' : 'hosted', DATABASE_URL: database.href, BETTER_AUTH_URL: origin, BETTER_AUTH_SECRET: secret,
+      // Next loads .env.local automatically. Explicit blanks prevent a linked
+      // developer machine from sending synthetic fixtures to live Blob storage.
+      BLOB_READ_WRITE_TOKEN: '', BLOB_STORE_ID: '', VERCEL: '',
       GOOGLE_CLIENT_ID: 'synthetic-client', GOOGLE_CLIENT_SECRET: 'synthetic-secret', HOSTED_ENGINE_REVISION: engineRevision, NEXT_TELEMETRY_DISABLED: '1', HOSTED_DEVELOPMENT_SNAPSHOT_ROOT: store.root },
   });
   child.stdout.resume(); child.stderr.resume();

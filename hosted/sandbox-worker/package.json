@@ -1,0 +1,10 @@
+{
+  "name": "@hosted-career/sandbox-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.15.0" },
+  "scripts": { "test": "node --test tests/*.test.mjs" },
+  "dependencies": { "@vercel/sandbox": "4.0.0" },
+  "overrides": { "zod": "4.6.7" }
+}

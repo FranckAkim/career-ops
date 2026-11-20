@@ -1,4 +1,4 @@
-# Vercel worker adapter: transport foundation implemented
+# Vercel worker adapter: SDK protocol implemented, live checks pending
 
 The hosted frontend now has its own deployment root. The next worker target is a
 separate trusted supervisor invoking a fresh Vercel Sandbox for each claimed job.
@@ -10,8 +10,13 @@ source retention checks. It rejects links, hard links, unsafe/colliding paths,
 file/directory conflicts and excessive traversal. The default payload limit is
 20 MB; callers must also bound raw SDK streams before JSON parsing. Export requires
 a quiescent workspace and import requires an operator-owned parent directory.
-It is not yet wired to a Sandbox runner. No Sandbox was created, registry pushed
-or paid resource used. Live compatibility remains unproven.
+`hosted/sandbox-worker` now implements the separate SDK runner and durable attempt
+journal. Four synthetic SDK contract tests pass, including cancellation during
+creation and failed stop. Migration 004 journals random names before creation,
+then session IDs; a duplicate attempt at the same job/fence is rejected. The
+supervisor quarantines failed Sandbox cleanup. Fixed system CA trust is preserved
+without forwarding arbitrary environment variables. No Sandbox has yet run and
+the worker image has not been pushed. Live compatibility remains unproven.
 
 ## Preserve the existing execution contract
 
