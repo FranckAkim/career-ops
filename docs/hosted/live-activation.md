@@ -9,6 +9,10 @@ the private queue consumer remain enforced. This is not an activated beta.
 ## Account-holder actions
 
 1. Configure a Google OAuth Web application client. Authorized origin:
+   A dedicated Cloud project now exists: `career-workspace-515317`, named
+   Career Workspace. Its app-identity form is started; support/contact email
+   selection is pending the user's choice. Reuse this project.
+   Authorized origin:
    `https://career-workspace-franck-the-tank.vercel.app`. Redirect URI:
    `https://career-workspace-franck-the-tank.vercel.app/api/auth/callback/google`.
    Store `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` directly in the frontend
