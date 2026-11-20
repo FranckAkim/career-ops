@@ -41,7 +41,7 @@ jobs:
         # Windows run additionally verifies the supported local development path.
         os: [windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,6 +58,9 @@ jobs:
       - run: npm ci --prefix web --ignore-scripts --no-audit --no-fund
       - run: npm --prefix web run typecheck
       - run: node --test web/tests/hosted-mode.test.mjs web/tests/lib/origin-guard.test.mjs
+      - run: npm ci --prefix hosted/web --ignore-scripts --no-audit --no-fund
+      - run: npm --prefix hosted/web test
+      - run: npm --prefix hosted/web run build
 
   container:
     runs-on: ubuntu-22.04
@@ -87,8 +90,9 @@ jobs:
           HOSTED_TEST_SECCOMP: ${{ runner.temp }}/hosted-seccomp.json
       - run: npm ci --prefix hosted/control-plane --ignore-scripts --no-audit --no-fund
       - run: npm --prefix hosted/control-plane test
-      - run: npm ci --prefix web --ignore-scripts --no-audit --no-fund
-      - run: npm --prefix web run build
+      - run: npm ci --prefix hosted/web --ignore-scripts --no-audit --no-fund
+      - run: npm --prefix hosted/web test
+      - run: npm --prefix hosted/web run build
       - run: npx playwright install --with-deps chromium
       - name: Verify PostgreSQL recovery and supervised container publication
         run: |
@@ -97,3 +101,4 @@ jobs:
         env:
           HOSTED_TEST_SECCOMP: ${{ runner.temp }}/hosted-seccomp.json
           HOSTED_TEST_WEB: '1'
+          HOSTED_TEST_APP: deployment

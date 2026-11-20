@@ -1,0 +1,1 @@
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{background:#101b2b;font-family:var(--font-inter),sans-serif}button,input,select,textarea{font:inherit}button,a,input,textarea,select{touch-action:manipulation}h1,h2,h3,p,ol,ul,dl,dd{margin:0}a{color:inherit}button:disabled{cursor:not-allowed}h3{font-size:1.1rem;font-weight:600}

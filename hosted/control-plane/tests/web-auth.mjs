@@ -15,13 +15,13 @@ export async function testOrigin() {
   return `http://127.0.0.1:${port}`;
 }
 export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, engineRevision, store, runner, queue, workRoot }) {
-  const webRoot = fileURLToPath(new URL('../../../web/', import.meta.url));
+  const webRoot = fileURLToPath(new URL(process.env.HOSTED_TEST_APP === 'deployment' ? '../../web/' : '../../../web/', import.meta.url));
   const database = new URL('postgresql://127.0.0.1');
   database.username = pool.options.user; database.password = pool.options.password;
   database.port = String(pool.options.port); database.pathname = `/${pool.options.database}`;
   const child = spawn(process.execPath, [path.join(webRoot, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', new URL(origin).port], {
     cwd: webRoot, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore','pipe','pipe'],
-    env: { ...process.env, CAREER_OPS_MODE: 'hosted', DATABASE_URL: database.href, BETTER_AUTH_URL: origin, BETTER_AUTH_SECRET: secret,
+    env: { ...process.env, CAREER_OPS_MODE: process.env.HOSTED_TEST_APP === 'deployment' ? 'local' : 'hosted', DATABASE_URL: database.href, BETTER_AUTH_URL: origin, BETTER_AUTH_SECRET: secret,
       GOOGLE_CLIENT_ID: 'synthetic-client', GOOGLE_CLIENT_SECRET: 'synthetic-secret', HOSTED_ENGINE_REVISION: engineRevision, NEXT_TELEMETRY_DISABLED: '1', HOSTED_DEVELOPMENT_SNAPSHOT_ROOT: store.root },
   });
   child.stdout.resume(); child.stderr.resume();
@@ -36,6 +36,10 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
       await new Promise(r => setTimeout(r, 100));
     }
     assert.ok(ready, 'production Next server returns unauthenticated 401');
+    if (process.env.HOSTED_TEST_APP === 'deployment') {
+      const license = await fetch(`${origin}/fonts/Inter-OFL.txt`);
+      assert.equal(license.status,200); assert.ok((await license.text()).includes('SIL OPEN FONT LICENSE'));
+    }
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
     await context.addCookies(accounts[0].cookie.split('; ').map(pair => {

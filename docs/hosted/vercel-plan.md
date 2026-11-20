@@ -4,7 +4,8 @@ The user selected Vercel on 2026-11-19. Preserve this decision across agents.
 Implementation/testing is authorized now; public deployment and paid resource
 provisioning are not part of this milestone.
 
-Deploy the existing Next.js app from `web/` using native Node.js Route Handlers
+Deploy the dedicated Next.js entry at `hosted/web/`, which allowlist-copies the
+shared hosted UI/API source from `web/`, using native Node.js Route Handlers
 for authentication and tenant APIs. `VERCEL=1` automatically enables hosted mode;
 local file/process APIs and pages are blocked by default even if a local-mode
 variable was accidentally set. Only explicitly migrated hosted routes may be
@@ -33,6 +34,8 @@ products and limits at that point. The Next.js request must enqueue and return;
 it must not keep a durable supervisor loop or model process alive after response.
 
 The job/report/PDF UI and protected downloads are implemented; see `workspace.md`.
-Still needed: live storage verification and worker
+The dedicated build now rejects legacy routes/worker dependencies and has no
+legacy broad-filesystem warnings; see `hosted/web/README.md`. Still needed: actual
+Vercel artifact verification, live storage verification and worker
 adapter, quotas, recovery UI, retention/deletion, real Google OAuth verification,
 real-model quality/budget checks, deployment/environment setup and security review.

@@ -34,6 +34,9 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   const detail = await queue.read({ tenantId,userId,jobId:cvId });
   assert.equal(hash(bytes),detail.result.pdfSha256);
   const pdfUrl = `${origin}/api/hosted/tenants/${tenantId}/artifacts/${cvId}/pdf`;
+  const attachment = await page.request.get(pdfUrl);
+  assert.equal(attachment.headers()['content-type'],'application/pdf');
+  assert.ok(attachment.headers()['content-security-policy'].includes("default-src 'none'"));
   await page.reload();
   await page.getByRole('link',{name:'Download PDF',exact:true}).waitFor();
   if (process.env.HOSTED_TEST_SCREENSHOTS) {

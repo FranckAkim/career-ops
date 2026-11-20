@@ -1,0 +1,28 @@
+{
+  "name": "@hosted-career/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "24.x" },
+  "scripts": {
+    "prepare:source": "node scripts/prepare.mjs",
+    "build": "node scripts/prepare.mjs && next build && node scripts/verify-build.mjs",
+    "start": "next start",
+    "typecheck": "node scripts/prepare.mjs && tsc --noEmit",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@hosted-career/control-plane": "file:../control-plane",
+    "next": "16.4.6",
+    "pg": "8.23.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "typescript": "7.0.2"
+  }
+}

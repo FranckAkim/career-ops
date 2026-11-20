@@ -81,8 +81,8 @@ production Vercel worker compatibility are not established by these tests.
 
 ## Next deployment work
 
-Prepare a hosted-only build so blocked legacy local routes/code do not inflate
-the deployment or trigger broad-filesystem tracing. Prove a Vercel-compatible
+The hosted-only build is now implemented at `hosted/web/` with source, route and
+dependency audits. Prove a Vercel-compatible
 isolated worker adapter with durable invocation, fencing, storage transfer and
 provider-only egress; the current Docker launcher is a local/reference adapter.
 Add admission budgets/quotas and retention/deletion before enabling a hosted beta.

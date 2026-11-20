@@ -1,0 +1,11 @@
+/node_modules
+/.next
+/next-env.d.ts
+/*.tsbuildinfo
+/.generated-source.json
+/src/app/hosted/
+/src/app/api/
+/src/lib/hosted-server.mjs
+/src/assets/
+/public/
+.env*
