@@ -31,7 +31,9 @@ export async function prepareImageContext(destination) {
     for(let p=source;p!==root;p=path.dirname(p)) if((await fs.lstat(p)).isSymbolicLink()) throw new Error('image_source_link');
     if(!(await fs.lstat(source)).isFile()) throw new Error('image_source_not_file');
     const bytes=await fs.readFile(source), target=path.join(destination,...(name==='hosted/Dockerfile'?'Dockerfile':name).split('/'));
-    await fs.mkdir(path.dirname(target),{recursive:true,mode:0o700});await fs.writeFile(target,bytes,{flag:'wx',mode:0o600});
+    // Only committed non-secret engine code is staged. Docker preserves these
+    // modes on Linux; the image's non-root user must be able to read it.
+    await fs.mkdir(path.dirname(target),{recursive:true,mode:0o755});await fs.writeFile(target,bytes,{flag:'wx',mode:0o644});
     manifest.push({path:name,sha256:createHash('sha256').update(bytes).digest('hex')});
   }
   await fs.writeFile(path.join(destination,'image-source.json'),JSON.stringify({revision,files:manifest}),{flag:'wx',mode:0o600});
