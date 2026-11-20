@@ -11,7 +11,9 @@ const fail = code => { throw new ControlError(code); };
 const workerErrors = new Set(['tailoring_failed', 'cv_facts_failed', 'invalid_cv_html',
   'tailored_html_missing', 'invalid_pdf', 'invalid_pdf_pages', 'pdf_not_indexed',
   'pdf_not_marked_ready', 'evaluation_stale', 'evaluation_not_in_tracker',
-  'browser_required', 'fact_config_required', 'timed_out', 'output_limit']);
+  'browser_required', 'fact_config_required', 'timed_out', 'output_limit',
+  'model_rate_limited', 'model_access_denied', 'model_request_rejected',
+  'model_response_truncated', 'model_empty_response']);
 // Configuration is operator-owned. Credentials are brokered outside the VM.
 export function sandboxRunner({ images, provider, journal, credentials = {}, timeoutMs = 240000, create = options => Sandbox.create(options) }) {
   let endpoint;

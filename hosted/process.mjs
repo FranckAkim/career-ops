@@ -6,6 +6,16 @@ export class EngineError extends Error {
   constructor(code) { super(code); this.name = 'EngineError'; this.code = code; }
 }
 
+// Only fixed upstream diagnostics become categories. Never expose stderr itself.
+export function modelFailureCode(stderr) {
+  if (/API error: HTTP 429\b/.test(stderr)) return 'model_rate_limited';
+  if (/API error: HTTP (401|403)\b/.test(stderr)) return 'model_access_denied';
+  if (/API error: HTTP 400\b/.test(stderr)) return 'model_request_rejected';
+  if (/reply stopped at the \d+-token output cap/.test(stderr)) return 'model_response_truncated';
+  if (/endpoint returned an empty response/.test(stderr)) return 'model_empty_response';
+  return 'engine_failed';
+}
+
 // Internal trusted worker primitive, never a public command-execution API.
 export function runProcess({ script, args = [], cwd, env, signal, timeoutMs = 120_000, maxBytes = 2_000_000 }) {
   if (signal?.aborted) return Promise.reject(new EngineError('cancelled'));
@@ -48,7 +58,7 @@ export function runProcess({ script, args = [], cwd, env, signal, timeoutMs = 12
       stdout += outDecoder.end(); stderr += errDecoder.end();
       // Do not return raw model output, paths, provider errors or credentials in errors.
       if (stopped) reject(new EngineError(stopped));
-      else if (code !== 0) reject(new EngineError('engine_failed'));
+      else if (code !== 0) reject(new EngineError(path.basename(script) === 'openai-tailor.mjs' ? modelFailureCode(stderr) : 'engine_failed'));
       else resolve({ stdout, stderr });
     });
     if (signal?.aborted) abort();
