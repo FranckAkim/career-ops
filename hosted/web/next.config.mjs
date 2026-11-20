@@ -12,6 +12,16 @@ export default {
     'node_modules/@hosted-career/control-plane/schema.sql',
   ] },
   poweredByHeader: false,
+  async redirects() {
+    const origin = process.env.BETTER_AUTH_URL;
+    if (process.env.VERCEL_ENV !== 'production' || !origin) return [];
+    const url = new URL(origin);
+    if (url.protocol !== 'https:' || url.origin !== origin) throw new Error('invalid_canonical_origin');
+    // Vercel adds several production aliases. Send the entry page to the exact
+    // OAuth origin before rendering a client that would make same-origin calls.
+    const host = url.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return [{ source:'/hosted',missing:[{type:'host',value:host}],destination:`${origin}/hosted`,permanent:false }];
+  },
   async headers() {
     return [{ source: '/:path*', headers: [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
