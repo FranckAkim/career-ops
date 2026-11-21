@@ -26,9 +26,9 @@ the private queue consumer remain enforced. This is not an activated beta.
    Worker Production has `GEMINI_API_KEY` (secret) and `HOSTED_MODEL_PROVIDER`.
    Keep the Google project on the free tier without enabling billing. Follow
    `model-providers.md`; Claude Code subscription is a personal manual backup,
-   not an automatic shared hosted provider. Live evaluation succeeded, but bounded
-   tailoring tests failed; the latest generated CV was rejected by fact checks.
-   No PDF was published. Improve and verify model output without weakening facts.
+   not an automatic shared hosted provider. Real schema-enforced evaluation and
+   tailoring now passed for two synthetic tenants, with strict facts, distinct
+   one-page PDFs, private download hashes and production HTTP tenant denial.
 3. Revoke/regenerate the old read/write token for `career-workspace-private` in
    Vercel Storage. It was included in the rejected private image caught before
    Sandbox execution. The image records/local tag were removed; DB owner/runtime
@@ -52,8 +52,9 @@ while frontend admission remains off. Local development tokens cannot publish me
 pinned to production deployments; an explicit probe was denied before publication.
 Use the real deployed producer rather than bypassing that environment boundary.
 
-Run the two-tenant evaluation/tailoring/PDF flow with real model responses under
-an agreed small budget. Review source fidelity, omissions and output quality.
+The two-tenant real Gemini evaluation/tailoring/PDF fixture flow passed, including
+private download integrity and production HTTP authorization/revocation. Review
+source fidelity, omissions and quality on more varied fixtures before broad beta.
 Exercise active cancellation, expiry/stale publication and restart cleanup.
 If the model fails strict validation, fix/review the output path; do not relax
 fact, browser-sandbox, source-retention or receipt checks to obtain success.

@@ -46,9 +46,16 @@ Sources checked 2026-11-20: [Google compatibility](https://ai.google.dev/gemini-
 
 ## Live validation status
 
-Real Gemini evaluation passed through the deployed private queue and isolated
-engine. Tailoring has not passed: the latest synthetic generation reached the
-CV fact checker and was rejected. No PDF was published. Worker and frontend
-admission are disabled pending quality work and the separate Blob token cleanup.
-The personal Claude Code backup remains manual; no shared subscription login
-or automatic recovery/import exists.
+Real Gemini evaluation and schema-enforced structured tailoring passed for two
+synthetic tenants. The model returns compact CV JSON; `build-cv-html.mjs` owns
+HTML/CSS. Independent payload validation and the existing fact, locked-section,
+chronology, source-section, browser and page-budget gates remain enforced.
+Both distinct one-page PDFs matched private Blob hashes and production HTTP
+owner downloads. Other-tenant access returned 404, anonymous/revoked sessions 401.
+All VMs stopped; temporary synthetic SDK sessions were removed. This is bounded
+fixture evidence, not a claim about arbitrary CV quality or broad beta readiness.
+
+Engine revision: `df3412019f725ac66d6504e99c205ed71d5696c1`. Both CI platforms
+passed run 44841463787. Worker and frontend admission are disabled pending the
+separate old Blob token cleanup and next activation checks. The personal Claude
+Code backup remains manual; no shared subscription login or automatic import.
