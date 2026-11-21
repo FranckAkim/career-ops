@@ -25,3 +25,9 @@ The controlled proof used a ten-minute window available on the existing free pla
 The actual protected preview `dpl_CMbAk76gA4FxMhCaRsiopGDCWgxu` in isolated project `prj_XaNYx7xAdSiqJINsGwB7XdJH2nNK` returned a real platform 504. Its signed admission matched exactly one native timeout invocation and the verifier accepted that evidence. No after-deadline marker was observed, including after a harmless GET. No production request was resolved. The CLI-created temporary automation bypass was revoked and zero remaining bypasses verified; full project protection remains enabled. The project is retained as a private regression fixture without live credentials. Its initial unconfigured production artifact was not invoked and contained no signing key.
 
 Local tests cover protocol compatibility, admission ordering, evidence context, ambiguity, unavailable readers and rejection of non-terminal outcomes. The complete PostgreSQL and hosted checks are recorded in `PROJECT_HANDOFF.md`. Production admission logging and final CI evidence are recorded there separately from this isolated timeout proof.
+
+## Production instrumentation verification
+
+Source `5e39982ccc62655d60a646bbd169f0ded1de53a4` is READY as production deployment `dpl_9vY7uPVdU1VhVPsbdU8Q1NMQHevS`. Two fresh authenticated, file-free synthetic requests produced four verified signed admission/completion receipts and two exact native HTTP 200 invocation records. Both were rejected as timeout authority. Only the fresh synthetic identity/session/activity was removed; no production marker was resolved and no real account or Blob object was touched. The separate protected preview provides the positive timeout proof; production was never deliberately timed out.
+
+Windows and Linux/container GitHub CI run `44957871008` passed for that source. Local verification includes 34 control-plane unit tests, the full disposable PostgreSQL suite and hosted typecheck.
