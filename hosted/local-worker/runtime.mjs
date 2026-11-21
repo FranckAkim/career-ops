@@ -8,6 +8,7 @@ import {Supervisor} from '@hosted-career/control-plane/supervisor.mjs';
 import {BlobSnapshotStore} from '@hosted-career/control-plane/blob-snapshots.mjs';
 import {dockerRunner} from '@hosted-career/control-plane/docker-runner.mjs';
 import {credentialLoader} from './credentials.mjs';
+import {observeDatabaseErrors} from './database.mjs';
 
 neonConfig.webSocketConstructor=WebSocket;
 export function docker(args) {
@@ -57,7 +58,7 @@ export async function runLocalWorker(config,{once=false,signal}={}) {
     const prior=(await docker(['ps','-aq','--filter',`label=io.career-workspace.worker=${config.namespace}`])).trim().split(/\s+/).filter(Boolean);
     for(const id of prior){if(!/^[a-f0-9]{12,64}$/.test(id))throw new Error('unexpected_container');const[c]=JSON.parse(await docker(['inspect',id]));if(c.Config.Labels?.['io.career-workspace.worker']!==config.namespace)throw new Error('unexpected_container');await docker(['rm','-f',id]);}
     const load=credentialLoader(config);const credentials=await load();
-    pool=new Pool({connectionString:credentials.databaseUrl,max:3,connectionTimeoutMillis:10000});pool.on('error',()=>{});
+    pool=observeDatabaseErrors(new Pool({connectionString:credentials.databaseUrl,max:3,connectionTimeoutMillis:10000}),()=>console.error('Database connection interrupted; the worker will reconnect.'));
     const queue=new Queue(pool),store=new BlobSnapshotStore({storeId:credentials.storeId});
     const runner=dockerRunner({image:config.image,seccomp:config.seccomp,network:`container:${config.modelContainer}`,
       provider:{baseUrl:config.modelBaseUrl,model:config.model,apiKey:''},timeoutMs:config.timeoutMs,allowLocalProvider:true,tailoringFormat:'json',workerNamespace:config.namespace});

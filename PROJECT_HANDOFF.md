@@ -4,7 +4,7 @@ Last updated: 2026-11-20. Status: the hosted local-AI owner preview is LIVE. Pro
 
 ## Dashboard implementation (current work)
 
-The approved dashboard is implemented in source: Overview, Opportunities, CV Studio, My Profile and Settings, with real recent-job counts/search and authenticated documents. Local Postgres/container/browser integration passes, including all new navigation and existing lifecycle/security checks. Read `docs/hosted/dashboard.md`. Deployment/live verification is next; do not advertise unimplemented Applied/Interview tracking. The full handoff was restored from version history after an earlier documentation edit truncated it.
+The approved dashboard is LIVE at frontend source 42faebe5e9aa2afd42f055d432fdf1e2f82aba20 (Vercel dpl_Eg2ZdVKTP48nBWNXH3X1ksQiKiJ3): Overview, Opportunities, CV Studio, My Profile and Settings, with real recent-job counts/search and authenticated documents. Local Postgres/container/browser integration and live production navigation/search/profile/PDF-hash/keyboard/mobile/tenant-denial/session-revocation checks pass. Read `docs/hosted/dashboard.md`. Applied/Interview tracking still needs canonical engine integration. The full handoff was restored after an earlier edit truncated it. A stopped local worker was diagnosed as an unhandled checked-out Neon client error; per-client error observation and bounded task restart were added. A real-driver injected socket failure now rejects the failed query, replaces the connection and succeeds on the next SELECT. The worker task is running again; engine stays pinned to 73e7202.
 
 ## Start here, regardless of AI tool
 

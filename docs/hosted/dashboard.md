@@ -21,3 +21,9 @@ The production Next build/type checks, source/dependency boundary checks, projec
 Application stages must use a new allowlisted engine operation calling canonical `set-status.mjs`, then publish a fenced workspace generation. Derive the displayed application state from the committed tracker; do not write a second frontend/SQL-only tracker. Test tenant authorization, stale evaluation IDs, retries, cancellation, receipt integrity and engine parity before showing Applied/Interview controls.
 
 Confirmed-profile editing requires an explicit review/confirmation and versioned source publication, with stale evaluations rejected. Retention/deletion and broader beta access remain separate work; do not present them as implemented.
+
+## Live evidence
+
+Frontend source `42faebe5e9aa2afd42f055d432fdf1e2f82aba20` reached READY in deployment `dpl_Eg2ZdVKTP48nBWNXH3X1ksQiKiJ3`. Production browser checks pass using only a temporary synthetic owner session: counts/search, CV library download with committed hash, confirmed profile, settings, keyboard navigation, reload, all five mobile navigation controls, no horizontal overflow, cross-tenant history 404, anonymous 401 and revoked-session 401. Test auth records were removed; no new model job or real user session was changed. Final desktop/mobile screenshots are in task outputs.
+
+The local worker was found stopped from an unhandled checked-out database-client error. Client and pool error observation now prevent that process crash. Real Neon driver fault injection proved the failed query rejects and a fresh connection handles the next SELECT. The on-demand Windows task is running again with at most three restart-on-failure attempts, one minute apart. It still has no sign-in trigger and does not silently retry interrupted model jobs.

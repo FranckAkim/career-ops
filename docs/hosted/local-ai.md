@@ -29,3 +29,9 @@ Profiles and results still reside in hosted storage and are downloaded onto the 
 ## Verification status
 
 GPU/network health passed on an RTX 3070 Laptop GPU. The initial real synthetic evaluation failed at 32768 context; at 65536 it exceeded the previous 90-second request budget. The engine now gives loopback requests 300 seconds, within the supervisor's 600-second deadline, and disables optional thinking specifically for loopback Qwen 3.5. Two real synthetic tenants completed evaluation, strict tailoring and one-page PDFs at engine 1a19a63, and production HTTP downloads passed after token revocation. Engine 73e7202 improves explicitly named employer extraction after a newly onboarded fixture returned Unknown; the exact failed profile/posting now passes in isolation. The user approved controlled activation. The corrected complete production browser flow passed at engine 73e7202, including explicit recovery, evaluation, strict one-page PDF, hash-matched download, reload/mobile, cancellation and session revocation. Windows/Linux CI 44853134551 passed; Production local-mode admission remains enabled. Cloud worker remains disabled.
+
+## Database interruption recovery
+
+The long-lived supervisor observes errors on both the pool and checked-out clients. Query/transaction failures still reject; existing leases and recovery protect publication. A real Neon driver check injects a socket error into a separate SELECT-only test connection, verifies the query rejects, discards that connection and proves the next SELECT succeeds with a new connection. No tenant data is read by that check.
+
+The configured Windows task restarts on unexpected process failure at most three times, one minute apart. No automatic sign-in trigger is installed. This restarts the supervisor, not failed model jobs; ambiguous jobs still require explicit recovery.
