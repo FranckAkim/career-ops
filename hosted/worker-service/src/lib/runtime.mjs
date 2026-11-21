@@ -1,3 +1,4 @@
+import {snapshotEnvironment} from '@hosted-career/control-plane/snapshot-policy.mjs';
 import path from 'node:path';
 import os from 'node:os';
 import pg from 'pg';
@@ -20,7 +21,7 @@ function configured() {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 3, connectionTimeoutMillis: 5000, statement_timeout: 5000 });
   pool.on('error', () => {});
   const inventoryEnabled=process.env.HOSTED_SNAPSHOT_INVENTORY_ENABLED==='1',queue=new Queue(pool,{snapshotInventory:inventoryEnabled,accountLifecycle:process.env.HOSTED_ACCOUNT_LIFECYCLE_ENABLED==='1'});
-  services = { pool, queue,inventory:inventoryEnabled?new SnapshotInventory({queue}):undefined, store: new BlobSnapshotStore({ token:process.env.BLOB_READ_WRITE_TOKEN,storeId:process.env.BLOB_STORE_ID }), images:JSON.parse(process.env.HOSTED_ENGINE_IMAGES) };
+  services = { pool, queue,inventory:inventoryEnabled?new SnapshotInventory({queue}):undefined, store: new BlobSnapshotStore({ ...snapshotEnvironment(process.env),token:process.env.BLOB_READ_WRITE_TOKEN,storeId:process.env.BLOB_STORE_ID }), images:JSON.parse(process.env.HOSTED_ENGINE_IMAGES) };
   return services;
 }
 export async function wake(key) {

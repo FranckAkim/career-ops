@@ -1,3 +1,4 @@
+import {snapshotEnvironment} from '@hosted-career/control-plane/snapshot-policy.mjs';
 import {randomUUID} from 'node:crypto';
 import 'server-only';
 import pg from 'pg';
@@ -26,7 +27,7 @@ function getServices() {
   const lifecycleEnabled=process.env.HOSTED_ACCOUNT_LIFECYCLE_ENABLED==='1';
   const auth = createAuth({ pool, origin: process.env.BETTER_AUTH_URL, secret: process.env.BETTER_AUTH_SECRET, vercel: process.env.VERCEL === '1',accountLifecycle:lifecycleEnabled,
     google: { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET } });
-  const inventoryEnabled=process.env.HOSTED_SNAPSHOT_INVENTORY_ENABLED==='1';
+  const inventoryEnabled=process.env.HOSTED_SNAPSHOT_INVENTORY_ENABLED==='1',snapshotOptions=snapshotEnvironment(process.env);
   const queue = new Queue(pool, { maxDailyJobs: process.env.VERCEL === '1' ? 10 : 0,snapshotInventory:inventoryEnabled,accountLifecycle:lifecycleEnabled });
   const inventory=inventoryEnabled?new SnapshotInventory({queue}):undefined;
   const workerUrl = process.env.HOSTED_WORKER_URL, workerSecret = process.env.HOSTED_DISPATCH_SECRET;
@@ -37,8 +38,8 @@ function getServices() {
     if (!response.ok) throw new Error('worker_notification_failed');
   } : undefined;
   let store;
-  if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) store = new BlobSnapshotStore({ storeId: process.env.BLOB_STORE_ID, token: process.env.BLOB_READ_WRITE_TOKEN });
-  else if (process.env.VERCEL !== '1' && process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT) store = new SnapshotStore(process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT);
+  if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) store = new BlobSnapshotStore({ ...snapshotOptions,storeId: process.env.BLOB_STORE_ID, token: process.env.BLOB_READ_WRITE_TOKEN });
+  else if (process.env.VERCEL !== '1' && process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT) store = new SnapshotStore(process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT,snapshotOptions);
   services = { auth,pool,lifecycleEnabled, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store,inventory }), artifacts: new Artifacts({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION,
     requestCompletion:process.env.VERCEL_PROJECT_ID?{projectId:process.env.VERCEL_PROJECT_ID,secret:process.env.BETTER_AUTH_SECRET,report:receipt=>console.info(receipt)}:null,requestDrainEnabled:process.env.HOSTED_REQUEST_DRAIN_ENABLED==='1',requestDeploymentId:process.env.VERCEL_DEPLOYMENT_ID||null,requestInstanceId:process.env.VERCEL_DEPLOYMENT_ID?requestInstanceId:null,notifyQueue, jobsEnabled: policy.jobsEnabled,applicationsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_APPLICATIONS_ENABLED==='1',profileEditingEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_PROFILE_EDITING_ENABLED==='1',dataControlsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_DATA_CONTROLS_ENABLED==='1' }) };
   return services;

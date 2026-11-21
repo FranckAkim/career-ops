@@ -1,3 +1,4 @@
+import {snapshotPolicy} from '../control-plane/snapshot-policy.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
@@ -63,7 +64,7 @@ export async function runLocalWorker(config,{once=false,signal}={}) {
     for(const id of prior){if(!/^[a-f0-9]{12,64}$/.test(id))throw new Error('unexpected_container');const[c]=JSON.parse(await docker(['inspect',id]));if(c.Config.Labels?.['io.career-workspace.worker']!==config.namespace)throw new Error('unexpected_container');await docker(['rm','-f',id]);}
     const load=credentialLoader(config);const credentials=await load();
     pool=observeDatabaseErrors(new Pool({connectionString:credentials.databaseUrl,max:3,connectionTimeoutMillis:10000}),()=>console.error('Database connection interrupted; the worker will reconnect.'));
-    const queue=new Queue(pool,{snapshotInventory:config.snapshotInventory===true,accountLifecycle:config.accountLifecycle===true}),store=new BlobSnapshotStore({storeId:credentials.storeId});
+    const queue=new Queue(pool,{snapshotInventory:config.snapshotInventory===true,accountLifecycle:config.accountLifecycle===true}),store=new BlobSnapshotStore({storeId:credentials.storeId,...snapshotPolicy({generationSnapshots:config.generationSnapshots===true,snapshotInventory:config.snapshotInventory===true})});
     const inventory=config.snapshotInventory===true?new SnapshotInventory({queue}):undefined;
     const runner=revisionRunner(config.engineImages,image=>dockerRunner({image,seccomp:config.seccomp,network:`container:${config.modelContainer}`,
       provider:{baseUrl:config.modelBaseUrl,model:config.model,apiKey:''},timeoutMs:config.timeoutMs,allowLocalProvider:true,tailoringFormat:'json',workerNamespace:config.namespace}));

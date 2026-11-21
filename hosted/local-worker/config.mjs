@@ -9,6 +9,7 @@ export function localConfig(input) {
       !/^prj_[A-Za-z0-9]+$/.test(input.projectId || '')) throw new Error('invalid_local_worker_config');
   if (path.relative(input.workRoot,input.credentialFile).startsWith('..') || path.basename(input.credentialFile).startsWith('.env') === false) throw new Error('unsafe_credential_file');
   const additional=input.additionalImages||{};
+  if(input.generationSnapshots!==undefined&&typeof input.generationSnapshots!=='boolean'||input.generationSnapshots===true&&input.snapshotInventory!==true)throw new Error('invalid_local_worker_config');
   if(input.snapshotInventory!==undefined&&typeof input.snapshotInventory!=='boolean')throw new Error('invalid_local_worker_config');
   if(input.accountLifecycle!==undefined&&typeof input.accountLifecycle!=='boolean')throw new Error('invalid_local_worker_config');
   if(typeof additional!=='object'||Array.isArray(additional)||Object.keys(additional).length>3||Object.entries(additional).some(([revision,image])=>!/^[a-f0-9]{40}$/.test(revision)||!/^sha256:[a-f0-9]{64}$/.test(image)||revision===input.engineRevision&&image!==input.image))throw new Error('invalid_engine_images');
