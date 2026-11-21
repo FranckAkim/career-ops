@@ -24,7 +24,7 @@ export class AccountLifecycle{
    // Existing-workspace lock precedes the user lock, matching queue/profile writers.
    const personal=(await db.query('select tenant_id from personal_workspaces where user_id=$1',[userId])).rows[0];if(personal)await db.query('select id from tenants where id=$1 for update',[personal.tenant_id]);
    await db.query('select pg_advisory_xact_lock(hashtextextended($1::uuid::text,847292))',[userId]);
-   const prior=(await db.query("select id,state,scope_hash,session_fingerprint from account_deletion_requests where user_id=$1 and state in ('blocked_pending_review','purging')",[userId])).rows[0];
+   const prior=(await db.query("select id,state,scope_hash,session_fingerprint from account_deletion_requests where user_id=$1 and state in ('blocked_pending_review','fencing','purging')",[userId])).rows[0];
    if(prior){check(prior.scope_hash===expectedScopeHash&&prior.session_fingerprint===hash(sessionId),'review_conflict');return {requestId:prior.id,state:prior.state,replayed:true,deleted:false};}
    const recent=await db.query('select 1 from auth_sessions where id=$1 and "userId"=$2 and "createdAt">=clock_timestamp()-interval \'10 minutes\' and "expiresAt">clock_timestamp()',[sessionId,userId]);check(recent.rowCount,'reauthentication_required');
    const scope=await this.scope(db,userId);check(scope.scopeHash===expectedScopeHash,'review_conflict');const requestId=randomUUID();

@@ -1,3 +1,4 @@
+import {verifySnapshotFences} from './snapshot-fences.mjs';
 import {verifyCompletionReview} from './completion-review.mjs';
 import {verifyRequestReview} from './request-review.mjs';
 import {verifyRequestDrain} from './request-drain.mjs';
@@ -217,6 +218,7 @@ try {
   await verifyRequestReview({pool});
   await verifyCompletionReview({pool});
   await verifyAccountPurge({pool});
+  await verifySnapshotFences({pool});
 } finally {
   if (pool) await pool.end();
   for (const fn of cleanup.reverse()) await fn();
