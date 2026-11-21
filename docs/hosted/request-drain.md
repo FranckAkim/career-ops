@@ -13,3 +13,9 @@ Install migration 009 before enabling the frontend flag. Confirm the deployed bu
 ## Verification
 
 Unit tests cover streaming completion, cancellation during a pending read, cleanup/settlement failures and unauthenticated/failed handlers. Disposable PostgreSQL tests cover an actual admission/block transaction race, post-block refusal, an arbitrarily old unresolved marker, immutable activity identity, restricted grants and purge refusal while a request is active. The authenticated HTTP suite runs with tracking enabled. Export integration checks prove cancellation waits for its storage read. Production activation evidence is recorded in `PROJECT_HANDOFF.md`.
+
+## Production evidence — 2026-11-21
+
+Migration 009 is installed and frontend production has `HOSTED_REQUEST_DRAIN_ENABLED=1`. Source `3ba24bae72258c9f3d6091a584304e459d909242` passed Windows/Linux [CI 44922106903](https://github.com/FranckAkim/career-ops/actions/runs/44922106903). Production deployment `dpl_212we9zV1sAbcpDqrJpkJmVCrKtd` is READY.
+
+A fresh file-free synthetic account made two real authenticated hosted requests; both activity records settled. A separate active request marker prevented purge, admission after the reviewed block was denied, and the revoked session returned 401. After that marker settled, the empty-account purge completed and verified absence of the synthetic auth/activity/workspace records. The helper explicitly prohibited storage operations: zero Blob objects and zero real accounts were touched. This verifies the current deployment path, not termination of every older deployment.

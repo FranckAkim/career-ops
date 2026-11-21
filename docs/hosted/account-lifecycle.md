@@ -10,7 +10,7 @@ The request locks the tenant before the user, creates account/workspace tombston
 
 Database guards serialize through the same tenant/user ordering as writers. Capture registration acquires its tenant lock before capture/object locks. Source/profile/session writes cannot cross a committed block through an older client lacking the new application check. Queue claiming also excludes blocked workspaces when lifecycle checks are enabled.
 
-Operator cancellation clears only the matching request's blocks. It does not restore revoked sessions, restart cancelled jobs, resume interrupted model work or erase source data. Operator-only exact object deletion and final verification are implemented in the purge module. Automated remote-request draining, public flow eligibility and backup/retention disclosures remain required before exposing self-service account deletion.
+Operator cancellation clears only the matching request's blocks. It does not restore revoked sessions, restart cancelled jobs, resume interrupted model work or erase source data. Operator-only exact object deletion and final verification are implemented in the purge module. Durable remote-request tracking is implemented in migration 009; old-deployment coverage, abandoned-request resolution, public flow eligibility and backup/retention disclosures remain required before exposing self-service account deletion.
 
 ## Activation and access
 
