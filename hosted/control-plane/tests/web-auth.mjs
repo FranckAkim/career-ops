@@ -80,11 +80,11 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     }
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Confirm and create workspace' }).click();
-    await page.getByRole('heading', { name: 'Your workspace', exact:true }).waitFor();
+    await page.getByRole('heading', { name: 'Your next move, in focus.', exact:true }).waitFor();
     const personal = (await pool.query('select t.snapshot from personal_workspaces p join tenants t on p.tenant_id=t.id where p.user_id=$1', [accounts[0].id])).rows[0];
     assert.ok((await store.read(personal.snapshot, 'cv.md')).includes('Synthetic Alpha'));
     await page.reload();
-    await page.getByRole('heading', { name: 'Your workspace', exact:true }).waitFor();
+    await page.getByRole('heading', { name: 'Your next move, in focus.', exact:true }).waitFor();
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     const cancellation = await page.evaluate(async ({ tenant, jobId }) => {

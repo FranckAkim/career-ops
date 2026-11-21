@@ -83,7 +83,7 @@ export class Queue {
   async list({ tenantId, userId }) {
     return this.transaction(async db => {
       await this.authorize(db, tenantId, userId);
-      const { rows } = await db.query("select id,status,payload->>'operation' as operation,result->>'company' as company,result->>'role' as role,created_at,finished_at,error_code from jobs where tenant_id=$1 order by created_at desc,id desc limit 100", [tenantId]);
+      const { rows } = await db.query("select id,status,payload->>'operation' as operation,result->>'company' as company,result->>'role' as role,result->>'score' as score,result->>'pdf' as pdf,result->>'evaluationJobId' as evaluation_job_id,created_at,finished_at,error_code from jobs where tenant_id=$1 order by created_at desc,id desc limit 100", [tenantId]);
       return rows;
     });
   }

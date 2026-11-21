@@ -8,6 +8,7 @@
 /src/app/api/
 /src/lib/hosted-server.mjs
 /src/lib/hosted-policy.mjs
+/src/lib/workspace-summary.mjs
 /src/assets/
 /public/
 .env*

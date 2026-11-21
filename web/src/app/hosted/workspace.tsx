@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import styles from './screen.module.css';
-import {ProcessingNotice} from './processing-notice';
+import {Dashboard, type DashboardJob} from './dashboard';
 
-type Job = { id: string; operation: string; status: string; company?: string; role?: string; created_at: string; error_code?: string; result?: { company?: string; role?: string; score?: string | number; pdf?: string; report?: string; pages?: number } };
+type Job = DashboardJob & { error_code?: string; result?: { company?: string; role?: string; score?: string | number; pdf?: string; report?: string; pages?: number } };
 type JobEvent = { sequence: string; kind: string; created_at: string };
 const active = (status: string) => ['queued','running','cancel_requested'].includes(status);
 const labels: Record<string,string> = { queued: 'Queued', running: 'Running', cancel_requested: 'Stopping', cancelled: 'Cancelled', succeeded: 'Complete', failed: 'Failed', needs_recovery: 'Needs review' };
 
-export function Workspace({ tenantId, onSignOut, pageError, signingOut, executionMode='unavailable' }: { tenantId: string; onSignOut: () => void; pageError: string; signingOut: boolean; executionMode?: string }) {
+export function Workspace({ tenantId, onSignOut, pageError, signingOut, executionMode='unavailable', userName='Your profile' }: { tenantId: string; onSignOut: () => void; pageError: string; signingOut: boolean; executionMode?: string; userName?: string }) {
   const base = `/api/hosted/tenants/${tenantId}`;
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -20,6 +20,7 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut, executio
   const [report, setReport] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [historyError, setHistoryError] = useState('');
   const [recovery, setRecovery] = useState(false);
   const [discard, setDiscard] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -28,8 +29,9 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut, executio
   const tailorKeys = useRef(new Map<string,string>());
 
   useEffect(() => {
-    const controller = new AbortController();
-    (async () => {
+    const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>; let initial=true;
+    async function refreshHistory() {
+      try {
       const [history, memberships] = await Promise.all([
         fetch(`${base}/jobs`, { signal: controller.signal, cache: 'no-store' }),
         fetch('/api/hosted/tenants', { signal: controller.signal, cache: 'no-store' }),
@@ -38,9 +40,14 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut, executio
       const [list, access] = await Promise.all([history.json(), memberships.json()]);
       if (controller.signal.aborted) return;
       setJobs(list.jobs); setRecovery(Boolean(access.tenants.find((t: { id: string }) => t.id === tenantId)?.recovery_required));
-      if (list.jobs.length) setSelected(list.jobs[0].id);
-    })().catch(() => { if (!controller.signal.aborted) setError('Could not load your workspace. Please reload and try again.'); }).finally(() => { if (!controller.signal.aborted) setLoaded(true); });
-    return () => controller.abort();
+      setLoaded(true);setHistoryError('');
+      if (initial && list.jobs.length) setSelected(list.jobs[0].id);
+      initial=false;
+      } catch { if (!controller.signal.aborted) setHistoryError('Could not refresh your workspace. Please check your connection or reload.'); }
+      finally {if(!controller.signal.aborted)timer=setTimeout(refreshHistory,5000);}
+    }
+    void refreshHistory();
+    return () => {controller.abort();clearTimeout(timer);};
   }, [base, tenantId]);
 
   useEffect(() => {
@@ -112,12 +119,8 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut, executio
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
-  return <main className={styles.page}>
-    <ProcessingNotice mode={executionMode} />
-    <header className={styles.header}><a className={styles.brand} href="/hosted"><span className={styles.mark}>CW</span>Career Workspace</a><button className={styles.quiet} onClick={onSignOut} disabled={busy || signingOut}>Sign out</button></header>
-    <div className={styles.workspace}>
-      <div className={styles.workspaceTitle}><div><p className={styles.eyebrow}>Your confirmed profile is the foundation</p><h1>Your workspace</h1></div><p>Evaluate the fit. Prepare your CV.<br />You decide what to send.</p></div>
-      {(error || pageError) && <p role="alert" className={styles.workspaceError}>{error || pageError}</p>}
+  return <Dashboard key={tenantId} jobs={jobs} tenantId={tenantId} userName={userName} loaded={loaded} executionMode={executionMode} onSignOut={onSignOut} signingOut={busy || signingOut} alert={error || pageError || historyError} onOpenJob={id=>{setSelected(id);setRefresh(value=>value+1);}}>
+    <div>
       {recovery && <section className={styles.recovery} aria-label="Workspace recovery"><h2>A job needs your review.</h2><p>Your last saved workspace is still in place. Discard uncommitted changes from the interrupted attempt before starting more work.</p><label><input type="checkbox" checked={discard} onChange={e => setDiscard(e.target.checked)} /> I understand this discards the workspace’s uncommitted changes.</label><button className={styles.primary} disabled={!discard || busy} onClick={discardRecovery}>Discard interrupted changes</button></section>}
       <div className={styles.workspaceGrid}>
         <aside className={styles.card}>
@@ -140,5 +143,5 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut, executio
         </section>
       </div>
     </div>
-  </main>;
+  </Dashboard>;
 }

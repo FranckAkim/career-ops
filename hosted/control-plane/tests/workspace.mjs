@@ -8,6 +8,7 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   const { rows: [personal] } = await pool.query('select tenant_id from personal_workspaces where user_id=$1', [userId]);
   const tenantId = personal.tenant_id;
   const supervisor = new Supervisor({ queue, store, runner, workRoot, heartbeatMs: 500 });
+  await page.getByRole('button',{name:'Opportunities',exact:true}).click();
   const submit = async text => {
     await page.getByLabel('Posting text', { exact:true }).fill(text);
     const accepted = page.waitForResponse(response => response.url() === `${origin}/api/hosted/tenants/${tenantId}/jobs` && response.request().method() === 'POST');
@@ -38,7 +39,18 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   assert.equal(attachment.headers()['content-type'],'application/pdf');
   assert.ok(attachment.headers()['content-security-policy'].includes("default-src 'none'"));
   await page.reload();
-  await page.getByRole('link',{name:'Download PDF',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Your next move, in focus.',exact:true}).waitFor();
+  await page.getByRole('button',{name:'CV Studio',exact:true}).click();
+  await page.getByLabel('CV library',{exact:true}).getByRole('link',{name:'Download PDF',exact:true}).waitFor();
+  await page.getByRole('button',{name:'My Profile',exact:true}).click();
+  await page.getByLabel('Confirmed profile',{exact:true}).getByRole('heading',{name:'Synthetic Alpha',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('heading',{name:'Processing and privacy',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Overview',exact:true}).click();
+  assert.match(await page.getByLabel('Recent workspace summary',{exact:true}).innerText(),/1\s+CVs ready/);
+  await page.getByRole('searchbox',{name:'Search recent work',exact:true}).fill('zzzz-no-matching-role');
+  await page.getByRole('heading',{name:'No matching work yet.',exact:true}).waitFor();
+  await page.getByRole('searchbox',{name:'Search recent work',exact:true}).fill('');
   if (process.env.HOSTED_TEST_SCREENSHOTS) {
     await fs.mkdir(process.env.HOSTED_TEST_SCREENSHOTS,{recursive:true});
     await page.screenshot({path:path.join(process.env.HOSTED_TEST_SCREENSHOTS,'workspace-desktop.png'),fullPage:true});
@@ -47,6 +59,7 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
     await page.screenshot({path:path.join(process.env.HOSTED_TEST_SCREENSHOTS,'workspace-mobile.png'),fullPage:true});
     await page.setViewportSize({width:1280,height:720});
   }
+  await page.getByRole('button',{name:'Opportunities',exact:true}).click();
   const cancelled = await submit('A second synthetic role.');
   await page.getByRole('button',{name:'Cancel job',exact:true}).click();
   await page.getByRole('status').filter({hasText:'Cancelled'}).waitFor();
@@ -61,6 +74,6 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   await page.getByRole('button',{name:'Discard interrupted changes'}).click();
   await page.getByRole('heading',{name:'A job needs your review.'}).waitFor({state:'hidden'});
   assert.equal((await pool.query('select recovery_required from tenants where id=$1',[tenantId])).rows[0].recovery_required,false);
-  console.log('PASS browser posting -> durable queue -> real worker evaluation/PDF -> verified download, reload, cancellation and explicit recovery');
+  console.log('PASS dashboard navigation/search/profile/CV library and browser posting -> durable queue -> real worker evaluation/PDF -> verified download, reload, cancellation and explicit recovery');
   return pdfUrl;
 }
