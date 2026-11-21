@@ -1,3 +1,4 @@
+import {DeletionRequest} from './deletion-request.mjs';
 import {RequestDrain} from './request-drain.mjs';
 import { ControlError } from './queue.mjs';
 import {Profiles} from './profiles.mjs';
@@ -28,7 +29,7 @@ async function body(request, fields) {
   } finally { clearTimeout(timer); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
-export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true,applicationsEnabled=true,profileEditingEnabled=true,dataControlsEnabled=true,requestDrainEnabled=false,requestDeploymentId=null,requestInstanceId=null,requestCompletion=null }) {
+export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true,applicationsEnabled=true,profileEditingEnabled=true,dataControlsEnabled=true,deletionRequestsEnabled=false,requestDrainEnabled=false,requestDeploymentId=null,requestInstanceId=null,requestCompletion=null }) {
   if (new URL(origin).origin !== origin || !/^[a-f0-9]{40}$/.test(engineRevision)) throw new ControlError('invalid_api_config');
   const handle = async (request,register) => {
     try {
@@ -66,7 +67,8 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       if (prefix !== 'tenants' || route.length > 5) return json({ error: 'not_found' }, 404);
       if(collection==='data-controls'&&dataControlsEnabled&&onboarding){
         const controls=new DataControls({queue,store:onboarding.store}),input={tenantId,userId};
-        if(route.length===3&&request.method==='GET')return json(await controls.summary(input));
+        if(deletionRequestsEnabled&&jobId==='account-deletion'&&route.length===4){const service=new DeletionRequest({queue}),actor={userId,tenantId,sessionId:session.session.id};if(request.method==='GET')return json(await service.preview(actor));if(request.method==='POST')return json(await service.request({...await body(request,['scopeHash','acknowledged','confirmation']),...actor}),202);}
+        if(route.length===3&&request.method==='GET')return json({...await controls.summary(input),deletionRequestsAvailable:deletionRequestsEnabled});
         if(route.length===4&&jobId==='export'&&request.method==='GET')return await controls.export(input);
         if(route.length===4&&jobId==='discard-drafts'&&request.method==='POST')return json(await controls.discardDrafts({...await body(request,['expectedDrafts','acknowledged']),...input}));
       }

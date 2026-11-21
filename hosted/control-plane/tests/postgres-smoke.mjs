@@ -1,3 +1,4 @@
+import {verifyPublicDeletion} from './public-deletion.mjs';
 import {verifySnapshotFences} from './snapshot-fences.mjs';
 import {verifyCompletionReview} from './completion-review.mjs';
 import {verifyRequestReview} from './request-review.mjs';
@@ -219,6 +220,7 @@ try {
   await verifyCompletionReview({pool});
   await verifyAccountPurge({pool});
   await verifySnapshotFences({pool});
+  await verifyPublicDeletion({pool,store,engineRevision});
 } finally {
   if (pool) await pool.end();
   for (const fn of cleanup.reverse()) await fn();

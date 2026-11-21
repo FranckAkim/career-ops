@@ -18,6 +18,6 @@ export default function PrivacyPage(){
     <h2>Sign-in and control</h2>
     <p>Google sign-in provides your account identity, name and email. It does not grant access to Gmail or Google Drive. Career Workspace never submits applications automatically.</p>
     <h2>Storage and deletion</h2>
-    <p>Confirmed profile versions, history and documents remain stored for the preview. Settings provides a published-workspace data export and reviewed removal of unused profile drafts. Exporting does not delete stored copies. Automatic retention limits and self-service account deletion are not available yet. Temporary job workspaces are removed after processing; this does not delete stored snapshots or results. Avoid adding information you need removed automatically.</p>
+    <p>Confirmed profile versions, history and documents remain stored for the preview. Settings provides a published-workspace data export and reviewed removal of unused profile drafts. Exporting does not delete stored copies. Automatic retention limits are not available. When enabled, Settings offers an account-deletion request that blocks access and awaits service-operator review. It does not immediately erase data; minimal security records and content-free storage markers may remain. Temporary job workspaces are removed after processing; this does not delete stored snapshots or results. Avoid adding information you need removed automatically.</p>
   </main>;
 }
