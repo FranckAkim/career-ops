@@ -24,12 +24,13 @@ test('structured content uses the real renderer and preserves two-tenant PDF iso
   const requests=mock.requests.filter(r=>!r.stream);
   assert.equal(requests.length,2);
   assert.ok(requests.every(r=>JSON.stringify(r.messages).includes('OUTPUT CONTRACT: CV JSON')));
+  assert.ok(requests.every(r=>r.response_format?.type==='json_schema' && r.response_format.json_schema.strict));
 });
 test('structured path still blocks invented facts, missing source sections and model asset paths', async t=>{
   for(const [kind,mutate,code] of [
     ['fabricated metric',p=>p.experience[0].bullets[1]='Led a team of 40 engineers.','cv_facts_failed'],
     ['missing experience',p=>p.experience=[],'cv_render_failed'],
-    ['model photo path',p=>p.candidate.photo='/etc/passwd','tailoring_failed'],
+    ['model photo path',p=>p.candidate.photo='/etc/passwd','model_cv_fields_invalid'],
     ['locked rewrite',p=>p.experience[0].bullets[1]='Managed a team of 4 engineers.','cv_render_failed'],
   ])await t.test(kind,async st=>{
     const workspace=await candidate(st),value=payload('Synthetic Alpha');mutate(value);

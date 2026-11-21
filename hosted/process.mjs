@@ -8,6 +8,8 @@ export class EngineError extends Error {
 
 // Only fixed upstream diagnostics become categories. Never expose stderr itself.
 export function modelFailureCode(stderr) {
+  const structured=/Invalid structured CV response \((model_cv_json_invalid|model_cv_schema_invalid|model_cv_identity_invalid|model_cv_fields_invalid)\)/.exec(stderr);
+  if (structured) return structured[1];
   if (/API error: HTTP 429\b/.test(stderr)) return 'model_rate_limited';
   if (/API error: HTTP (401|403)\b/.test(stderr)) return 'model_access_denied';
   if (/API error: HTTP 400\b/.test(stderr)) return 'model_request_rejected';

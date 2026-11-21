@@ -28,7 +28,7 @@ import { redactIfEnabled, restoreIfEnabled } from './utils/privacy-filter.mjs';
 import { assertLlmRequestAllowed } from './lib/llm-outbound.mjs';
 import { installPiiInterceptor } from './lib/pii-interceptor.mjs';
 import { endpointHeaders } from './lib/endpoint-headers.mjs';
-import { structuredTailoringInstruction, parseStructuredTailoring } from './lib/structured-tailoring.mjs';
+import { structuredTailoringInstruction, parseStructuredTailoring, structuredTailoringResponseFormat, STRUCTURED_CV_ERRORS } from './lib/structured-tailoring.mjs';
 
 // Ambient guard over global fetch (idempotent); the explicit gate below is the
 // primary layer.
@@ -361,6 +361,7 @@ try {
       { role: 'user',   content: `EVALUATION REPORT:\n\n${reportText}\n\nJOB DESCRIPTION:\n\n${jdText}\n\n${jsonOutput ? 'Return only the source-backed CV JSON under the output contract.' : 'Now, generate and output the fully filled HTML CV matching the rules above. Output ONLY raw HTML.'}` },
     ],
     stream:      false,
+    ...(jsonOutput ? {response_format:structuredTailoringResponseFormat()} : {}),
     temperature: 0.2,
     ...buildTokenLimit(maxTokens, endpointHost),
   });
@@ -424,8 +425,8 @@ if (jsonOutput) {
     writeFileSync(jsonOutput, JSON.stringify(payload), { flag: 'wx' });
     // The payload is synchronously written; no model output is printed here.
     process.exit(0);
-  } catch {
-    console.error('Invalid structured CV response; nothing rendered.');
+  } catch (error) {
+    console.error(`Invalid structured CV response (${STRUCTURED_CV_ERRORS.has(error.code) ? error.code : 'model_cv_schema_invalid'}); nothing rendered.`);
     await exitWhenDrained(1);
   }
 }
