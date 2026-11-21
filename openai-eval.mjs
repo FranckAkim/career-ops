@@ -453,7 +453,7 @@ try {
       model:    modelName,
       messages: [
         buildSystemMessage(systemPrompt, endpointHost),
-        { role: 'user', content: `JOB DESCRIPTION TO EVALUATE:\n\n${jdText}` },
+        { role: 'user', content: `JOB DESCRIPTION TO EVALUATE:\n\n${jdText}${['localhost','127.0.0.1','::1'].includes(endpointHost) && /^qwen3\.5:/.test(modelName) ? '\n\nReturn only the required JSON. Copy the employer and advertised role explicitly named in the job description above. Fictional or placeholder employer names are still names; do not replace a provided name with Unknown. Never substitute the candidate’s previous employer.' : ''}` },
       ],
       stream:      true,
       ...(withUsage && { stream_options: { include_usage: true } }),

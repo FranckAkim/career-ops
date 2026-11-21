@@ -130,6 +130,7 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut, executio
             {job.status === 'queued' && <p>Waiting for a worker. You can leave this page and return to follow its progress.</p>}
             {job.status === 'running' && <p>{job.operation === 'tailor' ? 'Preparing and validating your CV and PDF.' : 'Evaluating the posting against your confirmed profile.'}</p>}
             {job.status === 'failed' && <p>This attempt could not finish. Your previously saved workspace is unchanged.</p>}
+            {job.status === 'needs_recovery' && job.error_code === 'invalid_evaluation' && <p>The evaluation did not provide a usable employer, role or score. Check that the posting names the employer and advertised role, then discard the interrupted attempt before trying again.</p>}
             {job.status === 'cancelled' && <p>This attempt was cancelled. No new workspace changes were published.</p>}
             {active(job.status) && <button className={styles.quiet} disabled={busy || job.status === 'cancel_requested'} onClick={cancel}>Cancel job</button>}
             {job.status === 'succeeded' && <div className={styles.actions}>{job.operation === 'evaluate' && <button className={styles.primary} onClick={tailor} disabled={busy || recovery}>Create tailored CV</button>}{job.result?.report && <a className={styles.download} href={`${base}/artifacts/${job.id}/report`}>Download report</a>}{job.result?.pdf && <a className={styles.download} href={`${base}/artifacts/${job.id}/pdf`}>Download PDF</a>}</div>}
