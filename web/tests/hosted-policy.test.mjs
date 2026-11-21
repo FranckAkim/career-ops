@@ -8,6 +8,7 @@ test('local mode requires explicit setup and admission, and never wakes cloud in
   assert.equal(executionPolicy({...env,HOSTED_LOCAL_WORKER_CONFIGURED:'1',HOSTED_JOBS_ENABLED:'0'}).jobsEnabled,false);
 });
 test('cloud requires dispatch credentials and unknown execution modes fail closed',()=>{
+  assert.equal(executionPolicy({}).jobsEnabled,true); // Trusted local development harness.
   assert.equal(executionPolicy({VERCEL:'1',HOSTED_JOBS_ENABLED:'1'}).jobsEnabled,false);
   assert.deepEqual(executionPolicy({HOSTED_EXECUTION_MODE:'typo',HOSTED_JOBS_ENABLED:'1'}),{mode:'unavailable',jobsEnabled:false,notifyCloud:false});
 });

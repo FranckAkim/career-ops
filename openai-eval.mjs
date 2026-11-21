@@ -342,6 +342,7 @@ SCORE: <global score as decimal, e.g. 3.8>
 ARCHETYPE: <detected archetype>
 LEGITIMACY: <High Confidence | Proceed with Caution | Suspicious>
 ---END_SUMMARY---
+${['localhost','127.0.0.1','::1'].includes(endpointHost) && /^qwen3\.5:/.test(modelName) ? '\nFor this local run, keep the complete A–G report within 1200 words. Include every block and the final SCORE_SUMMARY. Use concise evidence and explicitly mark information that cannot be verified. Do not repeat the methodology, source documents or these instructions.' : ''}
 `;
 
 // ---------------------------------------------------------------------------
