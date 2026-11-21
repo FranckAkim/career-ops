@@ -1,6 +1,6 @@
 # Account deletion and retention: implementation boundary
 
-Full account deletion is not implemented or advertised as available. Prospective snapshot capture tracking is now live; read `snapshot-inventory.md` for the exact scope and verification. Historical unreferenced uploads still need reconciliation, followed by account/workspace tombstones and a verified purge workflow. Do not implement deletion by removing an auth row or recursively deleting a workspace prefix.
+Full account deletion is not implemented or advertised as available. Prospective snapshot capture tracking is live; read `snapshot-inventory.md`. The first historical metadata scan is complete: `storage-reconciliation.md` records 24 committed groups and two unattributed groups retained for bounded provenance review. Account/workspace tombstones and a verified purge workflow still remain. Do not implement deletion by removing an auth row or recursively deleting a workspace prefix.
 
 ## Evidence from current storage
 
