@@ -1,8 +1,8 @@
 # Hosted product: shared agent handoff
 
-Last updated: 2026-11-20. Status: the hosted local-AI owner preview is LIVE. Production frontend admission is ON in local mode, pinned to engine 73e7202deeccce325e5f3b337d9840987ddfc9dd. Vercel deployment dpl_2hm9p8nNNgqFX4EZMTpeGHX4au4V is READY; Windows/Linux CI 44853134551 passed. The approved controlled production browser flow passed profile recovery -> evaluation -> local Qwen tailoring -> strict one-page PDF -> hash-matched download -> reload/mobile -> cancellation -> session revocation. Earlier real two-tenant local-model flows and production download/tenant-denial checks also passed. Old static Blob token revocation is verified and OIDC storage works. The operator worker runs under the on-demand Windows task CareerWorkspaceLocalWorker; keep the computer signed in, awake and Docker running. Cloud inference remains disabled. Google OAuth is still Testing with the initial approved user. Read docs/hosted/live-activation.md and docs/hosted/local-ai.md; broader beta work remains.
+Last updated: 2026-11-20. Status: the hosted local-AI owner preview and redesigned dashboard are LIVE. Verified frontend/worker source e86dda881e7f41d18a088756fdd94efe31e4c7ec passed Windows/Linux CI 44870843583. Vercel frontend deployment dpl_8RcY56Y8VpFai76v7uCRm6pjKBEm is READY. Production browser checks pass for real overview counts/search, CV library download hashes, confirmed profile, settings, keyboard/mobile navigation, reload, tenant denial and session revocation. The engine remains independently pinned to 73e7202deeccce325e5f3b337d9840987ddfc9dd; its real local-Qwen evaluation/tailoring/PDF, cancellation and recovery proofs remain valid. Local-mode job admission is ON; cloud inference is OFF. The on-demand Windows worker task is running again with checked-out-client error handling and bounded restart-on-failure; a real Neon driver fault/reconnect test passed. Old static Blob token revocation and OIDC storage access are verified. Google OAuth remains Testing with the initial approved user. Keep the computer signed in, awake and Docker running. Read docs/hosted/dashboard.md and docs/hosted/local-ai.md; canonical application-status tracking and broader beta work remain.
 
-## Dashboard implementation (current work)
+## Dashboard implementation (live)
 
 The approved dashboard is LIVE at frontend source 42faebe5e9aa2afd42f055d432fdf1e2f82aba20 (Vercel dpl_Eg2ZdVKTP48nBWNXH3X1ksQiKiJ3): Overview, Opportunities, CV Studio, My Profile and Settings, with real recent-job counts/search and authenticated documents. Local Postgres/container/browser integration and live production navigation/search/profile/PDF-hash/keyboard/mobile/tenant-denial/session-revocation checks pass. Read `docs/hosted/dashboard.md`. Applied/Interview tracking still needs canonical engine integration. The full handoff was restored after an earlier edit truncated it. A stopped local worker was diagnosed as an unhandled checked-out Neon client error; per-client error observation and bounded task restart were added. A real-driver injected socket failure now rejects the failed query, replaces the connection and succeeds on the next SELECT. The worker task is running again; engine stays pinned to 73e7202.
 
@@ -50,10 +50,10 @@ Suggested order:
 - [x] Publish this handoff, detailed design and `hosted/AGENTS.md` on the user's fork; verify remote contents.
 - [x] Implement the initial allowlisted evaluation/merge adapter with explicit per-child environments, safe paths, bounded output, timeouts and cancellation. Other operations remain unfinished.
 - [x] Establish deterministic tests using synthetic profiles and a local mock model server. These run real upstream evaluator/merger processes; no external model is called.
-- [ ] Install pinned dependencies and run a real engine fixture flow where credentials/runtime permit. No paid model calls without a configured authorized project credential/budget.
+- [x] Install pinned dependencies and prove real local-model evaluation/tailoring/PDF flows on synthetic fixtures. No paid provider is configured for the selected local mode.
 - [x] Verify tracker/report relationships, strict fact checks, section retention/order, locked sections and real PDF output using synthetic fixtures. Real-model quality remains unmeasured.
-- [ ] Add durable orchestration, workspace snapshots and tenant isolation before exposing an API publicly.
-- [ ] Add auth, tenant authorization, uploads, progress events and existing UI integration.
+- [x] Add durable orchestration, immutable snapshots, fencing and tenant isolation.
+- [x] Add Google auth, tenant authorization, reviewed pasted-profile intake, progress events, private downloads and hosted UI integration. File-upload intake remains separate work.
 
 ## Hard boundaries
 
@@ -73,7 +73,7 @@ Cover tenant separation, invalid inputs, subprocess exit/timeouts/cancellation, 
 
 After each meaningful implementation chunk, update the Progress section below with files changed, exact checks/results, known limitations and the next concrete action. Do not mark a mocked run as a real model/PDF integration. Commit coherent changes and push the working branch when authorized. Never overwrite another agent's uncommitted work or force-push shared history.
 
-## Progress
+## Historical implementation notes (superseded by current status)
 
 - Live structured Gemini validation passed at engine/source `df3412019f725ac66d6504e99c205ed71d5696c1`. Alpha's previously stopped synthetic failure was explicitly discarded without changing committed source; a new schema-enforced tailoring job succeeded. Beta then completed a new real Gemini evaluation and tailoring job. Both PDFs are one page, distinct, match their committed hashes and were fetched from private Blob. All test VMs are stopped. Production HTTP downloads using temporary synthetic SDK-backed sessions returned owner 200 with matching bytes/private-no-store, other tenant 404, anonymous 401 and revoked-session 401. Only test auth records were created and cleaned up; real user sessions were not changed. No public login bypass exists. Frontend Production engine revision set to df34120 and worker toggled back to 0; both runtime redeploys reached READY. Disabled authenticated wake returned 503. The old Blob credential was checked again and remains valid.
 - Root-cause boundary correction: requesting free-form styled HTML produced generation/fact failures. Compact JSON plus the existing deterministic renderer passed local facts/PDF checks, but the first live prompt-only JSON attempt was still rejected. Added provider-enforced `response_format` JSON schema derived from the existing payload field specs, followed by independent server validation and unchanged source/fact/locked/chronology/page checks. This passed the live flow; no fact checker or publication gate was relaxed. Fixed enum-only schema errors preserve diagnostics without exposing response content. `074c96c` adds the new helper to the updater manifest after CI identified the omission; coverage now passes. Final df34120 CI passed both jobs in run 44841463787. Local full suite: 28 pass/one Windows symlink skip; targeted structured/process tests seven pass, SDK six pass, ten existing CLI checks pass; worker build/typecheck/route/trace audit passes.
@@ -148,14 +148,10 @@ After each meaningful implementation chunk, update the Progress section below wi
 
 ## Next-agent resume procedure
 
-Deployment decision (2026-11-19): the user selected **Vercel**. Read
-`docs/hosted/vercel-plan.md`. Keep this target across agents; no deployment or paid
-provisioning has been requested yet. Vercel-hosted routes must never expose the
-legacy local filesystem/process dashboard. The existing Docker launcher is a
-development/reference adapter; production worker execution still needs a tested
-Vercel-compatible isolation adapter and durable private object storage.
-
-1. Read these documents and inspect `git status`, branch and recent commits.
-2. Check Progress against actual source and remote state; resolve discrepancies explicitly.
-3. Finish publication first if still pending, then complete the earliest unfinished milestone above.
-4. Update this file with evidence before handing work to the next agent.
+1. Read the current status and dashboard notes above, then inspect the actual branch, working tree, CI and deployment. Use the user fork and `product/hosted-foundation`; do not open another upstream PR.
+2. Vercel hosts the authenticated frontend/API; Neon owns the durable queue; private Blob stores snapshots/artifacts. Operator-local Ollama inference is the selected execution mode. The cloud worker remains disabled. The user authorized development and deployment; unrelated paid provisioning or exporting secrets to new destinations needs its own authorization.
+3. Preserve the independently verified engine pin `73e7202deeccce325e5f3b337d9840987ddfc9dd` when making UI-only changes. Do not move it to the latest frontend commit automatically. Keep local-model containers on an internal network, with no public model port or cloud fallback.
+4. The current Windows task is `CareerWorkspaceLocalWorker`, on demand with bounded failure restarts and no sign-in trigger. Check it is actually running; a deployed frontend does not establish worker uptime. Read `docs/hosted/local-ai.md` for recovery.
+5. Next feature work is canonical application-status tracking from `docs/hosted/dashboard.md`. Do not fabricate Applied/Interview counts or introduce an independent frontend/SQL writer for tracker state. Profile editing and retention/deletion remain unfinished.
+6. Run relevant projection/control-plane/local-worker tests, both web type/build checks, and the disposable PostgreSQL/container/browser flow when touching those boundaries. Use only synthetic fixtures. Keep production keys, profiles, logs and private operator paths out of Git/tool output.
+7. Update this file with exact evidence before handing off. Preserve its full structure; patch a named section rather than slicing against unchecked headings. Historical notes above record past states and must not override current provider/activation decisions.
