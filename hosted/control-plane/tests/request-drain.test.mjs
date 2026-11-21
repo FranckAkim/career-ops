@@ -22,3 +22,8 @@ test('unauthenticated requests have no marker and handler failures settle',async
  const f=fixture();await f.drain.run(async()=>new Response(null,{status:401}));assert.equal(f.active,0);
  await assert.rejects(f.drain.run(async register=>{await register('synthetic');throw Error('synthetic_handler_failure');}),/synthetic_handler_failure/);assert.equal(f.active,0);
 });
+
+test('execution identity is server-provided, paired and validated',()=>{
+ assert.throws(()=>new RequestDrain({pool:{},deploymentId:'dpl_SyntheticRequestReview123456'}),/invalid_execution_identity/);
+ assert.throws(()=>new RequestDrain({pool:{},deploymentId:'caller-path',instanceId:'foreign'}),/invalid_execution_identity/);
+});

@@ -3,10 +3,13 @@ import {ControlError} from './queue.mjs';
 
 // Durable markers, not expiring leases. A failed settlement leaves purge blocked.
 export class RequestDrain {
- constructor({pool}){this.pool=pool;}
+ constructor({pool,deploymentId=null,instanceId=null}){
+  if((deploymentId===null)!==(instanceId===null)||(deploymentId!==null&&(!/^dpl_[A-Za-z0-9]{20,64}$/.test(deploymentId)||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(instanceId))))throw new ControlError('invalid_execution_identity');
+  this.pool=pool;this.deploymentId=deploymentId;this.instanceId=instanceId;
+ }
  async begin(userId){
   const id=randomUUID();
-  try{await this.pool.query('insert into account_request_activity(id,user_id) values($1,$2)',[id,userId]);}
+  try{await this.pool.query('insert into account_request_activity(id,user_id,deployment_id,instance_id) values($1,$2,$3,$4)',[id,userId,this.deploymentId,this.instanceId]);}
   catch(error){if(error.code==='P0001'&&error.message==='account_deleting')throw new ControlError('account_deleting');throw error;}
   let settled=false;
   return async()=>{if(settled)return;await this.pool.query("update account_request_activity set state='settled',settled_at=clock_timestamp() where id=$1 and user_id=$2 and state='active'",[id,userId]);settled=true;};

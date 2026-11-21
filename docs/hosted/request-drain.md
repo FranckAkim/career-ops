@@ -2,7 +2,7 @@
 
 Migration 009 and `HOSTED_REQUEST_DRAIN_ENABLED=1` track authenticated hosted API requests before they can read or mutate workspace data. Admission uses the same account advisory lock as blocking. A request either enters before the block and remains visible, or is rejected after it. Authentication/session-only framework handlers do not access workspace storage; session creation remains protected by the existing lifecycle guard.
 
-The request marker remains active until handler work and its response body finish. Response cancellation waits for upstream cancellation. Export cancellation also waits for any outstanding private-storage read. A database settlement error, lost process or uncertain cleanup leaves an unresolved marker. Time passing never grants permission to purge. Only operator-reviewed evidence of actual termination may resolve abandoned markers; no automatic resolver or public override exists.
+The request marker remains active until handler work and its response body finish. Response cancellation waits for upstream cancellation. Export cancellation also waits for any outstanding private-storage read. A database settlement error, lost process or uncertain cleanup leaves an unresolved marker. Time passing never grants permission to purge. Only verified evidence of actual termination may resolve abandoned markers. Migration 010 adds the operator-only review contract described in `request-review.md`; there is no Vercel termination-evidence adapter, automatic resolver or public override.
 
 Purge checks active markers while holding the account lock, both before physical deletion and before final database cleanup. Settled request metadata is removed with the target's app/auth records. The web role can admit and settle requests but cannot delete activity rows; the worker role has no activity-table access. Rows contain opaque identifiers and timestamps, not URLs, cookies, source text or response contents.
 
@@ -14,7 +14,7 @@ Install migration 009 before enabling the frontend flag. Confirm the deployed bu
 
 Unit tests cover streaming completion, cancellation during a pending read, cleanup/settlement failures and unauthenticated/failed handlers. Disposable PostgreSQL tests cover an actual admission/block transaction race, post-block refusal, an arbitrarily old unresolved marker, immutable activity identity, restricted grants and purge refusal while a request is active. The authenticated HTTP suite runs with tracking enabled. Export integration checks prove cancellation waits for its storage read. Production activation evidence is recorded in `PROJECT_HANDOFF.md`.
 
-## Production evidence — 2026-11-21
+## Production evidence â€” 2026-11-21
 
 Migration 009 is installed and frontend production has `HOSTED_REQUEST_DRAIN_ENABLED=1`. Source `3ba24bae72258c9f3d6091a584304e459d909242` passed Windows/Linux [CI 44922106903](https://github.com/FranckAkim/career-ops/actions/runs/44922106903). Production deployment `dpl_212we9zV1sAbcpDqrJpkJmVCrKtd` is READY.
 

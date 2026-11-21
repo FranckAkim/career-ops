@@ -1,3 +1,4 @@
+import {verifyRequestReview} from './request-review.mjs';
 import {verifyRequestDrain} from './request-drain.mjs';
 // Real PostgreSQL integration; creates only a disposable local test container.
 import assert from 'node:assert/strict';
@@ -212,6 +213,7 @@ try {
   await verifyAuthHttp({ pool, queue, snapshot: initial.id, engineRevision: webRevision, store, runner: webRunner, workRoot: path.join(root, 'workspaces') });
   await verifyAccountLifecycle({pool,store,engineRevision});
   await verifyRequestDrain({pool,engineRevision});
+  await verifyRequestReview({pool});
   await verifyAccountPurge({pool});
 } finally {
   if (pool) await pool.end();

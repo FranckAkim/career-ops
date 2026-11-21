@@ -1,3 +1,4 @@
+import {randomUUID} from 'node:crypto';
 import 'server-only';
 import pg from 'pg';
 import { createAuth } from '@hosted-career/control-plane/auth.mjs';
@@ -12,6 +13,7 @@ import { Artifacts } from '@hosted-career/control-plane/artifacts.mjs';
 import {SnapshotInventory} from '@hosted-career/control-plane/snapshot-inventory.mjs';
 import {accountBlocked} from '@hosted-career/control-plane/account-lifecycle.mjs';
 
+const requestInstanceId=randomUUID();
 let services;
 function getServices() {
   if (services) return services;
@@ -38,7 +40,7 @@ function getServices() {
   if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) store = new BlobSnapshotStore({ storeId: process.env.BLOB_STORE_ID, token: process.env.BLOB_READ_WRITE_TOKEN });
   else if (process.env.VERCEL !== '1' && process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT) store = new SnapshotStore(process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT);
   services = { auth,pool,lifecycleEnabled, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store,inventory }), artifacts: new Artifacts({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION,
-    requestDrainEnabled:process.env.HOSTED_REQUEST_DRAIN_ENABLED==='1',notifyQueue, jobsEnabled: policy.jobsEnabled,applicationsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_APPLICATIONS_ENABLED==='1',profileEditingEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_PROFILE_EDITING_ENABLED==='1',dataControlsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_DATA_CONTROLS_ENABLED==='1' }) };
+    requestDrainEnabled:process.env.HOSTED_REQUEST_DRAIN_ENABLED==='1',requestDeploymentId:process.env.VERCEL_DEPLOYMENT_ID||null,requestInstanceId:process.env.VERCEL_DEPLOYMENT_ID?requestInstanceId:null,notifyQueue, jobsEnabled: policy.jobsEnabled,applicationsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_APPLICATIONS_ENABLED==='1',profileEditingEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_PROFILE_EDITING_ENABLED==='1',dataControlsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_DATA_CONTROLS_ENABLED==='1' }) };
   return services;
 }
 export async function hostedRequest(request) {
