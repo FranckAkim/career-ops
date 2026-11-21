@@ -7,6 +7,7 @@ test('local settings cannot redirect model traffic or select a cloud model',()=>
  assert.throws(()=>localConfig({...input,credentialFile:path.resolve('../outside/.env.local')}),/unsafe_credential/);
  assert.throws(()=>localConfig({...input,image:'mutable:latest'}),/invalid_local/);
  assert.throws(()=>localConfig({...input,snapshotInventory:'true'}),/invalid_local/);
+ assert.throws(()=>localConfig({...input,accountLifecycle:'true'}),/invalid_local/);
  assert.throws(()=>localConfig({...input,additionalImages:{latest:input.image}}),/invalid_engine_images/);
  assert.throws(()=>localConfig({...input,additionalImages:{[input.engineRevision]:`sha256:${'c'.repeat(64)}`}}),/invalid_engine_images/);
 });

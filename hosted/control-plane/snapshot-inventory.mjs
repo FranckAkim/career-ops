@@ -27,6 +27,8 @@ export class SnapshotInventory{
   check(digest.test(id)&&Array.isArray(files)&&files.length<=10000&&files.every(file=>digest.test(file.sha256)&&Number.isSafeInteger(file.bytes)&&file.bytes>=0));
   const hashes=[...new Set(files.map(file=>file.sha256))].sort(),bytes=files.reduce((sum,file)=>sum+file.bytes,0);check(bytes<=100000000);
   await this.queue.transaction(async db=>{
+   const owner=(await db.query('select tenant_id from snapshot_captures where id=$1 and lease_token=$2',[capture.id,capture.token])).rows[0];
+   if(owner?.tenant_id)await db.query('select id from tenants where id=$1 for key share',[owner.tenant_id]);
    const{rows:[record]}=await db.query("select *,lease_until>clock_timestamp() as live from snapshot_captures where id=$1 and lease_token=$2 for update",[capture.id,capture.token]);check(record?.live&&['preparing','uploading'].includes(record.state),'capture_lease_lost');check(!record.snapshot_id||record.snapshot_id===id);
    await db.query('insert into snapshot_objects(id,file_hashes,file_count,total_bytes) values($1,$2,$3,$4) on conflict(id) do nothing',[id,hashes,files.length,bytes]);
    const{rows:[object]}=await db.query('select * from snapshot_objects where id=$1 for update',[id]);check(object.state==='active','snapshot_unavailable');

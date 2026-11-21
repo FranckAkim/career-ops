@@ -26,6 +26,7 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
       // developer machine from sending synthetic fixtures to live Blob storage.
       BLOB_READ_WRITE_TOKEN: '', BLOB_STORE_ID: '', VERCEL: '',
       HOSTED_SNAPSHOT_INVENTORY_ENABLED:'1',
+      HOSTED_ACCOUNT_LIFECYCLE_ENABLED:'1',
       GOOGLE_CLIENT_ID: 'synthetic-client', GOOGLE_CLIENT_SECRET: 'synthetic-secret', HOSTED_ENGINE_REVISION: engineRevision, NEXT_TELEMETRY_DISABLED: '1', HOSTED_DEVELOPMENT_SNAPSHOT_ROOT: store.root },
   });
   child.stdout.resume(); child.stderr.resume();

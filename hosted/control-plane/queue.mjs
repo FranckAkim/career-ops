@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {applicationStates} from './application-states.mjs';
 import {assertCapturePublication} from './snapshot-inventory.mjs';
+import {assertAccountActive} from './account-lifecycle.mjs';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const digest = /^[a-f0-9]{64}$/;
@@ -12,10 +13,11 @@ const event = (db, job, kind) => db.query('insert into job_events(tenant_id,job_
 // Caller identity must come from verified server-side auth, never a request body.
 // Worker/admin methods below are private capabilities, not public API handlers.
 export class Queue {
-  constructor(pool, { leaseSeconds = 60, maxDailyJobs = 0, snapshotInventory=false } = {}) {
+  constructor(pool, { leaseSeconds = 60, maxDailyJobs = 0, snapshotInventory=false,accountLifecycle=false } = {}) {
     check(Number.isInteger(leaseSeconds) && leaseSeconds >= 5 && leaseSeconds <= 3600);
     check(Number.isInteger(maxDailyJobs) && maxDailyJobs >= 0 && maxDailyJobs <= 1000);
     check(typeof snapshotInventory==='boolean');this.snapshotInventory=snapshotInventory;
+    check(typeof accountLifecycle==='boolean');this.accountLifecycle=accountLifecycle;
     this.pool = pool; this.leaseSeconds = leaseSeconds; this.maxDailyJobs = maxDailyJobs;
   }
   async transaction(fn) {
@@ -30,6 +32,7 @@ export class Queue {
   }
   async authorize(db, tenantId, userId, owner = false) {
     check(uuid.test(tenantId) && uuid.test(userId));
+    if(this.accountLifecycle)await assertAccountActive(db,userId,tenantId);
     const { rows } = await db.query('select role from memberships where tenant_id=$1 and user_id=$2', [tenantId, userId]);
     check(rows.length && (!owner || rows[0].role === 'owner'), 'not_found');
   }
@@ -119,6 +122,7 @@ export class Queue {
   async claim() {
     return this.transaction(async db => {
       const { rows: [tenant] } = await db.query(`select t.* from tenants t where active_job is null and not recovery_required
+        ${this.accountLifecycle?'and not exists(select 1 from workspace_tombstones w where w.tenant_id=t.id and w.active)':''}
         and exists(select 1 from jobs j where j.tenant_id=t.id and j.status='queued')
         order by (select min(created_at) from jobs j where j.tenant_id=t.id and j.status='queued'), t.id
         limit 1 for update of t skip locked`);

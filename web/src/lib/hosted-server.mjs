@@ -10,6 +10,7 @@ import { BlobSnapshotStore } from '@hosted-career/control-plane/blob-snapshots.m
 import { SnapshotStore } from '@hosted-career/control-plane/snapshots.mjs';
 import { Artifacts } from '@hosted-career/control-plane/artifacts.mjs';
 import {SnapshotInventory} from '@hosted-career/control-plane/snapshot-inventory.mjs';
+import {accountBlocked} from '@hosted-career/control-plane/account-lifecycle.mjs';
 
 let services;
 function getServices() {
@@ -20,10 +21,11 @@ function getServices() {
   // Idle connection errors must not crash a warm Function; requests surface a
   // sanitized 503. Never log raw connection objects or candidate payloads.
   pool.on('error', () => {});
-  const auth = createAuth({ pool, origin: process.env.BETTER_AUTH_URL, secret: process.env.BETTER_AUTH_SECRET, vercel: process.env.VERCEL === '1',
+  const lifecycleEnabled=process.env.HOSTED_ACCOUNT_LIFECYCLE_ENABLED==='1';
+  const auth = createAuth({ pool, origin: process.env.BETTER_AUTH_URL, secret: process.env.BETTER_AUTH_SECRET, vercel: process.env.VERCEL === '1',accountLifecycle:lifecycleEnabled,
     google: { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET } });
   const inventoryEnabled=process.env.HOSTED_SNAPSHOT_INVENTORY_ENABLED==='1';
-  const queue = new Queue(pool, { maxDailyJobs: process.env.VERCEL === '1' ? 10 : 0,snapshotInventory:inventoryEnabled });
+  const queue = new Queue(pool, { maxDailyJobs: process.env.VERCEL === '1' ? 10 : 0,snapshotInventory:inventoryEnabled,accountLifecycle:lifecycleEnabled });
   const inventory=inventoryEnabled?new SnapshotInventory({queue}):undefined;
   const workerUrl = process.env.HOSTED_WORKER_URL, workerSecret = process.env.HOSTED_DISPATCH_SECRET;
   const policy = executionPolicy();
@@ -35,7 +37,7 @@ function getServices() {
   let store;
   if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) store = new BlobSnapshotStore({ storeId: process.env.BLOB_STORE_ID, token: process.env.BLOB_READ_WRITE_TOKEN });
   else if (process.env.VERCEL !== '1' && process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT) store = new SnapshotStore(process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT);
-  services = { auth, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store,inventory }), artifacts: new Artifacts({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION,
+  services = { auth,pool,lifecycleEnabled, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store,inventory }), artifacts: new Artifacts({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION,
     notifyQueue, jobsEnabled: policy.jobsEnabled,applicationsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_APPLICATIONS_ENABLED==='1',profileEditingEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_PROFILE_EDITING_ENABLED==='1',dataControlsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_DATA_CONTROLS_ENABLED==='1' }) };
   return services;
 }
@@ -55,6 +57,7 @@ export async function hostedSession(headers) {
   if (!hostedMode()) return { user: null, unavailable: true };
   try {
     const session = await getServices().auth.api.getSession({ headers });
+    if(session&&getServices().lifecycleEnabled&&await accountBlocked(getServices().pool,session.user.id))return {user:null,unavailable:false};
     return { user: session ? { id: session.user.id, name: session.user.name } : null, unavailable: false };
   } catch { return { user: null, unavailable: true }; }
 }

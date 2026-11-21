@@ -1,13 +1,15 @@
 import { betterAuth } from 'better-auth';
 import { ControlError } from './queue.mjs';
+import {accountBlocked} from './account-lifecycle.mjs';
 
-export function authOptions({ pool, origin, secret, google, vercel = false }) {
+export function authOptions({ pool, origin, secret, google, vercel = false,accountLifecycle=false }) {
   const url = new URL(origin);
   if (url.origin !== origin || url.username || url.password || !(url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost','127.0.0.1'].includes(url.hostname))) || typeof secret !== 'string' || secret.length < 32) throw new ControlError('invalid_auth_config');
   return {
     appName: 'Career Workspace',
     telemetry: { enabled: false },
     database: pool,
+    ...(accountLifecycle?{databaseHooks:{session:{create:{before:async session=>await accountBlocked(pool,session.userId)?false:{data:session}}}}}:{}),
     baseURL: origin,
     secret,
     trustedOrigins: [origin],

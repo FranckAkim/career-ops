@@ -9,7 +9,7 @@ import {Queue} from '../queue.mjs';
 export async function verifyWorkspace({ page, pool, queue, store, runner, workRoot, userId, origin }) {
   const { rows: [personal] } = await pool.query('select tenant_id from personal_workspaces where user_id=$1', [userId]);
   const tenantId = personal.tenant_id;
-  const inventoryEnabled=true,workerQueue=new Queue(pool,{snapshotInventory:true});
+  const inventoryEnabled=true,workerQueue=new Queue(pool,{snapshotInventory:true,accountLifecycle:true});
   const inventory=inventoryEnabled?new SnapshotInventory({queue:workerQueue}):undefined;
   const supervisor = new Supervisor({ queue:workerQueue, store, runner, inventory,workRoot, heartbeatMs: 500 });
   await page.getByRole('button',{name:'Opportunities',exact:true}).click();

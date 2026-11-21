@@ -1,6 +1,7 @@
 import { ControlError } from './queue.mjs';
 import {Profiles} from './profiles.mjs';
 import {DataControls} from './data-controls.mjs';
+import {assertAccountActive} from './account-lifecycle.mjs';
 
 export function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie', 'X-Content-Type-Options': 'nosniff' } });
@@ -35,6 +36,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       const session = await auth.api.getSession({ headers: request.headers });
       if (!session) return json({ error: 'unauthorized' }, 401);
       const userId = session.user.id;
+      if(queue.accountLifecycle)await assertAccountActive(queue.pool,userId);
       const url = new URL(request.url);
       const segments = url.pathname.split('/').filter(Boolean);
       if (segments[0] !== 'api' || segments[1] !== 'hosted') return json({ error: 'not_found' }, 404);
@@ -103,7 +105,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       return json({ error: 'not_found' }, 404);
     } catch (error) {
       const code = error instanceof ControlError ? error.code : 'service_unavailable';
-      const status = ['not_found','evaluation_not_found','artifact_missing'].includes(code) ? 404
+      const status = code==='account_deleting'?403:['not_found','evaluation_not_found','artifact_missing'].includes(code) ? 404
         : code === 'daily_job_limit' ? 429 : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale','profile_source_conflict'].includes(code) ? 409 : ['input_limit','export_limit'].includes(code) ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
       return json({ error: code }, status);
     }
