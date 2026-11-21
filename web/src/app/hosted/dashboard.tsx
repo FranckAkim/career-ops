@@ -20,7 +20,7 @@ export function Dashboard({jobs,tenantId,userName,loaded,executionMode,onOpenJob
   const [view,setView]=useState<View>('overview');
   const [search,setSearch]=useState('');
   const [deletionRequested,setDeletionRequested]=useState(false);
-  if(deletionRequested)return <main className={d.panel}><h1>Deletion request received</h1><p role="status">Your account access is blocked and signed-in sessions are revoked. Stored-data removal is pending service-operator review. Your data has not been confirmed deleted.</p><a href="/hosted">Return to sign-in</a></main>;
+  if(deletionRequested)return <main className={`${d.panel} ${d.deletionReceipt}`}><h1>Deletion request received</h1><p role="status">Your account access is blocked and signed-in sessions are revoked. Stored-data removal is pending service-operator review. Your data has not been confirmed deleted.</p><a className={d.primary} href="/hosted">Return to sign-in</a></main>;
   const summary=workspaceSummary(jobs,search);
   const shown=new Set(summary.visible.map((item:DashboardJob)=>item.id));
   const base=`/api/hosted/tenants/${tenantId}`;
