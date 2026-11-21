@@ -4,12 +4,13 @@ import os from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {ControlError} from './queue.mjs';
 import {profileInput,reviewHash} from './onboarding.mjs';
+import {assertCapturePublication} from './snapshot-inventory.mjs';
 const check=(value,code='invalid_request')=>{if(!value)throw new ControlError(code);};
 
 // Source-only publication: preserve the canonical tracker and all prior receipts.
 // No model is asked to invent, extract or confirm career facts.
 export class Profiles {
- constructor({queue,store}){this.queue=queue;this.store=store;}
+ constructor({queue,store,inventory}){this.queue=queue;this.store=store;this.inventory=inventory;}
  async current({tenantId,userId},db=this.queue.pool){
   await this.queue.authorize(db,tenantId,userId,true);
   const{rows:[row]}=await db.query('select t.generation,t.snapshot,t.active_job,t.recovery_required,p.review_hash,d.content,d.revision,w.job_id from tenants t join personal_workspaces p on p.tenant_id=t.id and p.user_id=$2 join profile_drafts d on d.id=p.draft_id and d.user_id=p.user_id join workspace_versions w on w.tenant_id=t.id and w.generation=t.generation where t.id=$1',[tenantId,userId]);
@@ -41,7 +42,7 @@ export class Profiles {
    const provenance={schema:1,provenance:'user-confirmed-pasted-source',userId,draftId,revision:base.revision+1,reviewHash:fingerprint,previousReviewHash:base.review_hash,previousGeneration:base.generation,confirmedAt:new Date().toISOString()};
    const files={'cv.md':content.cvMarkdown,'config/profile.yml':JSON.stringify({...configuration,name:content.fullName,candidate:{...configuration.candidate,full_name:content.fullName},output_language:content.language}),'modes/_profile.md':`Target role stated by the user: ${JSON.stringify(content.targetRole)}. Use only confirmed CV/profile facts.`+targeting.slice(oldTarget.length),'config/confirmed-profile.json':JSON.stringify(provenance)};
    for(const[file,text]of Object.entries(files))await fs.writeFile(path.join(workspace,file),text,{mode:0o600});
-   snapshot=await this.store.capture(workspace);await this.store.verify(snapshot.id);
+   snapshot=this.inventory?await this.inventory.capture({store:this.store,workspace,userId,tenantId,kind:'profile'}):await this.store.capture(workspace);await this.store.verify(snapshot.id);
   }finally{
    if(path.dirname(root)!==path.resolve(os.tmpdir())||!path.basename(root).startsWith('hc-profile-')||await fs.realpath(root)!==root)throw new ControlError('unsafe_cleanup');
    await fs.rm(root,{recursive:true,force:true});
@@ -55,6 +56,7 @@ export class Profiles {
    check(!current.active_job&&!current.recovery_required,'tenant_busy');
    check(!(await db.query("select 1 from jobs where tenant_id=$1 and status in ('queued','running','cancel_requested') limit 1",[tenantId])).rowCount,'tenant_busy');
    const generation=(BigInt(current.generation)+1n).toString();
+   if(this.inventory)await assertCapturePublication(db,{snapshot:snapshot.id,captureId:snapshot.captureId,userId,tenantId,kind:'profile'});
    await db.query('insert into profile_drafts(id,user_id,revision,review_hash,content,confirmed_at) values($1,$2,$3,$4,$5,clock_timestamp())',[draftId,userId,current.revision+1,fingerprint,content]);
    await db.query('update personal_workspaces set draft_id=$2,review_hash=$3 where user_id=$1',[userId,draftId,fingerprint]);
    // Source-only generations have no job receipt. Tracker reads resolve the most

@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { ControlError, hash } from './queue.mjs';
+import {assertCapturePublication} from './snapshot-inventory.mjs';
 
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const check = (value, code = 'invalid_request') => { if (!value) throw new ControlError(code); };
@@ -22,7 +23,7 @@ export const reviewHash = profile => hash(JSON.stringify({ schema: 1, profile })
 export const emptyTracker = '# Applications\n\n| # | Date | Company | Role | Score | Status | PDF | Report | Notes | URL |\n|---|---|---|---|---|---|---|---|---|---|\n';
 
 export class Onboarding {
-  constructor({ queue, store }) { this.queue = queue; this.store = store; }
+  constructor({ queue, store, inventory }) { this.queue = queue; this.store = store;this.inventory=inventory; }
   async userLock(db, userId) {
     check(uuid.test(userId));
     await db.query('select pg_advisory_xact_lock(hashtextextended($1,847292))', [userId]);
@@ -86,7 +87,7 @@ export class Onboarding {
         'config/confirmed-profile.json': JSON.stringify({ schema: 1, provenance: 'user-confirmed-pasted-source', userId, draftId, revision: draft.revision, reviewHash: expectedHash, confirmedAt: new Date().toISOString() }),
       };
       for (const [relative, text] of Object.entries(files)) await fs.writeFile(path.join(root, relative), text, { flag: 'wx', mode: 0o600 });
-      snapshot = await this.store.capture(root);
+      snapshot = this.inventory?await this.inventory.capture({store:this.store,workspace:root,userId,kind:'onboarding'}):await this.store.capture(root);
       await this.store.verify(snapshot.id);
     } finally {
       if (path.dirname(root) !== path.resolve(os.tmpdir()) || !path.basename(root).startsWith('hc-onboarding-')) throw new ControlError('unsafe_cleanup');
@@ -98,6 +99,7 @@ export class Onboarding {
       check(current?.review_hash === expectedHash, 'review_conflict');
       const { rows: [committed] } = await db.query('select * from personal_workspaces where user_id=$1', [userId]);
       if (committed) { check(committed.draft_id === draftId && committed.review_hash === expectedHash, 'already_onboarded'); return { tenantId: committed.tenant_id, replayed: true }; }
+      if(this.inventory)await assertCapturePublication(db,{snapshot:snapshot.id,captureId:snapshot.captureId,userId,kind:'onboarding'});
       const tenantId = randomUUID();
       await db.query('insert into tenants(id,snapshot) values($1,$2)', [tenantId,snapshot.id]);
       await db.query("insert into memberships values($1,$2,'owner')", [tenantId,userId]);

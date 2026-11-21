@@ -29,7 +29,7 @@ export class SnapshotStore {
     if (!path.isAbsolute(root)) throw new ControlError('invalid_store_root');
     this.root = path.resolve(root); this.maxFiles = maxFiles; this.maxBytes = maxBytes;
   }
-  async capture(workspace) {
+  async capture(workspace, {beforeStore,assertActive} = {}) {
     const source = await fs.realpath(workspace);
     const relation = path.relative(source, this.root);
     if (!relation || (!relation.startsWith(`..${path.sep}`) && relation !== '..' && !path.isAbsolute(relation))) throw new ControlError('store_inside_workspace');
@@ -62,6 +62,7 @@ export class SnapshotStore {
       files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
       const manifest = JSON.stringify({ schema: 1, files });
       const id = hash(manifest);
+      await beforeStore?.({id,files});assertActive?.();
       await fs.writeFile(path.join(stage, 'manifest.json'), manifest, { flag: 'wx', mode: 0o600 });
       try { await fs.rename(stage, path.join(this.root, id)); }
       catch (error) {

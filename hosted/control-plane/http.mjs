@@ -67,7 +67,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
         if(route.length===4&&jobId==='discard-drafts'&&request.method==='POST')return json(await controls.discardDrafts({...await body(request,['expectedDrafts','acknowledged']),...input}));
       }
       if(collection==='profile'&&profileEditingEnabled&&onboarding){
-        const profiles=new Profiles({queue,store:onboarding.store});
+        const profiles=new Profiles({queue,store:onboarding.store,inventory:onboarding.inventory});
         if(route.length===3&&request.method==='GET')return json(await profiles.read({tenantId,userId}));
         if(route.length===4&&jobId==='review'&&request.method==='POST'){
           await queue.authorize(queue.pool,tenantId,userId,true);

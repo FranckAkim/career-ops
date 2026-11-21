@@ -6,6 +6,7 @@ test('local settings cannot redirect model traffic or select a cloud model',()=>
  assert.equal(result.model,'qwen3.5:4b');assert.equal(result.modelBaseUrl,'http://127.0.0.1:11434/v1');assert.equal(result.modelContainer,'career-workspace-local-ai');assert.equal(result.namespace.length,32);
  assert.throws(()=>localConfig({...input,credentialFile:path.resolve('../outside/.env.local')}),/unsafe_credential/);
  assert.throws(()=>localConfig({...input,image:'mutable:latest'}),/invalid_local/);
+ assert.throws(()=>localConfig({...input,snapshotInventory:'true'}),/invalid_local/);
  assert.throws(()=>localConfig({...input,additionalImages:{latest:input.image}}),/invalid_engine_images/);
  assert.throws(()=>localConfig({...input,additionalImages:{[input.engineRevision]:`sha256:${'c'.repeat(64)}`}}),/invalid_engine_images/);
 });

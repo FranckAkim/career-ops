@@ -40,19 +40,23 @@ export class BlobSnapshotStore {
       if (!existing.equals(data)) throw new ControlError('snapshot_corrupt');
     }
   }
-  async capture(workspace) {
+  async capture(workspace, {beforeStore,assertActive} = {}) {
     const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'hc-blob-'));
     await fs.chmod(temporary, 0o700);
     try {
       const local = new SnapshotStore(path.join(temporary, 'objects'), { maxFiles: this.maxFiles, maxBytes: this.maxBytes });
       const saved = await local.capture(workspace);
+      await beforeStore?.(saved);assertActive?.();
       for (const file of saved.files) {
+        assertActive?.();
         const bytes = await fs.readFile(safePath(path.join(local.root, saved.id, 'files'), file.path));
         await this.immutablePut(this.key(saved.id, `files/${file.sha256}`), bytes);
       }
       // Manifest last; a partial upload cannot look like a full snapshot.
+      assertActive?.();
       await this.immutablePut(this.key(saved.id, 'manifest.json'), await fs.readFile(path.join(local.root, saved.id, 'manifest.json')));
       await this.verify(saved.id);
+      assertActive?.();
       return saved;
     } finally {
       if (path.dirname(temporary) !== path.resolve(os.tmpdir()) || !path.basename(temporary).startsWith('hc-blob-')) throw new ControlError('unsafe_cleanup');

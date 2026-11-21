@@ -9,6 +9,7 @@ export function localConfig(input) {
       !/^prj_[A-Za-z0-9]+$/.test(input.projectId || '')) throw new Error('invalid_local_worker_config');
   if (path.relative(input.workRoot,input.credentialFile).startsWith('..') || path.basename(input.credentialFile).startsWith('.env') === false) throw new Error('unsafe_credential_file');
   const additional=input.additionalImages||{};
+  if(input.snapshotInventory!==undefined&&typeof input.snapshotInventory!=='boolean')throw new Error('invalid_local_worker_config');
   if(typeof additional!=='object'||Array.isArray(additional)||Object.keys(additional).length>3||Object.entries(additional).some(([revision,image])=>!/^[a-f0-9]{40}$/.test(revision)||!/^sha256:[a-f0-9]{64}$/.test(image)||revision===input.engineRevision&&image!==input.image))throw new Error('invalid_engine_images');
   const engineImages=Object.freeze({...additional,[input.engineRevision]:input.image});
   return Object.freeze({...input,engineImages,model:'qwen3.5:4b',modelContainer:'career-workspace-local-ai',

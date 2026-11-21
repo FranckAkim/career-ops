@@ -10,6 +10,7 @@ import {dockerRunner} from '@hosted-career/control-plane/docker-runner.mjs';
 import {credentialLoader} from './credentials.mjs';
 import {observeDatabaseErrors} from './database.mjs';
 import {revisionRunner} from './runners.mjs';
+import {SnapshotInventory} from '@hosted-career/control-plane/snapshot-inventory.mjs';
 
 neonConfig.webSocketConstructor=WebSocket;
 export function docker(args) {
@@ -62,10 +63,11 @@ export async function runLocalWorker(config,{once=false,signal}={}) {
     for(const id of prior){if(!/^[a-f0-9]{12,64}$/.test(id))throw new Error('unexpected_container');const[c]=JSON.parse(await docker(['inspect',id]));if(c.Config.Labels?.['io.career-workspace.worker']!==config.namespace)throw new Error('unexpected_container');await docker(['rm','-f',id]);}
     const load=credentialLoader(config);const credentials=await load();
     pool=observeDatabaseErrors(new Pool({connectionString:credentials.databaseUrl,max:3,connectionTimeoutMillis:10000}),()=>console.error('Database connection interrupted; the worker will reconnect.'));
-    const queue=new Queue(pool),store=new BlobSnapshotStore({storeId:credentials.storeId});
+    const queue=new Queue(pool,{snapshotInventory:config.snapshotInventory===true}),store=new BlobSnapshotStore({storeId:credentials.storeId});
+    const inventory=config.snapshotInventory===true?new SnapshotInventory({queue}):undefined;
     const runner=revisionRunner(config.engineImages,image=>dockerRunner({image,seccomp:config.seccomp,network:`container:${config.modelContainer}`,
       provider:{baseUrl:config.modelBaseUrl,model:config.model,apiKey:''},timeoutMs:config.timeoutMs,allowLocalProvider:true,tailoringFormat:'json',workerNamespace:config.namespace}));
-    const supervisor=new Supervisor({queue,store,runner,workRoot:path.join(config.workRoot,'jobs')});
+    const supervisor=new Supervisor({queue,store,runner,inventory,workRoot:path.join(config.workRoot,'jobs')});
     console.log('Local AI worker ready; model traffic stays on the isolated local network.');
     do{
       try{

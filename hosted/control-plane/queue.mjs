@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {applicationStates} from './application-states.mjs';
+import {assertCapturePublication} from './snapshot-inventory.mjs';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const digest = /^[a-f0-9]{64}$/;
@@ -11,9 +12,10 @@ const event = (db, job, kind) => db.query('insert into job_events(tenant_id,job_
 // Caller identity must come from verified server-side auth, never a request body.
 // Worker/admin methods below are private capabilities, not public API handlers.
 export class Queue {
-  constructor(pool, { leaseSeconds = 60, maxDailyJobs = 0 } = {}) {
+  constructor(pool, { leaseSeconds = 60, maxDailyJobs = 0, snapshotInventory=false } = {}) {
     check(Number.isInteger(leaseSeconds) && leaseSeconds >= 5 && leaseSeconds <= 3600);
     check(Number.isInteger(maxDailyJobs) && maxDailyJobs >= 0 && maxDailyJobs <= 1000);
+    check(typeof snapshotInventory==='boolean');this.snapshotInventory=snapshotInventory;
     this.pool = pool; this.leaseSeconds = leaseSeconds; this.maxDailyJobs = maxDailyJobs;
   }
   async transaction(fn) {
@@ -142,13 +144,14 @@ export class Queue {
       return true;
     });
   }
-  async publish(claim, { snapshot, result, artifacts }) {
+  async publish(claim, { snapshot, result, artifacts,captureId }) {
     check(digest.test(snapshot) && result && result.jobId === claim.id && result.engineRevision === claim.engine_revision && Array.isArray(artifacts));
     for (const a of artifacts) check(typeof a.path === 'string' && a.path.length <= 1024 && digest.test(a.sha256));
     return this.transaction(async db => {
       const { tenant, job } = await this.locked(db, claim);
       check(job.status === 'running', 'cancelled');
       check(tenant.generation === String(claim.base_generation) && tenant.snapshot === claim.base_snapshot, 'generation_conflict');
+      if(this.snapshotInventory)await assertCapturePublication(db,{snapshot,captureId,userId:claim.requested_by,tenantId:claim.tenant_id,jobId:claim.id,jobFence:claim.fence,kind:'job'});
       const generation = (BigInt(tenant.generation) + 1n).toString();
       await db.query('insert into workspace_versions(tenant_id,generation,snapshot,job_id) values($1,$2,$3,$4)', [tenant.id, generation, snapshot, job.id]);
       for (const artifact of artifacts) await db.query('insert into artifacts values($1,$2,$3,$4)', [tenant.id, job.id, artifact.path, artifact.sha256]);

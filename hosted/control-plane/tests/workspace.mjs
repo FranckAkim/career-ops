@@ -3,11 +3,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Supervisor } from '../supervisor.mjs';
 import { hash } from '../queue.mjs';
+import {SnapshotInventory} from '../snapshot-inventory.mjs';
+import {Queue} from '../queue.mjs';
 
 export async function verifyWorkspace({ page, pool, queue, store, runner, workRoot, userId, origin }) {
   const { rows: [personal] } = await pool.query('select tenant_id from personal_workspaces where user_id=$1', [userId]);
   const tenantId = personal.tenant_id;
-  const supervisor = new Supervisor({ queue, store, runner, workRoot, heartbeatMs: 500 });
+  const inventoryEnabled=true,workerQueue=new Queue(pool,{snapshotInventory:true});
+  const inventory=inventoryEnabled?new SnapshotInventory({queue:workerQueue}):undefined;
+  const supervisor = new Supervisor({ queue:workerQueue, store, runner, inventory,workRoot, heartbeatMs: 500 });
   await page.getByRole('button',{name:'Opportunities',exact:true}).click();
   const submit = async text => {
     await page.getByLabel('Posting text', { exact:true }).fill(text);
@@ -114,5 +118,6 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   await page.getByRole('heading',{name:'A job needs your review.'}).waitFor({state:'hidden'});
   assert.equal((await pool.query('select recovery_required from tenants where id=$1',[tenantId])).rows[0].recovery_required,false);
   console.log('PASS dashboard navigation/search/profile/CV library and browser posting -> durable queue -> real worker evaluation/PDF -> verified download, reload, cancellation and explicit recovery');
+  if(inventoryEnabled){const{rows}=await pool.query("select kind,count(*)::int as count from snapshot_captures where user_id=$1 and state='ready' group by kind",[userId]);for(const kind of ['onboarding','profile','job'])assert.ok(rows.some(row=>row.kind===kind&&row.count>0));console.log('PASS browser onboarding/profile/job publications have durable owner capture proofs');}
   return pdfUrl;
 }

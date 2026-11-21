@@ -4,9 +4,10 @@ import { randomUUID } from 'node:crypto';
 import { ControlError } from './queue.mjs';
 
 export class Supervisor {
-  constructor({ queue, store, runner, workRoot, heartbeatMs = 10000 }) {
+  constructor({ queue, store, runner, workRoot, heartbeatMs = 10000,inventory }) {
     if (!path.isAbsolute(workRoot) || heartbeatMs < 100 || heartbeatMs >= queue.leaseSeconds * 500) throw new ControlError('invalid_supervisor_config');
     this.queue = queue; this.store = store; this.runner = runner;
+    this.inventory=inventory;
     this.workRoot = path.resolve(workRoot); this.heartbeatMs = heartbeatMs;
   }
   async runOnce({ signal } = {}) {
@@ -33,7 +34,7 @@ export class Supervisor {
       // runner must settle only after the worker/container is fully stopped.
       const result = await this.runner({ workspace, job: { ...claim.payload, jobId: claim.id }, engineRevision: claim.engine_revision, claim, signal: abort.signal });
       if (lost || abort.signal.aborted) throw new ControlError('cancelled');
-      const snapshot = await this.store.capture(workspace);
+      const snapshot = this.inventory?await this.inventory.capture({store:this.store,workspace,userId:claim.requested_by,tenantId:claim.tenant_id,jobId:claim.id,jobFence:claim.fence,kind:'job'}):await this.store.capture(workspace);
       // Read the verified regular-file copy, never a worker-created host link.
       const receipt = JSON.parse(await this.store.read(snapshot.id, `.hosted/${claim.id}/result.json`));
       if (receipt.schema !== 2 || receipt.operation !== claim.payload.operation || receipt.result.jobId !== claim.id || receipt.result.engineRevision !== claim.engine_revision || JSON.stringify(receipt.result) !== JSON.stringify(result) || !Array.isArray(receipt.artifacts)) throw new ControlError('invalid_receipt');
@@ -43,7 +44,7 @@ export class Supervisor {
       if (lost || abort.signal.aborted) throw new ControlError('cancelled');
       // Publish rechecks lease, cancellation, fence and base generation. Uploaded
       // but unreferenced snapshots are harmless; no partial workspace is visible.
-      const generation = await this.queue.publish(claim, { snapshot: snapshot.id, result, artifacts: receipt.artifacts });
+      const generation = await this.queue.publish(claim, { snapshot: snapshot.id, result, artifacts: receipt.artifacts,captureId:snapshot.captureId });
       return { jobId: claim.id, status: 'succeeded', generation };
     } catch (error) {
       abort.abort(); await stopHeartbeat();

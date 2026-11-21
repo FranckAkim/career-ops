@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
 export async function migrate(pool) {
-  const migrations = ['./schema.sql','./migrations/002-onboarding.sql','./migrations/003-artifact-job-index.sql','./migrations/004-worker-attempts.sql'];
+  const migrations = ['./schema.sql','./migrations/002-onboarding.sql','./migrations/003-artifact-job-index.sql','./migrations/004-worker-attempts.sql','./migrations/005-snapshot-inventory.sql'];
   const db = await pool.connect();
   try {
     await db.query('begin');

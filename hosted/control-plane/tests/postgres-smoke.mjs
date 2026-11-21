@@ -19,6 +19,7 @@ import { verifyArtifacts } from './artifacts.mjs';
 import {verifyApplications} from './applications.mjs';
 import {verifyProfiles} from './profiles.mjs';
 import {verifyDataControls} from './data-controls.mjs';
+import {verifySnapshotInventory} from './snapshot-inventory.mjs';
 import { attemptJournal } from '../../sandbox-worker/journal.mjs';
 
 const name = `hc-postgres-test-${randomUUID()}`;
@@ -168,6 +169,7 @@ try {
   await verifyOnboarding({ pool, queue, store, model, engineRevision });
   await verifyProfiles({pool,queue,store,model,engineRevision});
   await verifyDataControls({pool,queue,store,engineRevision});
+  await verifySnapshotInventory({pool,queue,store,model,engineRevision});
   await verifyArtifacts({ queue, store, snapshot: initial.id, engineRevision });
   let webRunner, webRevision = engineRevision;
 
