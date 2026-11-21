@@ -1,12 +1,12 @@
 # Public access fence for historical deployments
 
-The frontend project now uses Vercel Standard Protection (`prod_deployment_urls_and_all_previews`). The canonical production domain stays public; generated production and preview deployment URLs require Vercel authentication. The worker project is separate. This is a reversible project configuration change; no deployment is deleted. See [Vercel Deployment Protection](https://vercel.com/docs/deployment-protection).
+The frontend project now uses Vercel Standard Protection (`all_except_custom_domains`). The canonical production domain stays public; generated production and preview deployment URLs require Vercel authentication. The existing canonical hostname is a verified production project domain. The original career-workspace-two.vercel.app hostname redirects to it with status 308. The worker project is separate. This is a reversible project configuration change; no deployment is deleted. See [Vercel Deployment Protection](https://vercel.com/docs/deployment-protection).
 
 ## Read-only verification
 
 `inspectDeploymentFence` accepts operator-owned authenticated project/inventory readers. It requires a complete, bounded inventory, validates fixed Vercel deployment hostnames, and sends anonymous probes with no credentials and no redirect following. It distinguishes a Vercel SSO redirect/authentication page from the application's own JSON 401. An application 401 alone cannot verify platform protection.
 
-The inspector checks every generated URL, the canonical app page and its unauthenticated session endpoint. It reads the inventory and protection policy again afterward; changed inventory/policy, configured bypasses, incomplete metadata, mismatched redirect targets, malformed hosts and unverified responses prevent verification. The report digest binds both observations and the probe results. The module exposes no public route, accepts no browser-selected URLs and performs no provider mutation or data deletion.
+The inspector checks every generated deployment URL, current non-domain/branch aliases, the complete registered-domain inventory, production-domain redirects and the canonical app page/session endpoint. It requires the canonical hostname to be a verified production domain. Legacy protection enums are refused because the current branch address can remain public under them. It reads the inventory and protection policy again afterward; changed inventory/policy, configured bypasses, incomplete metadata, mismatched redirect targets, malformed hosts and unverified responses prevent verification. The report digest binds both observations and the probe results. The module exposes no public route, accepts no browser-selected URLs and performs no provider mutation or data deletion.
 
 ## Evidence and limits
 
