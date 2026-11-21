@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { get, put } from '@vercel/blob';
+import { get, put, list } from '@vercel/blob';
 import { SnapshotStore, manifestValid, safePath } from './snapshots.mjs';
 import { hash, ControlError } from './queue.mjs';
 
@@ -16,6 +16,11 @@ export class BlobSnapshotStore {
   key(id, file) {
     if (!digest.test(id)) throw new ControlError('invalid_snapshot');
     return `career-workspaces/v1/${id}/${file}`;
+  }
+  async listMetadata({cursor}={}) {
+    const result=await list({...this.credentials,prefix:'career-workspaces/v1/',mode:'expanded',limit:1000,...(cursor?{cursor}:{}),abortSignal:AbortSignal.timeout(15000)});
+    // URLs and download capabilities never leave this storage boundary.
+    return {blobs:result.blobs.map(({pathname,size,uploadedAt})=>({pathname,size,uploadedAt})),hasMore:result.hasMore,cursor:result.cursor};
   }
   async download(key, maxBytes) {
     const result = await this.transport.get(key, { ...this.credentials, access: 'private', useCache: false, abortSignal: AbortSignal.timeout(15000) });
