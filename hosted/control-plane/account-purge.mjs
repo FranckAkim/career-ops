@@ -12,6 +12,7 @@ export class AccountPurger{
   if(r.tenant_id){check((await db.query('select 1 from workspace_tombstones where tenant_id=$1 and request_id=$2 and active',[r.tenant_id,r.id])).rowCount,'account_not_blocked');check(!(await db.query('select 1 from memberships where tenant_id=$1 and user_id<>$2 limit 1',[r.tenant_id,r.user_id])).rowCount,'shared_workspace_review_required');}
   check(!(await db.query("select 1 from jobs where tenant_id=$1 and status in ('queued','running','cancel_requested') limit 1",[r.tenant_id])).rowCount,'execution_not_drained');
   check(!(await db.query("select 1 from snapshot_captures where (user_id=$1 or tenant_id=$2) and state in ('preparing','uploading') limit 1",[r.user_id,r.tenant_id])).rowCount,'captures_not_drained');
+  check(!(await db.query("select 1 from snapshot_captures where (user_id=$1 or tenant_id=$2) and state='failed' and snapshot_id is not null limit 1",[r.user_id,r.tenant_id])).rowCount,'capture_failure_review_required');
   check(!(await db.query("select 1 from worker_attempts a join jobs j on j.id=a.job_id where j.tenant_id=$1 and a.state<>'stopped' limit 1",[r.tenant_id])).rowCount,'execution_not_drained');
   check(!(await db.query('select 1 from snapshot_captures where tenant_id=$1 and user_id<>$2 limit 1',[r.tenant_id,r.user_id])).rowCount,'shared_workspace_review_required');
  }

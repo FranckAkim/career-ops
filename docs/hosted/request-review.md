@@ -10,6 +10,10 @@ The receipt contains opaque identifiers, hashes and a verification timestamp, no
 
 An empty active list, an old timestamp, READY deployment status or deployment identity alone never establishes coverage of old/untracked deployments. Reports always return `deploymentCoverageVerified: false`. Public deletion stays unavailable until actual provider evidence/correlation and complete deployment coverage are verified. Real accounts and both unattributed historical snapshot groups remain untouched.
 
+## Resource completion alternative
+
+Migration 011 adds a separately authenticated resource-completion review mode; see `completion-receipts.md`. It verifies signed completion receipts from provider logs after handler/stream/cancellation work finishes. The explicit `RESOLVE COMPLETED REQUEST` confirmation and resource_work_complete evidence kind settle the marker without claiming process termination. Actual process deaths without a receipt still require the separate termination verifier, and old-deployment coverage remains unverified.
+
 ## Verification
 
 Disposable PostgreSQL tests launch a real isolated child process, refuse resolution while it is alive, terminate and await its exit, and then resolve only its bound synthetic marker. Tests also cover unknown identity, missing confirmation, stale scope, foreign-instance evidence, sanitized verifier errors, runtime-role denial, missing receipts, atomic rollback and audit retention. This proves the local capability contract; it is not evidence of Vercel execution termination. Production identity evidence is recorded in `PROJECT_HANDOFF.md`.

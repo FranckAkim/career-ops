@@ -1,3 +1,4 @@
+import {verifyCompletionReview} from './completion-review.mjs';
 import {verifyRequestReview} from './request-review.mjs';
 import {verifyRequestDrain} from './request-drain.mjs';
 // Real PostgreSQL integration; creates only a disposable local test container.
@@ -214,6 +215,7 @@ try {
   await verifyAccountLifecycle({pool,store,engineRevision});
   await verifyRequestDrain({pool,engineRevision});
   await verifyRequestReview({pool});
+  await verifyCompletionReview({pool});
   await verifyAccountPurge({pool});
 } finally {
   if (pool) await pool.end();

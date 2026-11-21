@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {Queue} from '../queue.mjs';
+import {createAuth} from '../auth.mjs';
+import {RequestDrain} from '../request-drain.mjs';
+import {RequestReview} from '../request-review.mjs';
+import {AccountLifecycle} from '../account-lifecycle.mjs';
+import {AccountPurger} from '../account-purge.mjs';
+import {completionEvidence,vercelCompletionVerifier} from '../completion-receipts.mjs';
+export async function verifyCompletionReview({pool}){
+ const queue=new Queue(pool,{accountLifecycle:true}),lifecycle=new AccountLifecycle({queue}),userId=randomUUID(),secret='synthetic-completion-review-'.repeat(4),projectId='prj_SyntheticCompletion123456789',deploymentId='dpl_SyntheticCompletion123456789',instanceId=randomUUID(),reports=[];
+ const auth=createAuth({pool,origin:'http://localhost:3000',secret,accountLifecycle:true}),ctx=await auth.$context;
+ await ctx.adapter.create({model:'user',forceAllowId:true,data:{id:userId,name:'Synthetic Completion Review',email:`${userId}@example.test`,emailVerified:false,createdAt:new Date(),updatedAt:new Date()}});
+ const session=await ctx.internalAdapter.createSession(userId,false,{expiresAt:new Date(Date.now()+600000)},true);
+ const failingPool={query(sql,args){if(sql.startsWith('update'))throw Error('synthetic_settlement_outage');return pool.query(sql,args);}};
+ const drain=new RequestDrain({pool:failingPool,deploymentId,instanceId,completion:{secret,projectId,report:r=>reports.push(r)}});
+ const response=await drain.run(async register=>{await register(userId);return new Response('synthetic resource work finished');});await assert.rejects(response.text(),/synthetic_settlement_outage/);
+ assert.equal(reports.length,1);const activity=(await pool.query("select * from account_request_activity where user_id=$1 and state='active'",[userId])).rows[0];assert.ok(activity);
+ const scope=await lifecycle.preview(userId),blocked=await lifecycle.request({userId,sessionId:session.id,expectedScopeHash:scope.scopeHash,acknowledged:true,confirmation:'DELETE MY ACCOUNT'});
+ const store={async deleteInventoriedObject(){throw Error('no_storage_access_expected');},async objectPresent(){throw Error('no_storage_access_expected');}},purger=new AccountPurger({queue,store,verifyDrained:async()=>true});await assert.rejects(purger.prepare(blocked.requestId),/requests_not_drained/);
+ const proof=completionEvidence({secret,projectId,activity,logText:reports[0]})[0];assert.ok(proof);
+ const verifyCompletion=vercelCompletionVerifier({secret,projectId,readLogs:async requested=>{assert.equal(requested.activityId,activity.id);return reports.join('\n');}}),service=new RequestReview({queue,verifyCompletion});let review=await service.preview(blocked.requestId);
+ const input={requestId:blocked.requestId,activityId:activity.id,expectedReviewHash:review.reviewHash,evidenceHash:proof.evidenceHash,evidenceKind:'resource_work_complete',acknowledged:true,confirmation:'RESOLVE COMPLETED REQUEST'};
+ await assert.rejects(service.resolve({...input,confirmation:'RESOLVE TERMINATED REQUEST'}),/confirmation_required/);
+ await assert.rejects(service.resolve({...input,evidenceHash:'a'.repeat(64)}),/termination_not_verified/);
+ await assert.rejects(new RequestReview({queue,verifyTermination:verifyCompletion}).resolve({...input,evidenceKind:'execution_terminated',confirmation:'RESOLVE TERMINATED REQUEST'}),/termination_not_verified/);
+ assert.equal((await service.resolve(input)).resolved,true);
+ const receipt=(await pool.query('select evidence_kind,evidence_hash from account_request_resolutions where activity_id=$1',[activity.id])).rows[0];assert.equal(receipt.evidence_kind,'resource_work_complete');assert.equal(receipt.evidence_hash,proof.evidenceHash);
+ assert.equal((await pool.query('select state from account_request_activity where id=$1',[activity.id])).rows[0].state,'settled');
+ const done=await purger.step(blocked.requestId);assert.equal(done.state,'complete');assert.equal((await pool.query('select 1 from auth_users where id=$1 union all select 1 from account_request_activity where user_id=$1',[userId])).rowCount,0);assert.equal((await pool.query('select 1 from account_request_resolutions where activity_id=$1',[activity.id])).rowCount,1);
+ console.log('PASS signed resource-completion evidence reconciles failed DB settlement, preserves active-request purge barrier, rejects termination promotion and retains opaque audit through synthetic empty-account purge');
+}

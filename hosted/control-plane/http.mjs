@@ -28,7 +28,7 @@ async function body(request, fields) {
   } finally { clearTimeout(timer); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
-export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true,applicationsEnabled=true,profileEditingEnabled=true,dataControlsEnabled=true,requestDrainEnabled=false,requestDeploymentId=null,requestInstanceId=null }) {
+export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true,applicationsEnabled=true,profileEditingEnabled=true,dataControlsEnabled=true,requestDrainEnabled=false,requestDeploymentId=null,requestInstanceId=null,requestCompletion=null }) {
   if (new URL(origin).origin !== origin || !/^[a-f0-9]{40}$/.test(engineRevision)) throw new ControlError('invalid_api_config');
   const handle = async (request,register) => {
     try {
@@ -112,6 +112,6 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       return json({ error: code }, status);
     }
   };
-  const drain=requestDrainEnabled?new RequestDrain({pool:queue.pool,deploymentId:requestDeploymentId,instanceId:requestInstanceId}):null;
+  const drain=requestDrainEnabled?new RequestDrain({pool:queue.pool,deploymentId:requestDeploymentId,instanceId:requestInstanceId,completion:requestCompletion}):null;
   return request=>drain?drain.run(register=>handle(request,register)):handle(request);
 }
