@@ -4,6 +4,7 @@ import {useState, type ReactNode} from 'react';
 import {workspaceSummary,operationLabel} from '@/lib/workspace-summary.mjs';
 import {Applications} from './applications';
 import {ProfileEditor} from './profile-editor';
+import {DataControls} from './data-controls';
 import {ProcessingNotice} from './processing-notice';
 import d from './dashboard.module.css';
 
@@ -59,6 +60,7 @@ export function Dashboard({jobs,tenantId,userName,loaded,executionMode,onOpenJob
       {view==='cvs'&&<section className={d.documentGrid} aria-label="CV library">{summary.cvs.filter((item:DashboardJob)=>shown.has(item.id)).map((item:DashboardJob)=><article className={d.panel} key={item.id}><div className={d.documentIcon}><Icon name="file"/></div><p className={d.tag}>Validation passed</p><h2>Tailored CV</h2><p>Created {shortDate(item.created_at)} from your confirmed profile.</p><div className={d.documentActions}><a className={d.primary} href={`${base}/artifacts/${item.id}/pdf`}>Download PDF</a><button className={d.secondary} onClick={()=>openJob(item.id)}>View details</button></div></article>)}{!summary.cvs.some((item:DashboardJob)=>shown.has(item.id))&&<div className={d.panel}><h2>{search?'No matching CVs.':'Your CV library starts here.'}</h2><p>Complete a role evaluation, then prepare a tailored CV. Documents appear here after validation.</p><button className={d.primary} onClick={evaluateRole}>Evaluate a role</button></div>}</section>}
       {view==='profile'&&<ProfileEditor tenantId={tenantId} blocked={recovery||summary.inProgress.length>0}/>}
       {view==='settings'&&<section className={d.panel}><h2>Processing and privacy</h2><dl className={d.profileDetails}><div><dt>AI processing</dt><dd>{executionMode==='local'?'On the service operator’s computer':'Configured by the service operator'}</dd></div><div><dt>Workspace storage</dt><dd>Hosted account, profile and document storage</dd></div><div><dt>Application submission</dt><dd>You review and send every application yourself</dd></div></dl><ProcessingNotice mode={executionMode}/><p>Automatic retention limits and self-service account deletion are not available in this preview.</p></section>}
+      {view==='settings'&&<DataControls tenantId={tenantId}/>}
       <footer className={d.footer}><Icon name="shield"/><ProcessingNotice mode={executionMode}/></footer>
     </main>
   </div>;

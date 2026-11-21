@@ -79,6 +79,12 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   await page.getByLabel('Current application status',{exact:true}).filter({hasText:/^Interview$/}).waitFor();
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('heading',{name:'Processing and privacy',exact:true}).waitFor();
+  const exportDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Download workspace data',exact:true}).click();
+  const exported=await exportDownload,archive=JSON.parse(await fs.readFile(await exported.path(),'utf8'));assert.equal(archive.complete,true);assert.equal(archive.tenant.id,tenantId);assert.ok(archive.files.some(file=>hash(Buffer.from(file.data,'base64'))===detail.result.pdfSha256));
+  assert.equal(await page.getByRole('button',{name:'Discard unused drafts',exact:true}).isDisabled(),true);
+  await page.getByLabel('Discard my unused profile drafts. I understand this cannot be undone.',{exact:true}).check();await page.getByRole('button',{name:'Discard unused drafts',exact:true}).click();
+  await page.getByText('1 unused draft discarded. Your confirmed profile and saved work are unchanged.',{exact:true}).waitFor();
+  if(process.env.HOSTED_TEST_SCREENSHOTS)await page.screenshot({path:path.join(process.env.HOSTED_TEST_SCREENSHOTS,'data-controls.png'),fullPage:true});
   await page.getByRole('button',{name:'Overview',exact:true}).click();
   assert.match(await page.getByLabel('Recent workspace summary',{exact:true}).innerText(),/1\s+CVs ready/);
   await page.getByRole('searchbox',{name:'Search recent work',exact:true}).fill('zzzz-no-matching-role');

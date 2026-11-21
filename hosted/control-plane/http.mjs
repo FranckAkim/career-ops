@@ -1,5 +1,6 @@
 import { ControlError } from './queue.mjs';
 import {Profiles} from './profiles.mjs';
+import {DataControls} from './data-controls.mjs';
 
 export function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie', 'X-Content-Type-Options': 'nosniff' } });
@@ -25,7 +26,7 @@ async function body(request, fields) {
   } finally { clearTimeout(timer); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
-export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true,applicationsEnabled=true,profileEditingEnabled=true }) {
+export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true,applicationsEnabled=true,profileEditingEnabled=true,dataControlsEnabled=true }) {
   if (new URL(origin).origin !== origin || !/^[a-f0-9]{40}$/.test(engineRevision)) throw new ControlError('invalid_api_config');
   return async request => {
     try {
@@ -59,6 +60,12 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       }
       const [prefix, tenantId, collection, jobId, action] = route;
       if (prefix !== 'tenants' || route.length > 5) return json({ error: 'not_found' }, 404);
+      if(collection==='data-controls'&&dataControlsEnabled&&onboarding){
+        const controls=new DataControls({queue,store:onboarding.store}),input={tenantId,userId};
+        if(route.length===3&&request.method==='GET')return json(await controls.summary(input));
+        if(route.length===4&&jobId==='export'&&request.method==='GET')return await controls.export(input);
+        if(route.length===4&&jobId==='discard-drafts'&&request.method==='POST')return json(await controls.discardDrafts({...await body(request,['expectedDrafts','acknowledged']),...input}));
+      }
       if(collection==='profile'&&profileEditingEnabled&&onboarding){
         const profiles=new Profiles({queue,store:onboarding.store});
         if(route.length===3&&request.method==='GET')return json(await profiles.read({tenantId,userId}));
@@ -97,7 +104,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
     } catch (error) {
       const code = error instanceof ControlError ? error.code : 'service_unavailable';
       const status = ['not_found','evaluation_not_found','artifact_missing'].includes(code) ? 404
-        : code === 'daily_job_limit' ? 429 : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale','profile_source_conflict'].includes(code) ? 409 : code === 'input_limit' ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
+        : code === 'daily_job_limit' ? 429 : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale','profile_source_conflict'].includes(code) ? 409 : ['input_limit','export_limit'].includes(code) ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
       return json({ error: code }, status);
     }
   };

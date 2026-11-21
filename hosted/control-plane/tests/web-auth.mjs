@@ -106,12 +106,14 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     if (pdfUrl) assert.equal((await other.request.get(pdfUrl)).status(),404);
     const{rows:[personalWorkspace]}=await pool.query('select tenant_id from personal_workspaces where user_id=$1',[accounts[0].id]);
     if(personalWorkspace)assert.equal((await other.request.get(`${origin}/api/hosted/tenants/${personalWorkspace.tenant_id}/profile`)).status(),404);
+    if(personalWorkspace)assert.equal((await other.request.get(`${origin}/api/hosted/tenants/${personalWorkspace.tenant_id}/data-controls/export`)).status(),404);
     const guest = await browser.newContext();
     const guestPage = await guest.newPage();
     await guestPage.goto(`${origin}/hosted`);
     await guestPage.getByRole('button', { name: 'Continue with Google' }).waitFor();
     if (pdfUrl) assert.equal((await guest.request.get(pdfUrl)).status(),401);
     if(personalWorkspace)assert.equal((await guest.request.get(`${origin}/api/hosted/tenants/${personalWorkspace.tenant_id}/profile`)).status(),401);
+    if(personalWorkspace)assert.equal((await guest.request.get(`${origin}/api/hosted/tenants/${personalWorkspace.tenant_id}/data-controls/export`)).status(),401);
     console.log('PASS browser onboarding edit/review/confirmation, reload/mobile layout, auth/tenant DB and enqueue/cancel; legacy routes blocked');
   } finally {
     if (browser) await browser.close();

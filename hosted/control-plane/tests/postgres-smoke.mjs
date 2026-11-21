@@ -18,6 +18,7 @@ import { verifyOnboarding } from './onboarding.mjs';
 import { verifyArtifacts } from './artifacts.mjs';
 import {verifyApplications} from './applications.mjs';
 import {verifyProfiles} from './profiles.mjs';
+import {verifyDataControls} from './data-controls.mjs';
 import { attemptJournal } from '../../sandbox-worker/journal.mjs';
 
 const name = `hc-postgres-test-${randomUUID()}`;
@@ -166,6 +167,7 @@ try {
   console.log('PASS generation compare-and-swap rejects stale base');
   await verifyOnboarding({ pool, queue, store, model, engineRevision });
   await verifyProfiles({pool,queue,store,model,engineRevision});
+  await verifyDataControls({pool,queue,store,engineRevision});
   await verifyArtifacts({ queue, store, snapshot: initial.id, engineRevision });
   let webRunner, webRevision = engineRevision;
 

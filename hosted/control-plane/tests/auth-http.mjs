@@ -69,7 +69,10 @@ export async function verifyAuthHttp({ pool, queue, snapshot, engineRevision, st
   const { draft } = await onboardingDraft.json();
   assert.equal((await call(`onboarding/drafts/${draft.id}`, { account: accounts[1] })).status, 404);
   assert.equal((await call(`onboarding/drafts/${draft.id}/confirm`, { method: 'POST', data: { expectedHash: draft.review_hash, acknowledged: false } })).status, 400);
-  if (process.env.HOSTED_TEST_WEB === '1') await verifyWebAuth({ pool, origin, secret, accounts, tenant, engineRevision, store, runner, queue, workRoot });
+  if (process.env.HOSTED_TEST_WEB === '1') {
+    assert.equal((await call('onboarding/drafts',{method:'POST',data:{fullName:'Synthetic unused draft',cvMarkdown:'# Synthetic unused draft\n\nUnused source.'}})).status,201);
+    await verifyWebAuth({ pool, origin, secret, accounts, tenant, engineRevision, store, runner, queue, workRoot });
+  }
   else {
     const confirmed = await call(`onboarding/drafts/${draft.id}/confirm`, { method: 'POST', data: { expectedHash: draft.review_hash, acknowledged: true } });
     assert.equal(confirmed.status, 200);
