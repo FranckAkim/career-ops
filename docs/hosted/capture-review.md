@@ -13,3 +13,5 @@ Five focused tests cover exact-key selection, capability filtering, absent objec
 The full disposable PostgreSQL suite also passes: actual capture/inventory joins, stale-scope rejection and refusal of purge after an all-missing inspection were verified. All 39 control-plane unit tests pass. Production storage was not queried.
 
 The current [Blob abort documentation](https://vercel.com/docs/vercel-blob/examples#aborting-requests) describes client cancellation; this review does not interpret it as a guarantee that an already submitted remote write cannot commit later. That stronger guarantee remains unverified.
+
+A separately tested [retained write-fence prototype](blob-write-fence.md) offers a possible alternative to remote terminal-operation evidence. It is not wired to this inspector or purge. Generation-aware snapshot identity and durable shared-reference/fence handling are required before integration.
