@@ -2,6 +2,10 @@
 
 Repository reviewed: career-ops-hq/career-ops, commit `3c15976d1c434403b73c5b6ca641101b85a30c65`, 19 November 2026. Root package version 1.40.0; web package version 0.18.0. This is a source review and proposed architecture, not a deployed or runtime-verified integration.
 
+## Current implementation note
+
+The user selected Vercel hosting and operator-owned local Ollama inference. The hosted auth, Neon queue and private Blob boundary described here is implemented; the local supervisor polls that queue and runs isolated tenant jobs on the operator computer. This preserves the hosted multi-user product. Read `local-ai.md`, `live-activation.md` and `PROJECT_HANDOFF.md` for current verification and activation state. The rest of this document records the original architecture review.
+
 ## Decision
 
 Build a hosted application around career-ops as a versioned execution engine. Reuse its existing Next.js UI where useful, but replace its local execution boundary with an authenticated, asynchronous service. Keep each tenant's canonical files isolated and preserve upstream writers. Use direct model APIs for the first bounded evaluation/tailoring workflows; retain a sandboxed agent adapter only for features that actually require tools.

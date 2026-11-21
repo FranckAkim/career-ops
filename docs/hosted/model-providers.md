@@ -1,65 +1,28 @@
-# Current provider decision: local AI
+# Model providers
 
-The user selected operator-owned local Ollama inference. See [local-ai.md](local-ai.md). The earlier Gemini configuration below is historical synthetic-test evidence only; cloud jobs remain disabled. Google’s unpaid API terms prohibit sensitive, confidential or personal information. Never send real profiles to that path. Static Blob token revocation and continued OIDC access have now been verified.
+## Selected primary: local Ollama
 
-# Gemini primary and personal Claude Code backup
+The user selected local AI for real profiles. The hosted application uses an operator-owned worker running `qwen3.5:4b` with Ollama; see [local-ai.md](local-ai.md). Evaluation and CV payloads use schema-constrained model responses with independent validation. Existing career-ops code still owns scoring instructions, report persistence, tracker writes, HTML rendering, fact checks and PDF publication.
 
-The user selected Gemini's free API tier, with their Claude Code subscription
-as a personal manual backup. The hosted service must not use shared subscription
-credentials or silently switch to a paid API.
+Inference containers share an internal model network with no published ports or external egress. `OLLAMA_NO_CLOUD=1` is required. The supervisor alone holds restricted Neon and short-lived Blob OIDC credentials. There is no automatic cloud fallback or shared coding-subscription login. Hosted storage remains on Vercel/Neon, and temporary job data is downloaded to the operator computer; this is not inference on each visitor's own device.
 
-## Hosted primary
+The computer must be on, signed in and running Docker for processing. Jobs wait while it is offline. AI output can fail validation; review failed jobs and discard interrupted output explicitly rather than retrying indefinitely or relaxing factual checks. Human review and application submission remain mandatory.
 
-Worker Production settings: secret `GEMINI_API_KEY` and config
-`HOSTED_MODEL_PROVIDER=gemini-free`. The server fixes the model to
-`gemini-3.5-flash-lite` and the base URL to
-`https://generativelanguage.googleapis.com/v1beta/openai`. This reuses the actual
-engine's chat-completion evaluation/tailoring paths, without a new prompt engine.
-The Sandbox broker injects the bearer outside the VM for the exact POST path;
-the VM gets only a placeholder. All other egress stays denied.
+## Personal manual Claude Code backup
 
-Keep Google project billing disabled. The application cannot prove a key's
-billing tier; the provider name is not a spending guarantee. Free quotas vary
-by project/model and exhaustion must remain a failure requiring operator review,
-not paid failover or unbounded retries. Existing publication fencing, strict
-facts, source retention and PDF validation still apply.
+The owner can use a separate local career-ops workspace with their own Claude Code subscription:
 
-Use synthetic CVs while validating. Google's free-tier terms permit product
-improvement use of content; review suitability before processing private CVs.
-Hosting, Sandbox, storage and database have separate quotas/costs.
+1. Read that workspace's agent instructions and data contract.
+2. Supply their own reviewed profile and posting.
+3. Run evaluation or tailoring through the ordinary local workflow and review the result.
+4. Keep outputs local. There is no supported import into hosted jobs; a manual result must not mark a hosted job succeeded.
 
-## Personal manual backup
+No subscription credentials are copied to Vercel or shared with hosted users.
 
-If Gemini is unavailable, leave the failed hosted job unchanged. The owner can
-use a separate local career-ops workspace with their own Claude Code login:
+## Historical Gemini experiment
 
-1. Open that local workspace in Claude Code and read its agent/data contracts.
-2. Supply their own reviewed CV/profile and the posting explicitly.
-3. Ask Claude Code to run career-ops evaluation or tailoring, reviewing its
-   proposed actions and results through the ordinary local workflow.
-4. Keep outputs local. There is currently no supported import of local results
-   into a hosted job, and a manual result must not mark the cloud job succeeded.
+The disabled cloud worker contains a direct Gemini compatibility adapter. Real evaluation and schema-enforced tailoring passed for two synthetic tenants at engine `df3412019f725ac66d6504e99c205ed71d5696c1`, including distinct one-page PDFs and private downloads. This demonstrated pipeline behavior only.
 
-No subscription tokens are copied to Vercel or a shared VM. A future hosted
-Claude Code option needs each end user to authenticate with their own supported
-credentials and a separately reviewed integration; it is not implemented here.
+Google's unpaid API terms prohibit sensitive, confidential or personal information. Never send real CVs to that historical free-tier configuration. Keep cloud execution disabled; any future cloud provider needs a separately reviewed configuration and explicit spending authorization. Hosting, storage and database quotas are separate from local inference.
 
-Sources checked 2026-11-20: [Google compatibility](https://ai.google.dev/gemini-api/docs/openai),
-[pricing](https://ai.google.dev/gemini-api/docs/pricing),
-[Claude Code product integration](https://code.claude.com/docs/en/legal-and-compliance).
-
-## Live validation status
-
-Real Gemini evaluation and schema-enforced structured tailoring passed for two
-synthetic tenants. The model returns compact CV JSON; `build-cv-html.mjs` owns
-HTML/CSS. Independent payload validation and the existing fact, locked-section,
-chronology, source-section, browser and page-budget gates remain enforced.
-Both distinct one-page PDFs matched private Blob hashes and production HTTP
-owner downloads. Other-tenant access returned 404, anonymous/revoked sessions 401.
-All VMs stopped; temporary synthetic SDK sessions were removed. This is bounded
-fixture evidence, not a claim about arbitrary CV quality or broad beta readiness.
-
-Engine revision: `df3412019f725ac66d6504e99c205ed71d5696c1`. Both CI platforms
-passed run 44841463787. Worker and frontend admission are disabled pending the
-separate old Blob token cleanup and next activation checks. The personal Claude
-Code backup remains manual; no shared subscription login or automatic import.
+Sources: [Ollama local-only mode](https://docs.ollama.com/faq), [OpenAI-compatible local API](https://docs.ollama.com/api/openai-compatibility), [Google API terms](https://ai.google.dev/gemini-api/terms), [Claude Code legal and compliance](https://code.claude.com/docs/en/legal-and-compliance).
