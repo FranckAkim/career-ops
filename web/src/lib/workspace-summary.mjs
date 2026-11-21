@@ -1,4 +1,5 @@
 // A view of the authorized, bounded job history, never a second application tracker.
+export const operationLabel=operation=>({evaluate:'Role evaluation',tailor:'CV preparation',set_status:'Application status',sync_applications:'Tracker sync'}[operation]||'Workspace job');
 export function workspaceSummary(jobs, search = '') {
   const evaluations = new Map(jobs.filter(job => job.operation === 'evaluate').map(job => [job.id,job]));
   jobs = jobs.map(job => {
@@ -6,7 +7,7 @@ export function workspaceSummary(jobs, search = '') {
     return source ? {...job,company:job.company||source.company,role:job.role||source.role} : job;
   });
   const query = String(search).trim().toLocaleLowerCase();
-  const visible = jobs.filter(job => !query || [job.company,job.role,job.operation === 'tailor' ? 'tailored CV' : 'role evaluation',job.status].some(value => String(value || '').toLocaleLowerCase().includes(query)));
+  const visible = jobs.filter(job => !query || [job.company,job.role,operationLabel(job.operation),job.status].some(value => String(value || '').toLocaleLowerCase().includes(query)));
   const completed = jobs.filter(job => job.operation === 'evaluate' && job.status === 'succeeded');
   const cvs = jobs.filter(job => job.operation === 'tailor' && job.status === 'succeeded' && job.pdf);
   const prepared = new Set(cvs.map(job => job.evaluation_job_id).filter(Boolean));

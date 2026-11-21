@@ -16,6 +16,7 @@ import { candidate, modelServer, engineRevision } from '../../tests/fixtures.mjs
 import { verifyAuthHttp } from './auth-http.mjs';
 import { verifyOnboarding } from './onboarding.mjs';
 import { verifyArtifacts } from './artifacts.mjs';
+import {verifyApplications} from './applications.mjs';
 import { attemptJournal } from '../../sandbox-worker/journal.mjs';
 
 const name = `hc-postgres-test-${randomUUID()}`;
@@ -116,6 +117,11 @@ try {
   await store.verify(current.snapshot);
   assert.equal((await pool.query('select * from artifacts where job_id=$1', [durable.id])).rowCount, 2);
   console.log('PASS real engine evaluation through PostgreSQL queue and immutable snapshot publication');
+  const applicationTenant=await queue.provision({userId:userA,snapshot:initial.id});
+  assert.equal((await queue.applications({tenantId:applicationTenant,userId:userA})).initialized,false);
+  await queue.enqueue({tenantId:applicationTenant,userId:userA,idempotencyKey:'application-evaluation',operation:'evaluate',postingText:'Example Employer needs a Python engineer.',engineRevision});
+  assert.equal((await supervisor.runOnce()).status,'succeeded');
+  await verifyApplications({queue,supervisor,tenantId:applicationTenant,userId:userA,otherUserId:userB,engineRevision,store,pool});
 
   const failed = await enqueue(tenantA, userA);
   const broken = new Supervisor({ queue, store, workRoot: path.join(root, 'workspaces'), heartbeatMs: 500,

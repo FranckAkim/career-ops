@@ -22,7 +22,7 @@ async function api(path: string, data?: unknown) {
   return value;
 }
 
-export function OnboardingScreen({ user, unavailable, executionMode='unavailable' }: { user: User | null; unavailable: boolean; executionMode?: string }) {
+export function OnboardingScreen({ user, unavailable, executionMode='unavailable',applicationsEnabled=false }: { user: User | null; unavailable: boolean; executionMode?: string;applicationsEnabled?:boolean }) {
   const [profile, setProfile] = useState<Profile>({ fullName: user?.name || '', cvMarkdown: '', targetRole: '', language: 'en' });
   const [draft, setDraft] = useState<Draft | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -78,7 +78,7 @@ export function OnboardingScreen({ user, unavailable, executionMode='unavailable
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
-  if (user && step === 'ready' && tenantId) return <Workspace tenantId={tenantId} userName={user.name} onSignOut={signOut} pageError={error} signingOut={busy} executionMode={executionMode} />;
+  if (user && step === 'ready' && tenantId) return <Workspace tenantId={tenantId} userName={user.name} onSignOut={signOut} pageError={error} signingOut={busy} executionMode={executionMode} applicationsEnabled={applicationsEnabled} />;
   return <main className={styles.page}>
     <header className={styles.header}><a className={styles.brand} href="/hosted"><span className={styles.mark}>CW</span>Career Workspace</a>{user && <button className={styles.quiet} onClick={signOut} disabled={busy}>Sign out</button>}</header>
     <ProcessingNotice mode={executionMode} />

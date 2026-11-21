@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import {applicationStates} from './application-states.mjs';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const digest = /^[a-f0-9]{64}$/;
@@ -39,13 +40,14 @@ export class Queue {
       return tenantId;
     });
   }
-  async enqueue({ tenantId, userId, idempotencyKey, operation, postingText, postingUrl = '', evaluationJobId, engineRevision }) {
+  async enqueue({ tenantId, userId, idempotencyKey, operation, postingText, postingUrl = '', evaluationJobId, applicationNumber,targetStatus,expectedStatus,expectedRowHash,engineRevision }) {
     check(typeof idempotencyKey === 'string' && idempotencyKey.length >= 1 && idempotencyKey.length <= 128);
     check(/^[a-f0-9]{40}$/.test(engineRevision));
-    check(operation === 'evaluate' || operation === 'tailor');
+    check(['evaluate','tailor','set_status','sync_applications'].includes(operation));
     if (operation === 'evaluate') check(typeof postingText === 'string' && postingText.trim() && Buffer.byteLength(postingText) <= 200000 && typeof postingUrl === 'string' && postingUrl.length <= 4096);
-    else check(uuid.test(evaluationJobId));
-    const payload = operation === 'evaluate' ? { operation, postingText, postingUrl } : { operation, evaluationJobId };
+    else if(operation==='tailor')check(uuid.test(evaluationJobId));
+    else if(operation==='set_status')check(Number.isSafeInteger(applicationNumber)&&applicationNumber>0&&applicationStates.includes(targetStatus)&&applicationStates.includes(expectedStatus)&&digest.test(expectedRowHash||''));
+    const payload = operation === 'evaluate' ? { operation, postingText, postingUrl } : operation==='tailor'?{ operation, evaluationJobId }:operation==='set_status'?{operation,applicationNumber,targetStatus,expectedStatus,expectedRowHash}:{operation};
     const fingerprint = hash(JSON.stringify({ payload, engineRevision }));
     return this.transaction(async db => {
       await this.authorize(db, tenantId, userId);
@@ -85,6 +87,14 @@ export class Queue {
       await this.authorize(db, tenantId, userId);
       const { rows } = await db.query("select id,status,payload->>'operation' as operation,result->>'company' as company,result->>'role' as role,result->>'score' as score,result->>'pdf' as pdf,result->>'evaluationJobId' as evaluation_job_id,created_at,finished_at,error_code from jobs where tenant_id=$1 order by created_at desc,id desc limit 100", [tenantId]);
       return rows;
+    });
+  }
+  async applications({tenantId,userId}){
+    return this.transaction(async db=>{
+      await this.authorize(db,tenantId,userId);
+      const{rows:[row]}=await db.query('select t.generation,j.result from tenants t left join workspace_versions w on w.tenant_id=t.id and w.generation=t.generation left join jobs j on j.tenant_id=w.tenant_id and j.id=w.job_id where t.id=$1',[tenantId]);
+      const records=row?.result?.applications;
+      return {initialized:Array.isArray(records),applications:Array.isArray(records)?records:[],states:applicationStates,generation:row.generation};
     });
   }
   async cancel({ tenantId, userId, jobId }) {

@@ -2,10 +2,20 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { parseScoreSummary, normalizedTrackerScore } from '../lib/tracker-addition.mjs';
-import { resolveColumns, parseTrackerRow, parseMarkdownLinks } from '../tracker-parse.mjs';
+import { resolveColumns, parseTrackerRow, parseMarkdownLinks, trackerRowIdentity } from '../tracker-parse.mjs';
+import {loadCanonicalStates,resolveCanonicalState,stripStatusDecoration} from '../tracker-utils.mjs';
+import {hasEmbeddedJdArchive} from '../check-jd-archive.mjs';
 import { loadYaml } from '../lib/yaml-document.mjs';
 import { EngineError } from './process.mjs';
-import { UUID, contained, exists, sha, childEnv, providerConfig, verifiedReceipt, withJob } from './job.mjs';
+import { CODE, UUID, contained, exists, sha, childEnv, providerConfig, verifiedReceipt, withJob } from './job.mjs';
+
+const applicationStates=()=>loadCanonicalStates(path.join(CODE,'templates/states.yml'));
+async function applications(root){
+  const rows=await readRows(root),states=applicationStates();
+  if(rows.length>1000)throw new EngineError('application_limit');
+  return rows.map(row=>({number:Number(row.num),rowHash:trackerRowIdentity(row),company:row.company,role:row.role,score:row.score,
+    status:resolveCanonicalState(stripStatusDecoration(row.status),states)||null,pdfReady:row.pdf==='✅',date:row.date}));
+}
 
 async function readRows(root) {
   const lines = (await fs.readFile(path.join(root, 'data', 'applications.md'), 'utf8')).split(/\r?\n/);
@@ -51,7 +61,7 @@ export function createEngine({ provider, engineRevision, browserExecutable, allo
         const row = (await readRows(root)).find(row => parseMarkdownLinks(row.report).some(link => path.resolve(root, 'data', link.target) === path.join(root, report)));
         if (!row) throw new EngineError('tracker_not_merged');
         return {
-          result: { report, reportNumber: Number(created[0].match(/^\d+/)[0]), applicationNumber: row.num, company: row.company, role: row.role, score: row.score, scope: 'pasted-text evaluation; no live posting or company research' },
+          result: { report, reportNumber: Number(created[0].match(/^\d+/)[0]), applicationNumber: row.num, company: row.company, role: row.role, score: row.score, applications:await applications(root), scope: 'pasted-text evaluation; no live posting or company research' },
           artifactPaths: [report, `.hosted/${jobId}/posting.txt`],
         };
       });
@@ -143,7 +153,33 @@ export function createEngine({ provider, engineRevision, browserExecutable, allo
         await run('mark-pdf-ready.mjs', [String(source.reportNumber), '--json']);
         const row = (await readRows(root)).find(row => row.num === matching[0].num);
         if (row?.pdf !== '✅') throw new EngineError('pdf_not_marked_ready');
-        return { result: { evaluationJobId, report: source.report, reportNumber: source.reportNumber, html: htmlRelative, pdf: pdfRelative, pages, pdfSha256: sha(bytes), browserVersion: metadata.browserVersion, validation: 'strict facts, section order, chronology, locked sections and page budget' }, artifactPaths: [source.report, htmlRelative, pdfRelative] };
+        return { result: { evaluationJobId, report: source.report, reportNumber: source.reportNumber, html: htmlRelative, pdf: pdfRelative, pages, pdfSha256: sha(bytes), browserVersion: metadata.browserVersion, applications:await applications(root), validation: 'strict facts, section order, chronology, locked sections and page budget' }, artifactPaths: [source.report, htmlRelative, pdfRelative] };
+      });
+    },
+    async sync_applications({workspace,jobId,signal}){
+      return withJob({workspace,jobId,operation:'sync_applications',input:{},config,signal},async({root})=>({result:{applications:await applications(root)},artifactPaths:[]}));
+    },
+    async set_status({workspace,jobId,applicationNumber,targetStatus,expectedStatus,expectedRowHash,signal}){
+      const states=applicationStates().map(state=>state.label);
+      if(!Number.isSafeInteger(applicationNumber)||applicationNumber<1||!states.includes(targetStatus)||!states.includes(expectedStatus)||!/^[a-f0-9]{64}$/.test(expectedRowHash||''))throw new EngineError('invalid_application_update');
+      return withJob({workspace,jobId,operation:'set_status',input:{applicationNumber,targetStatus,expectedStatus,expectedRowHash},config,signal},async({root,dir,run})=>{
+        const row=(await readRows(root)).find(item=>Number(item.num)===applicationNumber);
+        if(!row)throw new EngineError('application_not_found');
+        if(trackerRowIdentity(row)!==expectedRowHash||resolveCanonicalState(stripStatusDecoration(row.status),applicationStates())!==expectedStatus)throw new EngineError('application_conflict');
+        // The canonical Interview hook must never fetch an untrusted posting URL
+        // as a side effect of a hosted status update. Hosted evaluations embed JD.
+        if(targetStatus==='Interview'&&row.url){
+          const links=parseMarkdownLinks(row.report);const report=links[0]&&path.resolve(root,'data',links[0].target);
+          if(!report||!report.startsWith(path.join(root,'reports')+path.sep)||!hasEmbeddedJdArchive(await fs.readFile(report,'utf8')))throw new EngineError('posting_archive_required');
+        }
+        await run('set-status.mjs',['--row',String(applicationNumber),targetStatus,'--expect-row',expectedRowHash,'--expect-status',expectedStatus,'--source','web','--json'],{failureCode:'status_update_failed'});
+        const projection=await applications(root),updated=projection.find(item=>item.number===applicationNumber);
+        if(updated?.status!==targetStatus)throw new EngineError('status_update_failed');
+        // Receipts bind immutable per-job copies, not mutable tracker/ledger paths.
+        await fs.copyFile(path.join(root,'data','applications.md'),path.join(dir,'tracker.md'));
+        const artifactPaths=[`.hosted/${jobId}/tracker.md`];
+        const ledger=path.join(root,'data','status-log.tsv');if(await exists(ledger)){await fs.copyFile(ledger,path.join(dir,'status-log.tsv'));artifactPaths.push(`.hosted/${jobId}/status-log.tsv`);}
+        return {result:{applicationNumber,company:updated.company,role:updated.role,previousStatus:expectedStatus,applicationStatus:updated.status,applications:projection},artifactPaths};
       });
     },
   };

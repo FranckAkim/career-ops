@@ -10,5 +10,5 @@ export const dynamic = 'force-dynamic';
 export default async function HostedPage() {
   if (!hostedMode()) notFound();
   const session = await hostedSession(await headers());
-  return <OnboardingScreen user={session.user} unavailable={session.unavailable} executionMode={executionPolicy().mode} />;
+  return <OnboardingScreen user={session.user} unavailable={session.unavailable} executionMode={executionPolicy().mode} applicationsEnabled={process.env.VERCEL!=='1'||process.env.HOSTED_APPLICATIONS_ENABLED==='1'} />;
 }

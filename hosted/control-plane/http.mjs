@@ -24,7 +24,7 @@ async function body(request, fields) {
   } finally { clearTimeout(timer); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
-export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true }) {
+export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true,applicationsEnabled=true }) {
   if (new URL(origin).origin !== origin || !/^[a-f0-9]{40}$/.test(engineRevision)) throw new ControlError('invalid_api_config');
   return async request => {
     try {
@@ -58,12 +58,14 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       }
       const [prefix, tenantId, collection, jobId, action] = route;
       if (prefix !== 'tenants' || route.length > 5) return json({ error: 'not_found' }, 404);
+      if(collection==='applications'&&route.length===3&&request.method==='GET'&&applicationsEnabled)return json(await queue.applications({tenantId,userId}));
       if (collection === 'artifacts' && jobId && action && request.method === 'GET' && artifacts) return await artifacts.download({ tenantId, userId, jobId, kind: action });
       if (collection === 'jobs' && !jobId) {
         if (request.method === 'GET') return json({ jobs: await queue.list({ tenantId, userId }) });
         if (request.method === 'POST') {
           if (!jobsEnabled) throw new ControlError('service_unavailable');
-          const input = await body(request, ['operation','postingText','postingUrl','evaluationJobId']);
+          const input = await body(request, ['operation','postingText','postingUrl','evaluationJobId','applicationNumber','targetStatus','expectedStatus','expectedRowHash']);
+          if(['set_status','sync_applications'].includes(input.operation)&&!applicationsEnabled)throw new ControlError('service_unavailable');
           const job = await queue.enqueue({ ...input, tenantId, userId, idempotencyKey: request.headers.get('idempotency-key'), engineRevision });
           // The database commit is authoritative. An uncertain notification must
           // not remove the job or repeat model execution. Worker sweep repairs it.

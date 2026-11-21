@@ -9,6 +9,7 @@ import {BlobSnapshotStore} from '@hosted-career/control-plane/blob-snapshots.mjs
 import {dockerRunner} from '@hosted-career/control-plane/docker-runner.mjs';
 import {credentialLoader} from './credentials.mjs';
 import {observeDatabaseErrors} from './database.mjs';
+import {revisionRunner} from './runners.mjs';
 
 neonConfig.webSocketConstructor=WebSocket;
 export function docker(args) {
@@ -31,8 +32,10 @@ export async function verifyLocalRuntime(config) {
   const networks=Object.keys(model.NetworkSettings.Networks);
   if(!networks.length)throw new Error('private_model_network_required');
   for(const name of networks){const[network]=JSON.parse(await docker(['network','inspect',name]));if(!network.Internal)throw new Error('private_model_network_required');}
-  const [engine]=JSON.parse(await docker(['image','inspect',config.image]));
-  if(!engine.Config.Env.includes(`HOSTED_ENGINE_REVISION=${config.engineRevision}`)||!['node','1000','1000:1000'].includes(engine.Config.User))throw new Error('engine_revision_mismatch');
+  for(const[revision,image]of Object.entries(config.engineImages)){
+    const [engine]=JSON.parse(await docker(['image','inspect',image]));
+    if(!engine.Config.Env.includes(`HOSTED_ENGINE_REVISION=${revision}`)||!['node','1000','1000:1000'].includes(engine.Config.User))throw new Error('engine_revision_mismatch');
+  }
 }
 
 async function lockWorker(config) {
@@ -60,8 +63,8 @@ export async function runLocalWorker(config,{once=false,signal}={}) {
     const load=credentialLoader(config);const credentials=await load();
     pool=observeDatabaseErrors(new Pool({connectionString:credentials.databaseUrl,max:3,connectionTimeoutMillis:10000}),()=>console.error('Database connection interrupted; the worker will reconnect.'));
     const queue=new Queue(pool),store=new BlobSnapshotStore({storeId:credentials.storeId});
-    const runner=dockerRunner({image:config.image,seccomp:config.seccomp,network:`container:${config.modelContainer}`,
-      provider:{baseUrl:config.modelBaseUrl,model:config.model,apiKey:''},timeoutMs:config.timeoutMs,allowLocalProvider:true,tailoringFormat:'json',workerNamespace:config.namespace});
+    const runner=revisionRunner(config.engineImages,image=>dockerRunner({image,seccomp:config.seccomp,network:`container:${config.modelContainer}`,
+      provider:{baseUrl:config.modelBaseUrl,model:config.model,apiKey:''},timeoutMs:config.timeoutMs,allowLocalProvider:true,tailoringFormat:'json',workerNamespace:config.namespace}));
     const supervisor=new Supervisor({queue,store,runner,workRoot:path.join(config.workRoot,'jobs')});
     console.log('Local AI worker ready; model traffic stays on the isolated local network.');
     do{

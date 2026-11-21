@@ -8,7 +8,7 @@ export function parseJob(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || !UUID.test(value.jobId || '')) throw new EngineError('invalid_job');
   const fields = value.operation === 'evaluate'
     ? ['operation', 'jobId', 'postingText', 'postingUrl']
-    : value.operation === 'tailor' ? ['operation', 'jobId', 'evaluationJobId'] : [];
+    : value.operation === 'tailor' ? ['operation', 'jobId', 'evaluationJobId'] : value.operation==='set_status'?['operation','jobId','applicationNumber','targetStatus','expectedStatus','expectedRowHash']:value.operation==='sync_applications'?['operation','jobId']:[];
   if (!fields.length || Object.keys(value).some(key => !fields.includes(key))) throw new EngineError('invalid_job');
   if (value.operation === 'evaluate' && (typeof value.postingText !== 'string' || !value.postingText.trim() || Buffer.byteLength(value.postingText) > 200_000 || (value.postingUrl !== undefined && typeof value.postingUrl !== 'string'))) throw new EngineError('invalid_job');
   if (value.operation === 'tailor' && !UUID.test(value.evaluationJobId || '')) throw new EngineError('invalid_job');

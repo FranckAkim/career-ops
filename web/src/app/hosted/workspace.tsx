@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import styles from './screen.module.css';
 import {Dashboard, type DashboardJob} from './dashboard';
+import {operationLabel} from '@/lib/workspace-summary.mjs';
 
-type Job = DashboardJob & { error_code?: string; result?: { company?: string; role?: string; score?: string | number; pdf?: string; report?: string; pages?: number } };
+type Job = DashboardJob & { error_code?: string; result?: { company?: string; role?: string; score?: string | number; pdf?: string; report?: string; pages?: number;applicationStatus?:string } };
 type JobEvent = { sequence: string; kind: string; created_at: string };
 const active = (status: string) => ['queued','running','cancel_requested'].includes(status);
 const labels: Record<string,string> = { queued: 'Queued', running: 'Running', cancel_requested: 'Stopping', cancelled: 'Cancelled', succeeded: 'Complete', failed: 'Failed', needs_recovery: 'Needs review' };
 
-export function Workspace({ tenantId, onSignOut, pageError, signingOut, executionMode='unavailable', userName='Your profile' }: { tenantId: string; onSignOut: () => void; pageError: string; signingOut: boolean; executionMode?: string; userName?: string }) {
+export function Workspace({ tenantId, onSignOut, pageError, signingOut, executionMode='unavailable', userName='Your profile',applicationsEnabled=false }: { tenantId: string; onSignOut: () => void; pageError: string; signingOut: boolean; executionMode?: string; userName?: string;applicationsEnabled?:boolean }) {
   const base = `/api/hosted/tenants/${tenantId}`;
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -81,12 +82,12 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut, executio
   async function mutate(path: string, input: unknown, key?: string) {
     const response = await fetch(`${base}/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...(key ? { 'idempotency-key': key } : {}) }, body: JSON.stringify(input) });
     const value = await response.json();
-    if (!response.ok) throw new Error(value.error === 'idempotency_conflict' ? 'This request changed. Check the job history before trying again.' : 'Could not save this action. Check your connection and try again.');
+    if (!response.ok) throw new Error(value.error === 'idempotency_conflict' ? 'This request changed. Check the job history before trying again.' :value.error==='daily_job_limit'?'Your workspace has reached its daily job limit. Try again later.': 'Could not save this action. Check your connection and try again.');
     return value;
   }
-  async function enqueue(input: Record<string,string>, key: string) {
+  async function enqueue(input: Record<string,unknown>, key: string) {
     const value = await mutate('jobs', input, key);
-    setJobs(previous => previous.some(item => item.id === value.job.id) ? previous : [{ ...value.job, operation: input.operation, created_at: new Date().toISOString() }, ...previous]);
+    setJobs(previous => previous.some(item => item.id === value.job.id) ? previous : [{ ...value.job, operation: String(input.operation), created_at: new Date().toISOString() }, ...previous]);
     setSelected(value.job.id); setJob(null); setRefresh(previous => previous + 1);
   }
   async function evaluate(event: React.FormEvent) {
@@ -119,21 +120,23 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut, executio
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
-  return <Dashboard key={tenantId} jobs={jobs} tenantId={tenantId} userName={userName} loaded={loaded} executionMode={executionMode} onSignOut={onSignOut} signingOut={busy || signingOut} alert={error || pageError || historyError} onOpenJob={id=>{setSelected(id);setRefresh(value=>value+1);}}>
+  return <Dashboard applicationsEnabled={applicationsEnabled} key={tenantId} jobs={jobs} tenantId={tenantId} userName={userName} loaded={loaded} executionMode={executionMode} onSignOut={onSignOut} signingOut={busy || signingOut} enqueue={enqueue} recovery={recovery} alert={error || pageError || historyError} onOpenJob={id=>{setSelected(id);setRefresh(value=>value+1);}}>
     <div>
       {recovery && <section className={styles.recovery} aria-label="Workspace recovery"><h2>A job needs your review.</h2><p>Your last saved workspace is still in place. Discard uncommitted changes from the interrupted attempt before starting more work.</p><label><input type="checkbox" checked={discard} onChange={e => setDiscard(e.target.checked)} /> I understand this discards the workspace’s uncommitted changes.</label><button className={styles.primary} disabled={!discard || busy} onClick={discardRecovery}>Discard interrupted changes</button></section>}
       <div className={styles.workspaceGrid}>
         <aside className={styles.card}>
           <form onSubmit={evaluate}><p className={styles.eyebrow}>A new opportunity</p><h2>Bring a role.</h2><p>Paste a job description to evaluate it against your confirmed profile.</p><label htmlFor="posting-text">Posting text</label><textarea id="posting-text" rows={8} maxLength={200000} required disabled={busy || recovery} value={postingText} onChange={e => setPostingText(e.target.value)} /><label>Posting URL <span>(optional)</span><input type="url" maxLength={4096} disabled={busy || recovery} value={postingUrl} onChange={e => setPostingUrl(e.target.value)} /></label><p className={styles.help}>Text-only assessment. The link is saved as a reference; it is not fetched.</p><button className={styles.primary} disabled={busy || recovery || !loaded || !postingText.trim()}>{busy ? 'Saving…' : 'Evaluate posting'}</button></form>
-          <h3 className={styles.historyTitle}>Recent work</h3><ul className={styles.jobList}>{jobs.map(item => <li key={item.id}><button aria-current={selected === item.id ? 'true' : undefined} onClick={() => { setSelected(item.id); setRefresh(value => value + 1); }}><strong>{item.company ? `${item.company} · ${item.role || 'Evaluation'}` : item.operation === 'tailor' ? 'Tailored CV' : 'Role evaluation'}</strong><span>{labels[item.status] || 'Updating'} · {new Date(item.created_at).toLocaleDateString()}</span></button></li>)}</ul>{!jobs.length && <p className={styles.help}>Your evaluations and CVs will appear here.</p>}
+          <h3 className={styles.historyTitle}>Recent work</h3><ul className={styles.jobList}>{jobs.map(item => <li key={item.id}><button aria-current={selected === item.id ? 'true' : undefined} onClick={() => { setSelected(item.id); setRefresh(value => value + 1); }}><strong>{item.company ? `${item.company} · ${item.role || 'Evaluation'}` : operationLabel(item.operation)}</strong><span>{labels[item.status] || 'Updating'} · {new Date(item.created_at).toLocaleDateString()}</span></button></li>)}</ul>{!jobs.length && <p className={styles.help}>Your evaluations and CVs will appear here.</p>}
         </aside>
         <section className={styles.card} aria-label="Selected job">
           {!selected ? <><p className={styles.eyebrow}>Start with the role</p><h2>A clearer view of your next move.</h2><p>Your profile is confirmed. Paste a posting to start an evaluation, then review the report before preparing a tailored CV.</p><div className={styles.summary}>Nothing is submitted to employers automatically.</div></> : !job ? <p role="status">Loading job…</p> : <>
-            <p className={styles.eyebrow}>{job.operation === 'tailor' ? 'CV preparation' : 'Role evaluation'}</p><h2>{job.result?.company || (job.operation === 'tailor' ? 'Your tailored CV' : 'Role evaluation')}</h2>{job.result?.role && <p>{job.result.role}</p>}<p role="status" className={styles.jobStatus}>{labels[job.status] || 'Updating'}{job.result?.score !== undefined ? ` · Fit score ${job.result.score}` : ''}</p>
+            <p className={styles.eyebrow}>{operationLabel(job.operation)}</p><h2>{job.result?.company || operationLabel(job.operation)}</h2>{job.result?.role && <p>{job.result.role}</p>}<p role="status" className={styles.jobStatus}>{labels[job.status] || 'Updating'}{job.result?.score !== undefined ? ` · Fit score ${job.result.score}` : ''}</p>
             {job.status === 'queued' && <p>Waiting for a worker. You can leave this page and return to follow its progress.</p>}
-            {job.status === 'running' && <p>{job.operation === 'tailor' ? 'Preparing and validating your CV and PDF.' : 'Evaluating the posting against your confirmed profile.'}</p>}
+            {job.status === 'running' && <p>{job.operation === 'tailor' ? 'Preparing and validating your CV and PDF.' : job.operation==='set_status'?'Updating and publishing your application tracker.':job.operation==='sync_applications'?'Reading and publishing your application tracker.':'Evaluating the posting against your confirmed profile.'}</p>}
             {job.status === 'failed' && <p>This attempt could not finish. Your previously saved workspace is unchanged.</p>}
             {job.status === 'needs_recovery' && job.error_code === 'invalid_evaluation' && <p>The evaluation did not provide a usable employer, role or score. Check that the posting names the employer and advertised role, then discard the interrupted attempt before trying again.</p>}
+            {job.status === 'needs_recovery' && job.error_code === 'application_conflict' && <p>This application changed after the tracker was loaded. Discard the interrupted update, then refresh Applications before recording the stage again.</p>}
+            {job.status === 'succeeded' && job.result?.applicationStatus && <p>Application status saved as {job.result.applicationStatus}. No application was sent.</p>}
             {job.status === 'cancelled' && <p>This attempt was cancelled. No new workspace changes were published.</p>}
             {active(job.status) && <button className={styles.quiet} disabled={busy || job.status === 'cancel_requested'} onClick={cancel}>Cancel job</button>}
             {job.status === 'succeeded' && <div className={styles.actions}>{job.operation === 'evaluate' && <button className={styles.primary} onClick={tailor} disabled={busy || recovery}>Create tailored CV</button>}{job.result?.report && <a className={styles.download} href={`${base}/artifacts/${job.id}/report`}>Download report</a>}{job.result?.pdf && <a className={styles.download} href={`${base}/artifacts/${job.id}/pdf`}>Download PDF</a>}</div>}

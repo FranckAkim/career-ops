@@ -38,6 +38,26 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   const attachment = await page.request.get(pdfUrl);
   assert.equal(attachment.headers()['content-type'],'application/pdf');
   assert.ok(attachment.headers()['content-security-policy'].includes("default-src 'none'"));
+  await page.getByRole('button',{name:'Applications',exact:true}).click();
+  await page.getByLabel('Application status',{exact:true}).waitFor();
+  for(const stage of ['Applied','Interview']){
+    await page.getByLabel('Application status',{exact:true}).selectOption(stage);
+    if(stage==='Applied'){
+      assert.equal(await page.getByRole('button',{name:'Save status',exact:true}).isDisabled(),true);
+      await page.getByLabel('I have already submitted this application myself.',{exact:true}).check();
+    }
+    const acceptedStatus=page.waitForResponse(r=>r.url()===`${origin}/api/hosted/tenants/${tenantId}/jobs`&&r.request().method()==='POST');
+    await page.getByRole('button',{name:'Save status',exact:true}).click();assert.equal((await acceptedStatus).status(),202);
+    assert.equal((await supervisor.runOnce()).status,'succeeded');
+    await page.getByLabel('Current application status',{exact:true}).filter({hasText:new RegExp(`^${stage}$`)}).waitFor();
+  }
+  await page.reload();await page.getByRole('button',{name:'Applications',exact:true}).click();
+  await page.getByLabel('Current application status',{exact:true}).filter({hasText:/^Interview$/}).waitFor();
+  await page.getByLabel('Filter by status',{exact:true}).selectOption('Applied');await page.getByRole('heading',{name:'No matching applications.',exact:true}).waitFor();await page.getByLabel('Filter by status',{exact:true}).selectOption('all');
+  if(process.env.HOSTED_TEST_SCREENSHOTS){
+    await fs.mkdir(process.env.HOSTED_TEST_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.HOSTED_TEST_SCREENSHOTS,'applications-desktop.png'),fullPage:true});
+    await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);await page.screenshot({path:path.join(process.env.HOSTED_TEST_SCREENSHOTS,'applications-mobile.png'),fullPage:true});await page.setViewportSize({width:1280,height:720});
+  }
   await page.reload();
   await page.getByRole('heading',{name:'Your next move, in focus.',exact:true}).waitFor();
   await page.getByRole('button',{name:'CV Studio',exact:true}).click();

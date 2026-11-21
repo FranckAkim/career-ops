@@ -4,6 +4,8 @@ Last updated: 2026-11-20. Status: the hosted local-AI owner preview and redesign
 
 ## Dashboard implementation (live)
 
+Application tracking is being implemented behind `HOSTED_APPLICATIONS_ENABLED` (unset/off in Production). New `set_status` and `sync_applications` operations reuse the canonical tracker writer; published job results provide a generation-bound read model. Applied requires explicit confirmation of an already submitted application. A reviewed revision-to-image map supports rolling local-worker upgrades. Targeted engine tests (5), disposable PostgreSQL integration, stale-update recovery and cross-tenant tracker denial pass. Container/browser verification and live activation are pending; do not enable the feature or change the Production engine pin until those checks pass.
+
 The approved dashboard is LIVE at frontend source 42faebe5e9aa2afd42f055d432fdf1e2f82aba20 (Vercel dpl_Eg2ZdVKTP48nBWNXH3X1ksQiKiJ3): Overview, Opportunities, CV Studio, My Profile and Settings, with real recent-job counts/search and authenticated documents. Local Postgres/container/browser integration and live production navigation/search/profile/PDF-hash/keyboard/mobile/tenant-denial/session-revocation checks pass. Read `docs/hosted/dashboard.md`. Applied/Interview tracking still needs canonical engine integration. The full handoff was restored after an earlier edit truncated it. A stopped local worker was diagnosed as an unhandled checked-out Neon client error; per-client error observation and bounded task restart were added. A real-driver injected socket failure now rejects the failed query, replaces the connection and succeeds on the next SELECT. The worker task is running again; engine stays pinned to 73e7202.
 
 ## Start here, regardless of AI tool
