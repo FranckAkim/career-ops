@@ -50,3 +50,14 @@ test('failed Blob publication leaves no manifest; credentials are required', asy
   await assert.rejects(new BlobSnapshotStore({ storeId: 'synthetic-store', transport: fake.transport }).capture(root), /snapshot_missing/);
   assert.ok([...fake.objects.keys()].every(key => !key.endsWith('/manifest.json')));
 });
+
+
+test('Blob generation snapshots isolate identical content and remain readable through default readers',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'hc-blob-generations-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));await fs.writeFile(path.join(root,'cv.md'),'Synthetic identical content');
+ const fake=fakeBlob(),legacy=new BlobSnapshotStore({storeId:'synthetic-store',transport:fake.transport}),modern=new BlobSnapshotStore({storeId:'synthetic-store',transport:fake.transport,generationSnapshots:true});
+ const old=await legacy.capture(root),a=await modern.capture(root),b=await modern.capture(root);assert.equal(new Set([old.id,a.id,b.id]).size,3);assert.deepEqual(a.files,b.files);
+ assert.equal((await modern.manifest(old.id)).schema,1);assert.equal((await legacy.manifest(a.id)).schema,2);
+ for(const key of fake.objects.keys())if(key.startsWith(`career-workspaces/v1/${a.id}/`))fake.objects.set(key,Buffer.from('synthetic retained fence'));
+ await assert.rejects(modern.read(a.id,'cv.md'),/snapshot_corrupt/);assert.equal(await modern.read(b.id,'cv.md'),'Synthetic identical content');assert.equal(await modern.read(old.id,'cv.md'),'Synthetic identical content');
+ const c=await modern.capture(root);assert.notEqual(c.id,a.id);assert.equal(await modern.read(c.id,'cv.md'),'Synthetic identical content');
+});

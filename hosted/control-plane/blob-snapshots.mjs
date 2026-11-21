@@ -8,10 +8,11 @@ import { hash, ControlError } from './queue.mjs';
 const digest = /^[a-f0-9]{64}$/;
 // Server-only SDK transport injection is for deterministic tests.
 export class BlobSnapshotStore {
-  constructor({ token, storeId, transport = { get, put,head,del }, maxFiles = 10000, maxBytes = 100000000 } = {}) {
+  constructor({ token, storeId, transport = { get, put,head,del }, maxFiles = 10000, maxBytes = 100000000, generationSnapshots = false } = {}) {
+    if (typeof generationSnapshots!=='boolean') throw new ControlError('invalid_snapshot_configuration');
     if (!token && !storeId) throw new ControlError('storage_configuration_required');
     this.credentials = token ? { token } : { storeId };
-    this.transport = transport; this.maxFiles = maxFiles; this.maxBytes = maxBytes;
+    this.transport = transport; this.maxFiles = maxFiles; this.maxBytes = maxBytes; this.generationSnapshots = generationSnapshots;
   }
   key(id, file) {
     if (!digest.test(id)) throw new ControlError('invalid_snapshot');
@@ -60,7 +61,7 @@ export class BlobSnapshotStore {
     const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'hc-blob-'));
     await fs.chmod(temporary, 0o700);
     try {
-      const local = new SnapshotStore(path.join(temporary, 'objects'), { maxFiles: this.maxFiles, maxBytes: this.maxBytes });
+      const local = new SnapshotStore(path.join(temporary, 'objects'), { maxFiles: this.maxFiles, maxBytes: this.maxBytes, generationSnapshots: this.generationSnapshots });
       const saved = await local.capture(workspace);
       await beforeStore?.(saved);assertActive?.();
       for (const file of saved.files) {

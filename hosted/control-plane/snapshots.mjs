@@ -4,12 +4,13 @@ import { randomUUID } from 'node:crypto';
 import { hash, ControlError } from './queue.mjs';
 
 const digest = /^[a-f0-9]{64}$/;
+const generationId = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 export function safePath(root, relative) {
   if (typeof relative !== 'string' || !relative || relative.length > 1024 || relative.includes('\\') || relative.includes(':') || relative.split('/').some(p => !p || p === '.' || p === '..' || p.includes('\0'))) throw new ControlError('unsafe_path');
   return path.join(root, ...relative.split('/'));
 }
 export function manifestValid(value, maxFiles, maxBytes) {
-  if (value?.schema !== 1 || !Array.isArray(value.files) || value.files.length > maxFiles) throw new ControlError('invalid_snapshot');
+  if (!value || ![1,2].includes(value.schema) || (value.schema===2 ? typeof value.generation!=='string'||!generationId.test(value.generation) : Object.hasOwn(value,'generation')) || !Array.isArray(value.files) || value.files.length > maxFiles) throw new ControlError('invalid_snapshot');
   let total = 0;
   const seen = new Set();
   for (const file of value.files) {
@@ -25,9 +26,10 @@ export function manifestValid(value, maxFiles, maxBytes) {
 // needs a durable private object-store adapter with the same verification rules.
 // root is operator-owned and inaccessible to worker containers or public routes.
 export class SnapshotStore {
-  constructor(root, { maxFiles = 10000, maxBytes = 100000000 } = {}) {
+  constructor(root, { maxFiles = 10000, maxBytes = 100000000, generationSnapshots = false } = {}) {
+    if (typeof generationSnapshots!=='boolean') throw new ControlError('invalid_snapshot_configuration');
     if (!path.isAbsolute(root)) throw new ControlError('invalid_store_root');
-    this.root = path.resolve(root); this.maxFiles = maxFiles; this.maxBytes = maxBytes;
+    this.root = path.resolve(root); this.maxFiles = maxFiles; this.maxBytes = maxBytes; this.generationSnapshots = generationSnapshots;
   }
   async capture(workspace, {beforeStore,assertActive} = {}) {
     const source = await fs.realpath(workspace);
@@ -60,7 +62,7 @@ export class SnapshotStore {
       };
       await walk(source);
       files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
-      const manifest = JSON.stringify({ schema: 1, files });
+      const manifest = JSON.stringify(this.generationSnapshots ? {schema:2,generation:randomUUID(),files} : {schema:1,files});
       const id = hash(manifest);
       await beforeStore?.({id,files});assertActive?.();
       await fs.writeFile(path.join(stage, 'manifest.json'), manifest, { flag: 'wx', mode: 0o600 });
