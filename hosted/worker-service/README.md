@@ -43,6 +43,8 @@ audits route and dependency traces for credentials, candidate files and operator
 migrations. Static storage tokens and DB-owner aliases must not be configured in
 either deployment. Secrets belong in Vercel or ignored operator files.
 
-Activation still requires real Google OAuth, real model access/quality checks,
-live queue delivery/cancellation/expiry checks, Blob token incident cleanup and
-retention/deletion controls. Do not describe a disabled worker as a usable beta.
+Initial real Google login and two-tenant real Gemini evaluation/structured-CV/PDF
+checks are verified, including private production HTTP downloads and revocation.
+Activation still requires old Blob token cleanup and the next reviewed checks;
+broader beta also needs retention/deletion controls and more varied quality cases.
+Do not describe a disabled worker as a usable beta.
