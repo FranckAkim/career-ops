@@ -1,6 +1,6 @@
 # Account deletion and retention: implementation boundary
 
-Full account deletion is not implemented or advertised as available. Prospective capture tracking and operator-only account/workspace blocking are implemented; read `snapshot-inventory.md` and `account-lifecycle.md`. The first historical metadata scan found 24 committed groups and two unattributed groups retained for review. Bounded provenance checks did not match a current account/workspace/draft. A verified purge workflow still remains. Do not implement deletion by removing an auth row or recursively deleting a workspace prefix.
+Full account deletion is not implemented or advertised as available. Prospective capture tracking and operator-only account/workspace blocking are implemented; read `snapshot-inventory.md` and `account-lifecycle.md`. The first historical metadata scan found 24 committed groups and two unattributed groups retained for review. Bounded provenance checks did not match a current account/workspace/draft. An operator-only purge is now verified for fully inventoried accounts; see `account-purge.md`. Automated remote-request draining and the public deletion flow still remain. Do not implement deletion by removing an auth row or recursively deleting a workspace prefix.
 
 ## Evidence from current storage
 

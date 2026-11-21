@@ -1,6 +1,6 @@
 # Account lifecycle blocking foundation
 
-Migration 007 implements operator-only reviewed account blocking and database fences. It does not provide a public deletion request, a deletion button, physical object purge or a completed-deletion state. All requests return `deleted: false` and remain `blocked_pending_review` until explicitly cancelled or handled by a future verified purge workflow.
+Migration 007 implements operator-only reviewed account blocking and database fences. It does not provide a public deletion request or deletion button. Blocking returns `deleted: false`. Migration 008 now provides a separate operator-only resumable purge and completed state for eligible fully inventoried accounts; see `account-purge.md`. Blocking alone never means erasure.
 
 ## Review and blocking
 
@@ -10,7 +10,7 @@ The request locks the tenant before the user, creates account/workspace tombston
 
 Database guards serialize through the same tenant/user ordering as writers. Capture registration acquires its tenant lock before capture/object locks. Source/profile/session writes cannot cross a committed block through an older client lacking the new application check. Queue claiming also excludes blocked workspaces when lifecycle checks are enabled.
 
-Operator cancellation clears only the matching request's blocks. It does not restore revoked sessions, restart cancelled jobs, resume interrupted model work or erase source data. Shared ownership, capture draining, exact object deletion, backup handling and final purge verification remain required before exposing self-service account deletion.
+Operator cancellation clears only the matching request's blocks. It does not restore revoked sessions, restart cancelled jobs, resume interrupted model work or erase source data. Operator-only exact object deletion and final verification are implemented in the purge module. Automated remote-request draining, public flow eligibility and backup/retention disclosures remain required before exposing self-service account deletion.
 
 ## Activation and access
 
