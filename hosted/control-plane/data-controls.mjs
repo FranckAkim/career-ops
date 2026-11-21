@@ -39,18 +39,18 @@ export class DataControls{
    const manifest=await this.store.manifest(id);entries+=manifest.files.length;manifestBytes+=Buffer.byteLength(JSON.stringify(manifest));check(entries<=50000&&manifestBytes<=10000000,'export_limit');snapshots.push({id,manifest});
    for(const file of manifest.files)if(!files.has(file.sha256)){check(file.bytes<=20000000,'export_limit');total+=file.bytes;check(total<=100000000,'export_limit');files.set(file.sha256,{id,file});}
   }
-  const header=JSON.stringify({...data,snapshots}).slice(0,-1)+',"files":[',iterator=files.entries(),encoder=new TextEncoder();let started=false,first=true,stopped=false;
+  const header=JSON.stringify({...data,snapshots}).slice(0,-1)+',"files":[',iterator=files.entries(),encoder=new TextEncoder();let started=false,first=true,stopped=false,pendingRead;
   const store=this.store;
   const stream=new ReadableStream({async pull(controller){
    if(stopped)return;
    try{
     if(!started){started=true;controller.enqueue(encoder.encode(header));return;}
     const next=iterator.next();if(next.done){controller.enqueue(encoder.encode('],"complete":true}'));controller.close();stopped=true;return;}
-    const[sha256,{id,file}]=next.value,bytes=await store.readBytes(id,file.path,{maxBytes:20000000});
+    const[sha256,{id,file}]=next.value,bytes=await(pendingRead=store.readBytes(id,file.path,{maxBytes:20000000}));pendingRead=null;
     if(stopped)return;check(bytes.length===file.bytes&&hash(bytes)===sha256,'snapshot_corrupt');
     controller.enqueue(encoder.encode((first?'':',')+JSON.stringify({sha256,bytes:bytes.length,encoding:'base64',data:bytes.toString('base64')})));first=false;
-   }catch{stopped=true;controller.error(new Error('export_failed'));}
-  },cancel(){stopped=true;}});
+   }catch{if(!stopped){stopped=true;controller.error(new Error('export_failed'));}}
+  },async cancel(){stopped=true;await pendingRead?.catch(()=>{});}});
   return new Response(stream,{headers:{'Content-Type':'application/json','Content-Disposition':'attachment; filename="career-workspace-export.json"','Cache-Control':'private, no-store',Vary:'Cookie','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; frame-ancestors 'none'; sandbox",'Referrer-Policy':'no-referrer'}});
  }
 }

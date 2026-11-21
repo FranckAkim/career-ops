@@ -1,3 +1,4 @@
+import {verifyRequestDrain} from './request-drain.mjs';
 // Real PostgreSQL integration; creates only a disposable local test container.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -51,7 +52,10 @@ try {
     try { await pool.query('select 1'); ready = true; break; } catch { await new Promise(r => setTimeout(r, 100)); }
   }
   assert.ok(ready, 'PostgreSQL starts');
+  await pool.query('create role career_web;create role career_worker');
   await Promise.all([migrate(pool), migrate(pool)]);
+  const rights=(await pool.query("select has_table_privilege('career_web','account_request_activity','INSERT') as admission,has_column_privilege('career_web','account_request_activity','state','UPDATE') as settlement,has_table_privilege('career_web','account_request_activity','DELETE') as erase,has_table_privilege('career_worker','account_request_activity','SELECT') as worker")).rows[0];
+  assert.deepEqual(rights,{admission:true,settlement:true,erase:false,worker:false});
   let queue = new Queue(pool, { leaseSeconds: 5 });
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'hc-control-test-'));
   cleanup.push(() => fs.rm(root, { recursive: true, force: true }));
@@ -207,6 +211,7 @@ try {
   }
   await verifyAuthHttp({ pool, queue, snapshot: initial.id, engineRevision: webRevision, store, runner: webRunner, workRoot: path.join(root, 'workspaces') });
   await verifyAccountLifecycle({pool,store,engineRevision});
+  await verifyRequestDrain({pool,engineRevision});
   await verifyAccountPurge({pool});
 } finally {
   if (pool) await pool.end();

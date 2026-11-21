@@ -32,7 +32,7 @@ export async function verifyAuthHttp({ pool, queue, snapshot, engineRevision, st
     assert.ok(cookies.some(c => /HttpOnly/i.test(c) && /SameSite=Lax/i.test(c)));
     accounts.push({ id: value.user.id, cookie: cookies.map(c => c.split(';')[0]).join('; ') });
   }
-  const api = createApi({ queue, auth, origin, engineRevision, onboarding: new Onboarding({ queue, store }), artifacts: new Artifacts({ queue, store }) });
+  const api = createApi({ queue, auth, requestDrainEnabled:true, origin, engineRevision, onboarding: new Onboarding({ queue, store }), artifacts: new Artifacts({ queue, store }) });
   const call = (route, { account = accounts[0], method = 'GET', data, headers = {} } = {}) => api(new Request(`${origin}/api/hosted/${route}`, {
     method, headers: { ...(account ? { cookie: account.cookie } : {}), ...(method === 'POST' ? { origin, 'content-type': 'application/json' } : {}), ...headers },
     ...(data !== undefined ? { body: JSON.stringify(data) } : {}),

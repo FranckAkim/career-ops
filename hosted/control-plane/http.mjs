@@ -1,3 +1,4 @@
+import {RequestDrain} from './request-drain.mjs';
 import { ControlError } from './queue.mjs';
 import {Profiles} from './profiles.mjs';
 import {DataControls} from './data-controls.mjs';
@@ -27,15 +28,16 @@ async function body(request, fields) {
   } finally { clearTimeout(timer); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
-export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true,applicationsEnabled=true,profileEditingEnabled=true,dataControlsEnabled=true }) {
+export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true,applicationsEnabled=true,profileEditingEnabled=true,dataControlsEnabled=true,requestDrainEnabled=false }) {
   if (new URL(origin).origin !== origin || !/^[a-f0-9]{40}$/.test(engineRevision)) throw new ControlError('invalid_api_config');
-  return async request => {
+  const handle = async (request,register) => {
     try {
       const source = request.headers.get('origin');
       if ((source && source !== origin) || (request.method !== 'GET' && source !== origin) || request.headers.get('sec-fetch-site') === 'cross-site') return json({ error: 'origin_denied' }, 403);
       const session = await auth.api.getSession({ headers: request.headers });
       if (!session) return json({ error: 'unauthorized' }, 401);
       const userId = session.user.id;
+      if(register)await register(userId);
       if(queue.accountLifecycle)await assertAccountActive(queue.pool,userId);
       const url = new URL(request.url);
       const segments = url.pathname.split('/').filter(Boolean);
@@ -110,4 +112,6 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       return json({ error: code }, status);
     }
   };
+  const drain=requestDrainEnabled?new RequestDrain({pool:queue.pool}):null;
+  return request=>drain?drain.run(register=>handle(request,register)):handle(request);
 }
