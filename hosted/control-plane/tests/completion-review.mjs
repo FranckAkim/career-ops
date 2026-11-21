@@ -1,3 +1,4 @@
+import {verifyCaptureReview} from './capture-review.mjs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {Queue} from '../queue.mjs';
@@ -27,6 +28,7 @@ export async function verifyCompletionReview({pool}){
  assert.equal((await service.resolve(input)).resolved,true);
  const receipt=(await pool.query('select evidence_kind,evidence_hash from account_request_resolutions where activity_id=$1',[activity.id])).rows[0];assert.equal(receipt.evidence_kind,'resource_work_complete');assert.equal(receipt.evidence_hash,proof.evidenceHash);
  assert.equal((await pool.query('select state from account_request_activity where id=$1',[activity.id])).rows[0].state,'settled');
+ await verifyCaptureReview({pool,queue,requestId:blocked.requestId,userId,purger});
  const done=await purger.step(blocked.requestId);assert.equal(done.state,'complete');assert.equal((await pool.query('select 1 from auth_users where id=$1 union all select 1 from account_request_activity where user_id=$1',[userId])).rowCount,0);assert.equal((await pool.query('select 1 from account_request_resolutions where activity_id=$1',[activity.id])).rowCount,1);
  console.log('PASS signed resource-completion evidence reconciles failed DB settlement, preserves active-request purge barrier, rejects termination promotion and retains opaque audit through synthetic empty-account purge');
 }
