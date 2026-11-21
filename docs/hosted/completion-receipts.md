@@ -19,7 +19,7 @@ Migration 011 adds the distinct evidence kind to the existing operator-only audi
 
 ## Independent barriers and remaining work
 
-These receipts do not prove provider-side upload settlement or coverage of older/untracked deployments. Purge now additionally refuses failed captures that already registered a snapshot: their uploads require separate operator review. Capture, job, container/workspace, shared-snapshot and inventory checks remain mandatory. Lost executions that emitted no receipt still require actual trusted termination evidence; no generic Vercel termination adapter is supplied. All coverage reports continue to return false. Both unattributed historical snapshot groups remain protected.
+These receipts do not prove provider-side upload settlement or coverage of older/untracked deployments. Purge now additionally refuses failed captures that already registered a snapshot: their uploads require separate operator review. Capture, job, container/workspace, shared-snapshot and inventory checks remain mandatory. Lost executions can use signed admission plus exact native timeout evidence as described in `provider-termination.md`. Generic crashes and missing admission/provider evidence still require review. All coverage reports continue to return false. Both unattributed historical snapshot groups remain protected.
 
 ## Verification
 

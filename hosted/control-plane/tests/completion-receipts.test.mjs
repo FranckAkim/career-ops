@@ -22,11 +22,11 @@ test('resource completion is reported before a failed database settlement, after
  const pool={async query(sql,args){if(sql.startsWith('insert')){id=args[0];return {rowCount:1};}throw Error('synthetic_database_outage');}};
  const drain=new RequestDrain({pool,deploymentId,instanceId,completion:{secret,projectId,report:receipt=>reports.push(receipt)}});
  const response=await drain.run(async register=>{await register(randomUUID());return new Response(new ReadableStream({async cancel(){await gate;}}));});
- const cancelling=response.body.cancel();await new Promise(r=>setImmediate(r));assert.equal(reports.length,0);finish();await assert.rejects(cancelling,/synthetic_database_outage/);assert.equal(reports.length,1);
- const proofs=completionEvidence({secret,projectId,activity:{id,deployment_id:deploymentId,instance_id:instanceId,started_at:new Date(0)},logText:reports[0]});assert.equal(proofs.length,1);
+ const cancelling=response.body.cancel();await new Promise(r=>setImmediate(r));assert.equal(reports.filter(r=>r.startsWith(completionPrefix)).length,0);finish();await assert.rejects(cancelling,/synthetic_database_outage/);assert.equal(reports.filter(r=>r.startsWith(completionPrefix)).length,1);
+ const proofs=completionEvidence({secret,projectId,activity:{id,deployment_id:deploymentId,instance_id:instanceId,started_at:new Date(0)},logText:reports.join('\n')});assert.equal(proofs.length,1);
 });
 test('uncertain cleanup never emits a resource-completion receipt',async()=>{
  const reports=[],drain=new RequestDrain({pool:{query:async()=>({rowCount:1})},deploymentId,instanceId,completion:{secret,projectId,report:r=>reports.push(r)}});
  const response=await drain.run(async register=>{await register(randomUUID());return new Response(new ReadableStream({cancel(){throw Error('synthetic_cleanup_failure');}}));});
- await assert.rejects(response.body.cancel(),/synthetic_cleanup_failure/);assert.equal(reports.length,0);
+ await assert.rejects(response.body.cancel(),/synthetic_cleanup_failure/);assert.equal(reports.filter(r=>r.startsWith(completionPrefix)).length,0);
 });

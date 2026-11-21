@@ -5,7 +5,8 @@ const check=(value,code='invalid_request')=>{if(!value)throw new ControlError(co
 
 // Operator-only capability. The verifier must establish actual termination of
 // the identified execution, never infer it from age, lease expiry or READY state.
-// This module does not supply a Vercel termination-evidence adapter.
+// Native timeout correlation lives in vercel-termination.mjs; completion
+// receipts remain a separate verifier and cannot establish termination.
 export class RequestReview {
  constructor({queue,verifyTermination,verifyCompletion}){check(typeof verifyTermination==='function'||typeof verifyCompletion==='function','termination_verifier_required');this.queue=queue;this.verifyTermination=verifyTermination;this.verifyCompletion=verifyCompletion;}
  async scope(db,requestId){

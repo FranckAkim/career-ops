@@ -1,3 +1,4 @@
+import {issueAdmissionReceipt} from './admission-receipts.mjs';
 import {issueCompletionReceipt} from './completion-receipts.mjs';
 import {randomUUID} from 'node:crypto';
 import {ControlError} from './queue.mjs';
@@ -12,6 +13,7 @@ export class RequestDrain {
   const id=randomUUID();
   try{await this.pool.query('insert into account_request_activity(id,user_id,deployment_id,instance_id) values($1,$2,$3,$4)',[id,userId,this.deploymentId,this.instanceId]);}
   catch(error){if(error.code==='P0001'&&error.message==='account_deleting')throw new ControlError('account_deleting');throw error;}
+  if(this.completion&&this.deploymentId){try{await this.completion.report(issueAdmissionReceipt({secret:this.completion.secret,projectId:this.completion.projectId,activityId:id,deploymentId:this.deploymentId,instanceId:this.instanceId,admittedAt:new Date().toISOString()}));}catch{/* Missing admission evidence never permits cleanup. */}}
   let settled=false,reported=false;
   return async()=>{if(settled)return;
    if(!reported&&this.completion&&this.deploymentId){reported=true;try{await this.completion.report(issueCompletionReceipt({secret:this.completion.secret,projectId:this.completion.projectId,activityId:id,deploymentId:this.deploymentId,instanceId:this.instanceId,completedAt:new Date().toISOString()}));}catch{/* Missing evidence leaves a failed settlement unresolved. */}}

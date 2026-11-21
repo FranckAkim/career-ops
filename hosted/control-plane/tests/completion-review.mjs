@@ -15,10 +15,10 @@ export async function verifyCompletionReview({pool}){
  const failingPool={query(sql,args){if(sql.startsWith('update'))throw Error('synthetic_settlement_outage');return pool.query(sql,args);}};
  const drain=new RequestDrain({pool:failingPool,deploymentId,instanceId,completion:{secret,projectId,report:r=>reports.push(r)}});
  const response=await drain.run(async register=>{await register(userId);return new Response('synthetic resource work finished');});await assert.rejects(response.text(),/synthetic_settlement_outage/);
- assert.equal(reports.length,1);const activity=(await pool.query("select * from account_request_activity where user_id=$1 and state='active'",[userId])).rows[0];assert.ok(activity);
+ assert.equal(reports.length,2);const activity=(await pool.query("select * from account_request_activity where user_id=$1 and state='active'",[userId])).rows[0];assert.ok(activity);
  const scope=await lifecycle.preview(userId),blocked=await lifecycle.request({userId,sessionId:session.id,expectedScopeHash:scope.scopeHash,acknowledged:true,confirmation:'DELETE MY ACCOUNT'});
  const store={async deleteInventoriedObject(){throw Error('no_storage_access_expected');},async objectPresent(){throw Error('no_storage_access_expected');}},purger=new AccountPurger({queue,store,verifyDrained:async()=>true});await assert.rejects(purger.prepare(blocked.requestId),/requests_not_drained/);
- const proof=completionEvidence({secret,projectId,activity,logText:reports[0]})[0];assert.ok(proof);
+ const proof=completionEvidence({secret,projectId,activity,logText:reports.join('\n')})[0];assert.ok(proof);
  const verifyCompletion=vercelCompletionVerifier({secret,projectId,readLogs:async requested=>{assert.equal(requested.activityId,activity.id);return reports.join('\n');}}),service=new RequestReview({queue,verifyCompletion});let review=await service.preview(blocked.requestId);
  const input={requestId:blocked.requestId,activityId:activity.id,expectedReviewHash:review.reviewHash,evidenceHash:proof.evidenceHash,evidenceKind:'resource_work_complete',acknowledged:true,confirmation:'RESOLVE COMPLETED REQUEST'};
  await assert.rejects(service.resolve({...input,confirmation:'RESOLVE TERMINATED REQUEST'}),/confirmation_required/);
