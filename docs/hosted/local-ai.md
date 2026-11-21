@@ -18,7 +18,7 @@ Keep configuration and runtime credentials outside Git. `run.mjs --config <absol
 
 The CLI session must have access to that linked project. The worker pulls Development runtime credentials using native Vercel CLI arguments, keeps only the restricted database URL, Blob store ID and short-lived OIDC token, and refreshes before expiry. Do not print these files or commit them. A database/store change requires a restart. Only one supervisor may hold the state-directory lock.
 
-Run a bounded probe with `node hosted/local-worker/run.mjs --config <absolute-config-path> --once`; omit `--once` for polling. Stop with SIGINT/SIGTERM or the exact operator-owned process PID. Windows background launches must use `Start-Process -WindowStyle Hidden`, with logs and PID under the private work root. No system startup task is installed automatically.
+Run a bounded probe with `node hosted/local-worker/run.mjs --config <absolute-config-path> --once`; omit `--once` for polling. Stop with SIGINT/SIGTERM or the exact operator-owned process PID. Windows background launches must use `Start-Process -WindowStyle Hidden`, with logs and PID under the private work root. The configured operator installation uses the on-demand Windows task `CareerWorkspaceLocalWorker`, with a hidden PowerShell launcher and private log files. It has no automatic sign-in trigger. Start it with `Start-ScheduledTask -TaskName CareerWorkspaceLocalWorker`; after active jobs are finished or cancelled, stop it with `Stop-ScheduledTask -TaskName CareerWorkspaceLocalWorker`.
 
 ## Hosted activation
 
@@ -28,4 +28,4 @@ Profiles and results still reside in hosted storage and are downloaded onto the 
 
 ## Verification status
 
-GPU/network health passed on an RTX 3070 Laptop GPU. The initial real synthetic evaluation failed at 32768 context; at 65536 it exceeded the previous 90-second request budget. The engine now gives loopback requests 300 seconds, within the supervisor's 600-second deadline, and disables optional thinking specifically for loopback Qwen 3.5. Complete live two-tenant evaluation/PDF verification is still required before activation.
+GPU/network health passed on an RTX 3070 Laptop GPU. The initial real synthetic evaluation failed at 32768 context; at 65536 it exceeded the previous 90-second request budget. The engine now gives loopback requests 300 seconds, within the supervisor's 600-second deadline, and disables optional thinking specifically for loopback Qwen 3.5. Two real synthetic tenants completed evaluation, strict tailoring and one-page PDFs at engine 1a19a63, and production HTTP downloads passed after token revocation. Engine 73e7202 improves explicitly named employer extraction after a newly onboarded fixture returned Unknown; the exact failed profile/posting now passes in isolation. The corrected complete browser flow remains pending explicit activation approval.

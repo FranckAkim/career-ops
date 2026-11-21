@@ -1,76 +1,27 @@
-# Live activation: account actions and remaining checks
+# Live activation
 
-The deployed entry is https://career-workspace-franck-the-tank.vercel.app .
-The separate controller is `career-workspace-worker`. Both use the user fork's
-`product/hosted-foundation` branch. Production entry points are public by explicit
-user approval; previews retain Vercel protection. Application credentials and
-the private queue consumer remain enforced. This is not an activated beta.
+The hosted entry is https://career-workspace-franck-the-tank.vercel.app . Source is the user fork's `product/hosted-foundation` branch. Production entry points are public by explicit approval; previews retain Vercel protection. Google OAuth remains External/Testing with the approved initial test user.
 
-## Account-holder actions
+## Current execution mode
 
-1. Initial Google sign-in is verified in the deployed app. Google OAuth is now
-   configured in project `career-workspace-515317` (Career Workspace), with an
-   External/Testing Web client and the approved initial test user. Sensitive
-   `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are configured in frontend
-   Production and the redeployment is READY. Authorized origin:
-   `https://career-workspace-franck-the-tank.vercel.app`. Redirect URI:
-   `https://career-workspace-franck-the-tank.vercel.app/api/auth/callback/google`.
-   Anonymous session returns 401, and sign-in initiation returns 200 with the
-   exact callback and email/profile/openid scopes. User-completed Google login
-   reached authenticated CV onboarding and remained authenticated after reload.
-   Live logout/revocation has not yet been exercised.
-   Keep credentials and contact details outside source/chat. Keep preview origins
-   separate; do not wildcard trusted origins. Testing restricts access to test users.
-2. Verify Gemini free-tier access and real-model output quality. The user replaced
-   AI Gateway with direct Gemini; card verification is no longer the chosen path.
-   Worker Production has `GEMINI_API_KEY` (secret) and `HOSTED_MODEL_PROVIDER`.
-   Keep the Google project on the free tier without enabling billing. Follow
-   `model-providers.md`; Claude Code subscription is a personal manual backup,
-   not an automatic shared hosted provider. Real schema-enforced evaluation and
-   tailoring now passed for two synthetic tenants, with strict facts, distinct
-   one-page PDFs, private download hashes and production HTTP tenant denial.
-3. Revoke/regenerate the old read/write token for `career-workspace-private` in
-   Vercel Storage. It was included in the rejected private image caught before
-   Sandbox execution. The image records/local tag were removed; DB owner/runtime
-   passwords and the app auth secret were rotated. Both deployments now use Blob
-   OIDC, and the static token env variable was removed. Removing an env variable
-   alone does not revoke its old credential. No candidate data was present and
-   no unauthorized access is known. A short-lived development OIDC token was
-   also in that rejected image; do not claim it was individually revoked.
+The user selected local AI. See `local-ai.md`. Vercel serves the web application, Neon owns the durable queue, private Blob holds snapshots and results, and the operator's computer runs isolated Qwen inference. Cloud worker execution remains disabled. Claude Code subscription access remains a separate personal manual backup; no subscription credential is shared with the hosted service.
 
-## Operator continuation after those actions
+Production engine revision is being moved to `73e7202deeccce325e5f3b337d9840987ddfc9dd`. Its image is built from committed allowlisted source and pinned by local Docker image ID. The Windows task `CareerWorkspaceLocalWorker` runs the supervisor without a visible terminal, while the operator is signed in. It has no automatic sign-in trigger. The computer and Docker must remain on for jobs to finish.
 
-Keep frontend `HOSTED_JOBS_ENABLED` unset/0 until the worker is verified.
-Google settings are deployed, anonymous session returns 401, and real Google
-login/session persistence is verified. Complete logout/revocation checks and
-verify all production entry aliases use the exact OAuth origin.
+## Verified
 
-Worker was temporarily enabled for synthetic tests and is reset to 0.
-Authenticated deployed `/api/wake` returned 202, published to the private queue
-consumer and launched actual jobs. Re-enable only for the next reviewed check,
-while frontend admission remains off. Local development tokens cannot publish messages
-pinned to production deployments; an explicit probe was denied before publication.
-Use the real deployed producer rather than bypassing that environment boundary.
+- The old static Blob credential is rejected. Fresh same-project OIDC storage access and production HTTP downloads still work after revocation. Do not restore the old credential or delete the store.
+- Google login/reload worked for the real user. Synthetic session tests prove owner PDF downloads with matching hashes and private/no-store headers, other-tenant 404, anonymous 401 and revoked-session 401. Temporary test auth records are removed after checks.
+- Real local Qwen evaluation and schema-enforced tailoring passed for two synthetic tenants at engine `1a19a63`. Both produced distinct one-page PDFs under strict facts, locked sections, chronology, source retention and page validation; production HTTP downloads passed.
+- Windows/Linux CI run 44851731816 passed at that engine. A later production browser test created a reviewed profile and queued a real local evaluation, but the model returned `Unknown` for an explicitly named placeholder employer. The engine correctly refused publication and retained the committed workspace.
+- Engine `73e7202` clarifies employer extraction in the response schema and final user instruction. Repeating the same failed profile/posting in isolation returned `Example Employer`, `Software Engineer` and a valid score. The UI now explains this recovery category.
 
-The two-tenant real Gemini evaluation/tailoring/PDF fixture flow passed, including
-private download integrity and production HTTP authorization/revocation. Review
-source fidelity, omissions and quality on more varied fixtures before broad beta.
-Exercise active cancellation, expiry/stale publication and restart cleanup.
-If the model fails strict validation, fix/review the output path; do not relax
-fact, browser-sandbox, source-retention or receipt checks to obtain success.
+## Pending final browser test
 
-Only after these checks enable frontend `HOSTED_JOBS_ENABLED=1` and redeploy.
-Verify the real browser -> queue -> Sandbox -> Blob -> report/PDF download flow
-and tenant denial. Retention/deletion, confirmed-profile editing, billing and
-broader scan/autofill workflows remain separate product work before a broad beta.
+Production admission is paused (`HOSTED_JOBS_ENABLED=0`). The corrected browser test will explicitly discard only the synthetic interrupted output, enqueue evaluation and tailoring through the real interface, verify the PDF hash, reload, mobile layout, cancellation and session revocation. Leave admission enabled only after this passes; otherwise pause it again.
 
-## Already verified
+Automatic approval review requires explicit user approval for this controlled production activation. It also rejected exporting the live restricted database URL to an unconfigured, protected `validation/local-ai` preview without destination-specific approval. No database/auth credentials were uploaded to that preview. Do not work around either rejection.
 
-Reviewed schemas 001–004, restricted runtime roles without schema CREATE and
-verified database TLS; private Blob binary round trip; four real cloud jobs for
-two synthetic tenants reaching generation 2 with one-page PDFs; fresh non-root
-VMs, Chromium sandbox, system CA trust, blocked unrelated egress, confirmed stop,
-and creation-time cancellation preserving the committed snapshot. Model replies
-for that flow were fixed proxy fixtures. Full local/Postgres/browser/Docker tests
-and cross-platform CI establish additional contracts; they do not prove real
-model quality or Google OAuth. All VMs from these checks were stopped.
+## Product limits
+
+This remains an owner preview. Retention limits, self-service deletion, confirmed-profile editing, billing and broader scan/autofill workflows remain separate work before a broad beta. Hosted data still resides in Neon/Blob and is downloaded to the operator computer during processing; local inference does not mean data remains on each visitor's device. The app's `/hosted/privacy` notice states this.
