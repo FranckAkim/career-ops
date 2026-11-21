@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';import path from 'node:path';import os from 'node:os';import{randomUUID}from'node:crypto';
+import {Profiles} from '../profiles.mjs';import {Onboarding} from '../onboarding.mjs';import{Supervisor}from'../supervisor.mjs';import{createEngine}from'../../engine.mjs';
+export async function verifyProfiles({pool,queue,store,model,engineRevision}){
+ const userId=randomUUID(),other=randomUUID(),onboarding=new Onboarding({queue,store}),profile={fullName:'Synthetic Profile Editing',cvMarkdown:'# Synthetic Profile Editing\n\n## Experience\n\nSoftware engineer building Python reporting tools.\n',targetRole:'Software Engineer',language:'en'};
+ const draft=await onboarding.create({userId,profile}),{tenantId}=await onboarding.confirm({userId,draftId:draft.id,expectedHash:draft.review_hash,acknowledged:true}),service=new Profiles({queue,store}),input={tenantId,userId},base=await service.read(input);
+ await assert.rejects(service.read({tenantId,userId:other}),/not_found/);
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'hc-profile-test-'));
+ try{
+  const engine=createEngine({provider:model.provider,engineRevision,allowLocalProvider:true}),job=await queue.enqueue({...input,engineRevision,idempotencyKey:'profile-evaluation',operation:'evaluate',postingText:'Example Employer needs a Python engineer.'}),supervisor=new Supervisor({queue,store,workRoot:path.join(root,'jobs'),heartbeatMs:500,runner:context=>engine.evaluate({...context.job,workspace:context.workspace,signal:context.signal})});
+  assert.equal((await supervisor.runOnce()).status,'succeeded');const before=await service.current(input),tracker=await queue.applications(input),changed={...profile,targetRole:'Backend Engineer'},review=service.review(changed),save={...input,profile:changed,expectedHash:base.reviewHash,expectedGeneration:before.generation,reviewedHash:review.reviewHash,acknowledged:true};
+  await assert.rejects(service.save({...save,acknowledged:false}),/confirmation_required/);await assert.rejects(service.save({...save,reviewedHash:'a'.repeat(64)}),/review_conflict/);
+  const results=await Promise.all([service.save(save),service.save(save)]);assert.equal(results.filter(x=>!x.replayed).length,1);assert.equal((await service.read(input)).profile.targetRole,'Backend Engineer');assert.equal((await service.read(input)).revision,2);assert.deepEqual((await queue.applications(input)).applications,tracker.applications);
+  const current=await service.current(input);assert.equal(current.generation,(BigInt(before.generation)+1n).toString());assert.equal(await store.read(current.snapshot,'data/applications.md'),await store.read(before.snapshot,'data/applications.md'));assert.equal(await store.read(before.snapshot,'cv.md'),profile.cvMarkdown);
+  const workspace=path.join(root,'stale');await store.materialize(current.snapshot,workspace);await assert.rejects(engine.tailor({workspace,jobId:randomUUID(),evaluationJobId:job.id}),/evaluation_stale/);
+  await assert.rejects(queue.enqueue({...input,engineRevision,idempotencyKey:'stale-cv-after-profile-edit',operation:'tailor',evaluationJobId:job.id}),/evaluation_stale/);
+  await assert.rejects(service.save({...save,profile:{...changed,targetRole:'Conflicting editor'},reviewedHash:service.review({...changed,targetRole:'Conflicting editor'}).reviewHash}),/review_conflict/);
+  const next={...changed,cvMarkdown:changed.cvMarkdown+'\nUser-confirmed new source text.\n'},nextSave={...input,profile:next,expectedHash:current.review_hash,expectedGeneration:current.generation,reviewedHash:service.review(next).reviewHash,acknowledged:true};
+  const broken=new Profiles({queue,store:{materialize:(...args)=>store.materialize(...args),capture(){throw Error('synthetic_storage_failure');}}});await assert.rejects(broken.save(nextSave),/synthetic_storage_failure/);assert.equal((await service.current(input)).snapshot,current.snapshot);
+  let pending;const racing=new Profiles({queue,store:{materialize:(...args)=>store.materialize(...args),verify:(...args)=>store.verify(...args),async capture(...args){const saved=await store.capture(...args);pending=await queue.enqueue({...input,engineRevision,idempotencyKey:'during-profile-save',operation:'evaluate',postingText:'Synthetic role.'});return saved;}}});
+  await assert.rejects(racing.save(nextSave),/tenant_busy/);assert.equal((await service.current(input)).snapshot,current.snapshot);await queue.cancel({...input,jobId:pending.id});
+  assert.equal((await service.save(nextSave)).saved,true);const latest=await service.current(input);assert.match(await store.read(latest.snapshot,'cv.md'),/new source text/);assert.equal(JSON.parse(await store.read(latest.snapshot,'config/confirmed-profile.json')).revision,3);
+  console.log('PASS reviewed profile versions, concurrent replay, stale edits/evaluations, storage failure, enqueue race, tracker preservation and owner denial');
+ }finally{await fs.rm(root,{recursive:true,force:true});}
+}

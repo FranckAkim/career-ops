@@ -64,6 +64,18 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   await page.getByLabel('CV library',{exact:true}).getByRole('link',{name:'Download PDF',exact:true}).waitFor();
   await page.getByRole('button',{name:'My Profile',exact:true}).click();
   await page.getByLabel('Confirmed profile',{exact:true}).getByRole('heading',{name:'Synthetic Alpha',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Edit profile',exact:true}).click();
+  await page.getByLabel('Target role',{exact:true}).fill('Backend Engineer — Confirmed Update');
+  await page.getByRole('button',{name:'Review profile changes',exact:true}).click();
+  await page.getByRole('heading',{name:'Review your profile changes.',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Confirm profile changes',exact:true}).isDisabled(),true);
+  await page.getByLabel('I have reviewed these changes and confirm this is my source information.',{exact:true}).check();
+  await page.getByRole('button',{name:'Confirm profile changes',exact:true}).click();
+  await page.getByText('Confirmed by you · Version 2',{exact:true}).waitFor();
+  await page.reload();await page.getByRole('button',{name:'My Profile',exact:true}).click();
+  await page.getByText('Backend Engineer — Confirmed Update',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Applications',exact:true}).click();
+  await page.getByLabel('Current application status',{exact:true}).filter({hasText:/^Interview$/}).waitFor();
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('heading',{name:'Processing and privacy',exact:true}).waitFor();
   await page.getByRole('button',{name:'Overview',exact:true}).click();

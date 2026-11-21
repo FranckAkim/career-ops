@@ -82,7 +82,7 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut, executio
   async function mutate(path: string, input: unknown, key?: string) {
     const response = await fetch(`${base}/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...(key ? { 'idempotency-key': key } : {}) }, body: JSON.stringify(input) });
     const value = await response.json();
-    if (!response.ok) throw new Error(value.error === 'idempotency_conflict' ? 'This request changed. Check the job history before trying again.' :value.error==='daily_job_limit'?'Your workspace has reached its daily job limit. Try again later.': 'Could not save this action. Check your connection and try again.');
+    if (!response.ok) throw new Error(value.error === 'idempotency_conflict' ? 'This request changed. Check the job history before trying again.' :value.error==='evaluation_stale'?'Your profile changed after this evaluation. Evaluate the posting again before preparing a new CV.':value.error==='daily_job_limit'?'Your workspace has reached its daily job limit. Try again later.': 'Could not save this action. Check your connection and try again.');
     return value;
   }
   async function enqueue(input: Record<string,unknown>, key: string) {

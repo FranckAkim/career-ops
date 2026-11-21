@@ -62,6 +62,8 @@ export class Queue {
       if (operation === 'tailor') {
         const source = await db.query("select id from jobs where tenant_id=$1 and id=$2 and status='succeeded' and payload->>'operation'='evaluate'", [tenantId, evaluationJobId]);
         check(source.rows.length, 'evaluation_not_found');
+        const changed=await db.query('select 1 from personal_workspaces p join profile_drafts d on d.id=p.draft_id join jobs j on j.tenant_id=p.tenant_id and j.id=$2 where p.tenant_id=$1 and d.confirmed_at>j.created_at',[tenantId,evaluationJobId]);
+        check(!changed.rowCount,'evaluation_stale');
       }
       const { rows: [job] } = await db.query('insert into jobs(id,tenant_id,requested_by,idempotency_key,request_hash,payload,engine_revision) values($1,$2,$3,$4,$5,$6,$7) returning *', [randomUUID(), tenantId, userId, idempotencyKey, fingerprint, payload, engineRevision]);
       await event(db, job, 'queued'); return job;
@@ -92,7 +94,7 @@ export class Queue {
   async applications({tenantId,userId}){
     return this.transaction(async db=>{
       await this.authorize(db,tenantId,userId);
-      const{rows:[row]}=await db.query('select t.generation,j.result from tenants t left join workspace_versions w on w.tenant_id=t.id and w.generation=t.generation left join jobs j on j.tenant_id=w.tenant_id and j.id=w.job_id where t.id=$1',[tenantId]);
+      const{rows:[row]}=await db.query('select t.generation,j.result from tenants t left join lateral (select v.job_id from workspace_versions v where v.tenant_id=t.id and v.generation<=t.generation and v.job_id is not null order by v.generation desc limit 1) w on true left join jobs j on j.tenant_id=t.id and j.id=w.job_id where t.id=$1',[tenantId]);
       const records=row?.result?.applications;
       return {initialized:Array.isArray(records),applications:Array.isArray(records)?records:[],states:applicationStates,generation:row.generation};
     });

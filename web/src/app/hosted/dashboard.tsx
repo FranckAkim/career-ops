@@ -1,14 +1,14 @@
 'use client';
 
-import {useEffect, useState, type ReactNode} from 'react';
+import {useState, type ReactNode} from 'react';
 import {workspaceSummary,operationLabel} from '@/lib/workspace-summary.mjs';
 import {Applications} from './applications';
+import {ProfileEditor} from './profile-editor';
 import {ProcessingNotice} from './processing-notice';
 import d from './dashboard.module.css';
 
 export type DashboardJob = {id:string;operation:string;status:string;company?:string;role?:string;score?:string;pdf?:string;evaluation_job_id?:string;created_at:string};
 type View = 'overview'|'opportunities'|'applications'|'cvs'|'profile'|'settings';
-type Profile = {fullName:string;targetRole:string;language:string;cvMarkdown:string};
 const paths={home:'m3 10 9-7 9 7v11h-6v-7H9v7H3Z',search:'m21 21-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',file:'M14 2H5v20h14V7Zm0 0v6h5M8 12h8M8 16h8',user:'M20 22v-3a7 7 0 0 0-14 0v3M17 6a4 4 0 1 1-8 0 4 4 0 0 1 8 0',settings:'m12 2 3 4 5 1v5l-3 4v5h-5l-4-3H3v-5l3-4V5h5ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',layers:'m2 7 10-5 10 5-10 5Zm0 5 10 5 10-5M2 17l10 5 10-5',clock:'M12 7v5l3 2M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',check:'m5 12 4 4L20 5',arrow:'M4 12h16m-6-6 6 6-6 6',shield:'m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6Z',plus:'M12 4v16M4 12h16'};
 function Icon({name}: {name:keyof typeof paths}){return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={paths[name]}/></svg>;}
 const navigation=[['overview','Overview','home'],['opportunities','Opportunities','search'],['applications','Applications','layers'],['cvs','CV Studio','file'],['profile','My Profile','user'],['settings','Settings','settings']] as const;
@@ -18,23 +18,9 @@ const shortDate=(value:string)=>new Date(value).toLocaleDateString(undefined,{mo
 export function Dashboard({jobs,tenantId,userName,loaded,executionMode,onOpenJob,onSignOut,signingOut,enqueue,recovery,applicationsEnabled,alert,children}: {jobs:DashboardJob[];tenantId:string;userName:string;loaded:boolean;executionMode:string;onOpenJob:(id:string)=>void;onSignOut:()=>void;signingOut:boolean;enqueue:(input:Record<string,unknown>,key:string)=>Promise<void>;recovery:boolean;applicationsEnabled:boolean;alert?:string;children:ReactNode}){
   const [view,setView]=useState<View>('overview');
   const [search,setSearch]=useState('');
-  const [profile,setProfile]=useState<Profile|null>(null);
-  const [profileError,setProfileError]=useState(false);
   const summary=workspaceSummary(jobs,search);
   const shown=new Set(summary.visible.map((item:DashboardJob)=>item.id));
   const base=`/api/hosted/tenants/${tenantId}`;
-  useEffect(()=>{
-    if(view!=='profile'||profile)return;
-    const controller=new AbortController();setProfileError(false);
-    (async()=>{
-      const response=await fetch('/api/hosted/onboarding/status',{signal:controller.signal,cache:'no-store'});
-      if(!response.ok)throw Error();const {workspace}=await response.json();
-      if(workspace?.tenant_id!==tenantId||!workspace.draft_id)throw Error();
-      const saved=await fetch(`/api/hosted/onboarding/drafts/${workspace.draft_id}`,{signal:controller.signal,cache:'no-store'});
-      if(!saved.ok)throw Error();const {draft}=await saved.json();if(!controller.signal.aborted)setProfile(draft.content);
-    })().catch(()=>{if(!controller.signal.aborted)setProfileError(true);});
-    return()=>controller.abort();
-  },[view,tenantId,profile]);
   function evaluateRole(){setView('opportunities');requestAnimationFrame(()=>document.getElementById('posting-text')?.focus());}
   function openJob(id:string){onOpenJob(id);setView('opportunities');}
   const titles={overview:'Your next move, in focus.',opportunities:'Your opportunities.',applications:'Your application pipeline.',cvs:'CVs you can stand behind.',profile:'Your confirmed profile.',settings:'Your workspace, your control.'};
@@ -71,7 +57,7 @@ export function Dashboard({jobs,tenantId,userName,loaded,executionMode,onOpenJob
       </>}
       <section className={d.workbench} hidden={view!=='opportunities'} aria-label="Evaluation workspace">{children}</section>
       {view==='cvs'&&<section className={d.documentGrid} aria-label="CV library">{summary.cvs.filter((item:DashboardJob)=>shown.has(item.id)).map((item:DashboardJob)=><article className={d.panel} key={item.id}><div className={d.documentIcon}><Icon name="file"/></div><p className={d.tag}>Validation passed</p><h2>Tailored CV</h2><p>Created {shortDate(item.created_at)} from your confirmed profile.</p><div className={d.documentActions}><a className={d.primary} href={`${base}/artifacts/${item.id}/pdf`}>Download PDF</a><button className={d.secondary} onClick={()=>openJob(item.id)}>View details</button></div></article>)}{!summary.cvs.some((item:DashboardJob)=>shown.has(item.id))&&<div className={d.panel}><h2>{search?'No matching CVs.':'Your CV library starts here.'}</h2><p>Complete a role evaluation, then prepare a tailored CV. Documents appear here after validation.</p><button className={d.primary} onClick={evaluateRole}>Evaluate a role</button></div>}</section>}
-      {view==='profile'&&<section className={d.panel} aria-label="Confirmed profile">{profileError?<p role="alert">Could not load your confirmed profile. Switch views and try again.</p>:!profile?<p role="status">Loading your profile…</p>:<><span className={d.tag}><Icon name="check"/>Confirmed by you</span><h2>{profile.fullName}</h2><dl className={d.profileDetails}><div><dt>Target role</dt><dd>{profile.targetRole||'Not specified'}</dd></div><div><dt>Output language</dt><dd>{profile.language.toUpperCase()}</dd></div></dl><h3>Your source CV</h3><pre className={d.sourceCV}>{profile.cvMarkdown}</pre><p>This is the confirmed source used for your workspace. Profile editing will be added separately.</p></>}</section>}
+      {view==='profile'&&<ProfileEditor tenantId={tenantId} blocked={recovery||summary.inProgress.length>0}/>}
       {view==='settings'&&<section className={d.panel}><h2>Processing and privacy</h2><dl className={d.profileDetails}><div><dt>AI processing</dt><dd>{executionMode==='local'?'On the service operator’s computer':'Configured by the service operator'}</dd></div><div><dt>Workspace storage</dt><dd>Hosted account, profile and document storage</dd></div><div><dt>Application submission</dt><dd>You review and send every application yourself</dd></div></dl><ProcessingNotice mode={executionMode}/><p>Automatic retention limits and self-service account deletion are not available in this preview.</p></section>}
       <footer className={d.footer}><Icon name="shield"/><ProcessingNotice mode={executionMode}/></footer>
     </main>

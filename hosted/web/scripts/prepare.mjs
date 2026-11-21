@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
 export const copies = [
+  ['src/app/hosted/profile-editor.tsx','src/app/hosted/profile-editor.tsx'],
   ['src/app/hosted/applications.tsx','src/app/hosted/applications.tsx'],
   ['src/app/hosted/dashboard.tsx','src/app/hosted/dashboard.tsx'],
   ['src/app/hosted/dashboard.module.css','src/app/hosted/dashboard.module.css'],

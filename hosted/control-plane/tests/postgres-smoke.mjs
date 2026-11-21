@@ -17,6 +17,7 @@ import { verifyAuthHttp } from './auth-http.mjs';
 import { verifyOnboarding } from './onboarding.mjs';
 import { verifyArtifacts } from './artifacts.mjs';
 import {verifyApplications} from './applications.mjs';
+import {verifyProfiles} from './profiles.mjs';
 import { attemptJournal } from '../../sandbox-worker/journal.mjs';
 
 const name = `hc-postgres-test-${randomUUID()}`;
@@ -164,6 +165,7 @@ try {
   await queue.finish(conflict); await queue.discardRecovery({ tenantId: tenantA, userId: userA });
   console.log('PASS generation compare-and-swap rejects stale base');
   await verifyOnboarding({ pool, queue, store, model, engineRevision });
+  await verifyProfiles({pool,queue,store,model,engineRevision});
   await verifyArtifacts({ queue, store, snapshot: initial.id, engineRevision });
   let webRunner, webRevision = engineRevision;
 
