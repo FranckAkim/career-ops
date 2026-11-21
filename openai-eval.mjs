@@ -41,6 +41,7 @@ import {
 } from './reserve-report-num.mjs';
 import { TokenAccumulator, formatBreakdown, normalizeOpenAIUsage } from './utils/token-tracker.mjs';
 import { buildBudgetedPrompt } from './lib/context-budget.mjs';
+import {evaluationResponseFormat,evaluationMarkdown} from './lib/structured-evaluation.mjs';
 import { endpointHeaders } from './lib/endpoint-headers.mjs';
 import { assertLlmRequestAllowed } from './lib/llm-outbound.mjs';
 import { installPiiInterceptor } from './lib/pii-interceptor.mjs';
@@ -342,7 +343,7 @@ SCORE: <global score as decimal, e.g. 3.8>
 ARCHETYPE: <detected archetype>
 LEGITIMACY: <High Confidence | Proceed with Caution | Suspicious>
 ---END_SUMMARY---
-${['localhost','127.0.0.1','::1'].includes(endpointHost) && /^qwen3\.5:/.test(modelName) ? '\nFor this local run, keep the complete A–G report within 1200 words. Include every block and the final SCORE_SUMMARY. Use concise evidence and explicitly mark information that cannot be verified. Do not repeat the methodology, source documents or these instructions.' : ''}
+${['localhost','127.0.0.1','::1'].includes(endpointHost) && /^qwen3\.5:/.test(modelName) ? '\nOUTPUT CONTRACT FOR THIS LOCAL RUN: Return only JSON matching the response schema. Put concise A–G analysis in blocks.A through blocks.G, keeping each below 1800 characters. Put summary fields in company, role, score (number 0–5), archetype and legitimacy. The script constructs the Markdown and SCORE_SUMMARY. Preserve the methodology above; mark unknown evidence explicitly, never invent verification. No code fences, source-document repetition or additional fields.' : ''}
 `;
 
 // ---------------------------------------------------------------------------
@@ -457,6 +458,7 @@ try {
       stream:      true,
       ...(withUsage && { stream_options: { include_usage: true } }),
       temperature: 0.4,
+      ...(['localhost','127.0.0.1','::1'].includes(endpointHost) && /^qwen3\.5:/.test(modelName) ? {response_format:evaluationResponseFormat()} : {}),
       ...(['localhost','127.0.0.1','::1'].includes(endpointHost) && /^qwen3\.5:/.test(modelName) ? {reasoning_effort:'none'} : {}),
       ...buildTokenLimit(maxTokens, endpointHost),
     });
@@ -580,7 +582,7 @@ try {
   if (!streamDone && finishReason !== 'stop') throw new Error('Incomplete evaluation: stream ended before completion');
   if (!answer.trim()) throw new Error('The endpoint returned an empty response.');
   if (thinkOpen) parts.push('\n</think>\n');
-  evaluationText = parts.join('').trim();
+  evaluationText = ['localhost','127.0.0.1','::1'].includes(endpointHost) && /^qwen3\.5:/.test(modelName) ? evaluationMarkdown(answer.trim()) : parts.join('').trim();
   if (evaluationUsage) tracker.record('evaluation', normalizeOpenAIUsage(evaluationUsage));
 } catch (err) {
   if (err.name === 'TimeoutError') {

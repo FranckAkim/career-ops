@@ -30,7 +30,7 @@ async function mockProvider(t, response = null) {
     for await (const chunk of req) body += chunk;
     const data = JSON.parse(body);
     requests.push(data);
-    const text = response ?? `## Block A — Fit\nSynthetic test report. Python experience matches the pasted posting.\n\n---SCORE_SUMMARY---\nCOMPANY: Example Employer\nROLE: Software Engineer\nSCORE: 4.1\nARCHETYPE: Engineering\nLEGITIMACY: Proceed with Caution\n---END_SUMMARY---`;
+    const text = response ?? (data.response_format ? JSON.stringify({company:'Example Employer',role:'Software Engineer',score:4.1,archetype:'Engineering',legitimacy:'Proceed with Caution',blocks:Object.fromEntries(['A','B','C','D','E','F','G'].map(key=>[key,'Synthetic analysis; only supplied Python experience is confirmed.']))}) : `## Block A — Fit\nSynthetic test report. Python experience matches the pasted posting.\n\n---SCORE_SUMMARY---\nCOMPANY: Example Employer\nROLE: Software Engineer\nSCORE: 4.1\nARCHETYPE: Engineering\nLEGITIMACY: Proceed with Caution\n---END_SUMMARY---`);
     res.writeHead(200, { 'Content-Type': 'text/event-stream' });
     res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text }, finish_reason: null }] })}\n\n`);
     res.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 } })}\n\n`);

@@ -1,3 +1,7 @@
+# Current provider decision: local AI
+
+The user selected operator-owned local Ollama inference. See [local-ai.md](local-ai.md). The earlier Gemini configuration below is historical synthetic-test evidence only; cloud jobs remain disabled. Google’s unpaid API terms prohibit sensitive, confidential or personal information. Never send real profiles to that path. Static Blob token revocation and continued OIDC access have now been verified.
+
 # Gemini primary and personal Claude Code backup
 
 The user selected Gemini's free API tier, with their Claude Code subscription
