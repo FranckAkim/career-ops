@@ -1,6 +1,6 @@
 # Account deletion and retention: implementation boundary
 
-Full account deletion is not implemented or advertised as available. The next required backend change is ownership tracking for every snapshot capture, including captures that never publish. Do not implement deletion by removing an auth row or recursively deleting a workspace prefix.
+Full account deletion is not implemented or advertised as available. Prospective snapshot capture tracking is now live; read `snapshot-inventory.md` for the exact scope and verification. Historical unreferenced uploads still need reconciliation, followed by account/workspace tombstones and a verified purge workflow. Do not implement deletion by removing an auth row or recursively deleting a workspace prefix.
 
 ## Evidence from current storage
 
@@ -8,7 +8,7 @@ Full account deletion is not implemented or advertised as available. The next re
 
 ## Required implementation sequence
 
-1. Add a durable capture/object inventory with owner identity, snapshot ID, capture lease and lifecycle state. Register ownership and the upload intent before storing any private bytes. Cover onboarding, profile publication and both supervisors. Existing objects require an operator-reviewed reconciliation; list metadata first and avoid logging source contents.
+1. New capture/object inventory is implemented for onboarding, profile publication and both supervisor runtimes. Owner/lease identity precedes capture work; exact snapshot/object identity precedes private upload. Existing committed references are marked historically rather than inventing past ownership proof. Historical unreferenced objects still require an operator-reviewed reconciliation; list metadata first and avoid logging source contents.
 2. Add a deletion request record and an account/workspace tombstone. Show a server-computed scope for explicit confirmation with recent authentication. Block source publication, queue admission, new captures and session access for the tombstoned scope. Refuse destructive workspace removal where other members require an ownership transfer.
 3. Cancel queued jobs and stop/fence active execution, then verify owned containers and disposable workspaces are gone. A live capture lease or another tenant's reference prevents physical removal.
 4. Remove app records in foreign-key-safe order and revoke sessions/provider credentials. Retain only the opaque deletion request and the minimum IDs needed for unfinished cleanup. The cleanup worker must be independent of the deleted account's auth session.
