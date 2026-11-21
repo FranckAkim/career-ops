@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
-import {ControlError} from './queue.mjs';
+import {ControlError,hash} from './queue.mjs';
+import {manifestValid} from './snapshots.mjs';
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i,digest=/^[a-f0-9]{64}$/;
 const check=(value,code='invalid_capture')=>{if(!value)throw new ControlError(code);};
 
@@ -24,16 +25,20 @@ export class SnapshotInventory{
   });
  }
  async heartbeat(capture){const{rowCount}=await this.queue.pool.query("update snapshot_captures set lease_until=clock_timestamp()+make_interval(secs=>$3) where id=$1 and lease_token=$2 and state in ('preparing','uploading') and lease_until>clock_timestamp()",[capture.id,capture.token,this.leaseSeconds]);check(rowCount,'capture_lease_lost');}
- async register(capture,{id,files}){
+ async register(capture,{id,files,manifestSchema=1,generation}){
   check(digest.test(id)&&Array.isArray(files)&&files.length<=10000&&files.every(file=>digest.test(file.sha256)&&Number.isSafeInteger(file.bytes)&&file.bytes>=0));
+  check([1,2].includes(manifestSchema),'invalid_capture');
+  if(manifestSchema===2){const manifest={schema:2,generation,files};manifestValid(manifest,10000,100000000);check(hash(JSON.stringify(manifest))===id,'snapshot_corrupt');}else check(generation===undefined,'invalid_capture');
   const hashes=[...new Set(files.map(file=>file.sha256))].sort(),bytes=files.reduce((sum,file)=>sum+file.bytes,0);check(bytes<=100000000);
   await this.queue.transaction(async db=>{
    const owner=(await db.query('select tenant_id from snapshot_captures where id=$1 and lease_token=$2',[capture.id,capture.token])).rows[0];
    if(owner?.tenant_id)await db.query('select id from tenants where id=$1 for key share',[owner.tenant_id]);
    const{rows:[record]}=await db.query("select *,lease_until>clock_timestamp() as live from snapshot_captures where id=$1 and lease_token=$2 for update",[capture.id,capture.token]);check(record?.live&&['preparing','uploading'].includes(record.state),'capture_lease_lost');check(!record.snapshot_id||record.snapshot_id===id);
    await db.query('select pg_advisory_xact_lock(hashtextextended($1,847293))',[id]);
-   await db.query('insert into snapshot_objects(id,file_hashes,file_count,total_bytes) values($1,$2,$3,$4) on conflict(id) do nothing',[id,hashes,files.length,bytes]);
+   await db.query('insert into snapshot_objects(id,file_hashes,file_count,total_bytes,manifest_schema,manifest_generation) values($1,$2,$3,$4,$5,$6) on conflict(id) do nothing',[id,hashes,files.length,bytes,manifestSchema,generation??null]);
    const{rows:[object]}=await db.query('select * from snapshot_objects where id=$1 for update',[id]);check(object.state==='active','snapshot_unavailable');
+   check(object.manifest_schema===null||object.manifest_schema===manifestSchema&&object.manifest_generation===(generation??null),'snapshot_corrupt');
+   if(object.manifest_schema===null)await db.query('update snapshot_objects set manifest_schema=$2,manifest_generation=$3 where id=$1',[id,manifestSchema,generation??null]);
    if(object.file_hashes===null)await db.query('update snapshot_objects set file_hashes=$2,file_count=$3,total_bytes=$4 where id=$1',[id,hashes,files.length,bytes]);
    else check(JSON.stringify(object.file_hashes)===JSON.stringify(hashes)&&object.file_count===files.length&&object.total_bytes===String(bytes),'snapshot_corrupt');
    await db.query("update snapshot_captures set snapshot_id=$3,state='uploading' where id=$1 and lease_token=$2",[capture.id,capture.token,id]);

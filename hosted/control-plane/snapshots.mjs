@@ -62,9 +62,10 @@ export class SnapshotStore {
       };
       await walk(source);
       files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
-      const manifest = JSON.stringify(this.generationSnapshots ? {schema:2,generation:randomUUID(),files} : {schema:1,files});
+      const descriptor=this.generationSnapshots ? {schema:2,generation:randomUUID(),files} : {schema:1,files};
+      const manifest = JSON.stringify(descriptor);
       const id = hash(manifest);
-      await beforeStore?.({id,files});assertActive?.();
+      await beforeStore?.({id,files,manifestSchema:descriptor.schema,...(descriptor.schema===2?{generation:descriptor.generation}:{})});assertActive?.();
       await fs.writeFile(path.join(stage, 'manifest.json'), manifest, { flag: 'wx', mode: 0o600 });
       try { await fs.rename(stage, path.join(this.root, id)); }
       catch (error) {
@@ -73,7 +74,7 @@ export class SnapshotStore {
         // bytes before allowing a DB pointer to refer to the existing object.
         await this.verify(id);
       }
-      return { id, files };
+      return { id, files,manifestSchema:descriptor.schema,...(descriptor.schema===2?{generation:descriptor.generation}:{}) };
     } finally { await fs.rm(stage, { recursive: true, force: true }); }
   }
   async manifest(id) {
