@@ -24,3 +24,9 @@ These receipts do not prove provider-side upload settlement or coverage of older
 ## Verification
 
 Unit tests cover signing/context binding, tampering, size limits, clock independence, cancellation ordering, failed settlement, provider lookup failures and refusal to emit on uncertain cleanup. Disposable PostgreSQL tests preserve an active marker after an injected local settlement failure, block purge, verify the signed receipt, record reviewed completion, refuse promotion to termination, and retain the opaque audit through an empty synthetic account purge. Production provider-log proof and CI evidence are recorded in `PROJECT_HANDOFF.md`.
+
+## Production evidence - 2026-11-21
+
+Migration 011 is installed. Source `17e8633745e809b734691e0c79711752fcf97d0d` passed Windows/Linux [CI 44924932065](https://github.com/FranckAkim/career-ops/actions/runs/44924932065). Production deployment `dpl_9HYWwoYZqC8VEeXhidfjXeke7pGx` is READY. A fresh file-free synthetic account completed two real authenticated hosted requests. Authenticated Vercel log queries retrieved each searchable receipt; protected signing material verified both signatures and exact project/activity/deployment/instance identities through the adapter. The helper then removed only its empty temporary auth/activity fixture.
+
+No production marker was resolved, no operator resolution receipt was written, and no Blob object or real account was touched. The live proof establishes receipt production, provider-log retrieval and verifier behavior on normal completed requests. Failed database settlement and reviewed reconciliation are separately proven with disposable PostgreSQL; no deliberate production outage was introduced. Aggregate production audit observed zero active/unknown markers, zero review receipts and zero blocked live accounts. The local worker remained running with an idle queue and cloud inference disabled.
