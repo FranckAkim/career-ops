@@ -22,6 +22,7 @@ import {verifyDataControls} from './data-controls.mjs';
 import {verifySnapshotInventory} from './snapshot-inventory.mjs';
 import {verifyStorageReconciliation} from './storage-reconciliation.mjs';
 import {verifyAccountLifecycle} from './account-lifecycle.mjs';
+import {verifyAccountPurge} from './account-purge.mjs';
 import { attemptJournal } from '../../sandbox-worker/journal.mjs';
 
 const name = `hc-postgres-test-${randomUUID()}`;
@@ -206,6 +207,7 @@ try {
   }
   await verifyAuthHttp({ pool, queue, snapshot: initial.id, engineRevision: webRevision, store, runner: webRunner, workRoot: path.join(root, 'workspaces') });
   await verifyAccountLifecycle({pool,store,engineRevision});
+  await verifyAccountPurge({pool});
 } finally {
   if (pool) await pool.end();
   for (const fn of cleanup.reverse()) await fn();

@@ -1,14 +1,14 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { get, put, list } from '@vercel/blob';
+import { get, put, list,head,del,BlobNotFoundError } from '@vercel/blob';
 import { SnapshotStore, manifestValid, safePath } from './snapshots.mjs';
 import { hash, ControlError } from './queue.mjs';
 
 const digest = /^[a-f0-9]{64}$/;
 // Server-only SDK transport injection is for deterministic tests.
 export class BlobSnapshotStore {
-  constructor({ token, storeId, transport = { get, put }, maxFiles = 10000, maxBytes = 100000000 } = {}) {
+  constructor({ token, storeId, transport = { get, put,head,del }, maxFiles = 10000, maxBytes = 100000000 } = {}) {
     if (!token && !storeId) throw new ControlError('storage_configuration_required');
     this.credentials = token ? { token } : { storeId };
     this.transport = transport; this.maxFiles = maxFiles; this.maxBytes = maxBytes;
@@ -21,6 +21,17 @@ export class BlobSnapshotStore {
     const result=await list({...this.credentials,prefix:'career-workspaces/v1/',mode:'expanded',limit:1000,...(cursor?{cursor}:{}),abortSignal:AbortSignal.timeout(15000)});
     // URLs and download capabilities never leave this storage boundary.
     return {blobs:result.blobs.map(({pathname,size,uploadedAt})=>({pathname,size,uploadedAt})),hasMore:result.hasMore,cursor:result.cursor};
+  }
+  async objectPresent(id,fileHash=null){
+    if(fileHash!==null&&!digest.test(fileHash))throw new ControlError('invalid_snapshot');
+    const key=this.key(id,fileHash===null?'manifest.json':`files/${fileHash}`);
+    try{return await this.transport.head(key,{...this.credentials,abortSignal:AbortSignal.timeout(15000)});}catch(error){if(error instanceof BlobNotFoundError)return null;throw new ControlError('storage_verification_failed');}
+  }
+  async deleteInventoriedObject(id,fileHash=null){
+    const existing=await this.objectPresent(id,fileHash);if(!existing)return;
+    const key=this.key(id,fileHash===null?'manifest.json':`files/${fileHash}`);
+    try{await this.transport.del(key,{...this.credentials,ifMatch:existing.etag,abortSignal:AbortSignal.timeout(15000)});}catch{/* A lost response is success only after verified absence. */}
+    if(await this.objectPresent(id,fileHash))throw new ControlError('object_delete_failed');
   }
   async download(key, maxBytes) {
     const result = await this.transport.get(key, { ...this.credentials, access: 'private', useCache: false, abortSignal: AbortSignal.timeout(15000) });

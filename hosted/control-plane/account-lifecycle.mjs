@@ -24,8 +24,8 @@ export class AccountLifecycle{
    // Existing-workspace lock precedes the user lock, matching queue/profile writers.
    const personal=(await db.query('select tenant_id from personal_workspaces where user_id=$1',[userId])).rows[0];if(personal)await db.query('select id from tenants where id=$1 for update',[personal.tenant_id]);
    await db.query('select pg_advisory_xact_lock(hashtextextended($1::uuid::text,847292))',[userId]);
-   const prior=(await db.query("select id,scope_hash,session_fingerprint from account_deletion_requests where user_id=$1 and state='blocked_pending_review'",[userId])).rows[0];
-   if(prior){check(prior.scope_hash===expectedScopeHash&&prior.session_fingerprint===hash(sessionId),'review_conflict');return {requestId:prior.id,state:'blocked_pending_review',replayed:true,deleted:false};}
+   const prior=(await db.query("select id,state,scope_hash,session_fingerprint from account_deletion_requests where user_id=$1 and state in ('blocked_pending_review','purging')",[userId])).rows[0];
+   if(prior){check(prior.scope_hash===expectedScopeHash&&prior.session_fingerprint===hash(sessionId),'review_conflict');return {requestId:prior.id,state:prior.state,replayed:true,deleted:false};}
    const recent=await db.query('select 1 from auth_sessions where id=$1 and "userId"=$2 and "createdAt">=clock_timestamp()-interval \'10 minutes\' and "expiresAt">clock_timestamp()',[sessionId,userId]);check(recent.rowCount,'reauthentication_required');
    const scope=await this.scope(db,userId);check(scope.scopeHash===expectedScopeHash,'review_conflict');const requestId=randomUUID();
    await db.query('insert into account_deletion_requests(id,user_id,tenant_id,scope_hash,session_fingerprint) values($1,$2,$3,$4,$5)',[requestId,userId,scope.tenantId,scope.scopeHash,hash(sessionId)]);
@@ -37,6 +37,7 @@ export class AccountLifecycle{
  }
  async cancel(requestId){check(uuid.test(requestId));return this.queue.transaction(async db=>{
   const row=(await db.query('select * from account_deletion_requests where id=$1',[requestId])).rows[0];check(row,'not_found');if(row.tenant_id)await db.query('select id from tenants where id=$1 for update',[row.tenant_id]);await db.query('select pg_advisory_xact_lock(hashtextextended($1,847292))',[row.user_id]);
+  const current=(await db.query('select state from account_deletion_requests where id=$1 for update',[requestId])).rows[0];check(['blocked_pending_review','cancelled'].includes(current.state),'cancellation_not_available');
   await db.query('update account_tombstones set active=false where request_id=$1',[requestId]);await db.query('update workspace_tombstones set active=false where request_id=$1',[requestId]);await db.query("update account_deletion_requests set state='cancelled',cancelled_at=coalesce(cancelled_at,clock_timestamp()) where id=$1",[requestId]);return {state:'cancelled',sessionsRestored:false,jobsRestarted:false};
  });}
 }

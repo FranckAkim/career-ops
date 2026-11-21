@@ -5,6 +5,7 @@ const check=(value,code='invalid_capture')=>{if(!value)throw new ControlError(co
 
 export async function assertCapturePublication(db,{snapshot,captureId,userId,tenantId=null,jobId=null,kind,jobFence=null}){
  check(uuid.test(captureId||''),'capture_required');
+ await db.query('select pg_advisory_xact_lock(hashtextextended($1,847293))',[snapshot]);
  const{rows}=await db.query(`select c.id from snapshot_captures c join snapshot_objects o on o.id=c.snapshot_id
  where c.id=$1 and c.snapshot_id=$2 and c.user_id=$3 and c.tenant_id is not distinct from $4::uuid
  and c.job_id is not distinct from $5::uuid and c.kind=$6 and c.job_fence is not distinct from $7::bigint
@@ -30,6 +31,7 @@ export class SnapshotInventory{
    const owner=(await db.query('select tenant_id from snapshot_captures where id=$1 and lease_token=$2',[capture.id,capture.token])).rows[0];
    if(owner?.tenant_id)await db.query('select id from tenants where id=$1 for key share',[owner.tenant_id]);
    const{rows:[record]}=await db.query("select *,lease_until>clock_timestamp() as live from snapshot_captures where id=$1 and lease_token=$2 for update",[capture.id,capture.token]);check(record?.live&&['preparing','uploading'].includes(record.state),'capture_lease_lost');check(!record.snapshot_id||record.snapshot_id===id);
+   await db.query('select pg_advisory_xact_lock(hashtextextended($1,847293))',[id]);
    await db.query('insert into snapshot_objects(id,file_hashes,file_count,total_bytes) values($1,$2,$3,$4) on conflict(id) do nothing',[id,hashes,files.length,bytes]);
    const{rows:[object]}=await db.query('select * from snapshot_objects where id=$1 for update',[id]);check(object.state==='active','snapshot_unavailable');
    if(object.file_hashes===null)await db.query('update snapshot_objects set file_hashes=$2,file_count=$3,total_bytes=$4 where id=$1',[id,hashes,files.length,bytes]);
