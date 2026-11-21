@@ -44,6 +44,7 @@ async function mockProvider(t, response = null) {
 test('real evaluator and merge: concurrent workspaces stay separate; replay avoids a second model call', async t => {
   const a = await fixture(t), b = await fixture(t, 'Synthetic Beta');
   const { provider, requests } = await mockProvider(t);
+  provider.model = 'qwen3.5:4b';
   const engine = createEngine({ provider, engineRevision, allowLocalProvider: true });
   const inputA = { workspace: a, jobId: randomUUID(), postingText: 'Example Employer needs a Python Software Engineer.', postingUrl: 'https://example.org/jobs/alpha' };
   const inputB = { workspace: b, jobId: randomUUID(), postingText: 'Example Employer needs a Python Software Engineer.', postingUrl: 'https://example.org/jobs/beta' };
@@ -53,6 +54,7 @@ test('real evaluator and merge: concurrent workspaces stay separate; replay avoi
   assert.equal(ra.score, '4.1/5');
   assert.equal(rb.company, 'Example Employer');
   assert.equal(requests.length, 2);
+  assert.ok(requests.every(request => request.reasoning_effort === 'none'));
   const prompts = requests.map(r => JSON.stringify(r.messages));
   assert.ok(prompts.some(p => p.includes('Synthetic Alpha') && !p.includes('Synthetic Beta')));
   assert.ok(prompts.some(p => p.includes('Synthetic Beta') && !p.includes('Synthetic Alpha')));

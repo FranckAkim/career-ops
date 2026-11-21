@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { assertSourceTree, copies } from './prepare.mjs';
 
-const required = ['/page','/hosted/page','/api/auth/[...all]/route','/api/hosted/[...path]/route'];
+const required = ['/page','/hosted/page','/hosted/privacy/page','/api/auth/[...all]/route','/api/hosted/[...path]/route'];
 const allowed = new Set([...required,'/_not-found/page','/_global-error/page']);
 export async function verifyBuild(root) {
   await assertSourceTree(root);

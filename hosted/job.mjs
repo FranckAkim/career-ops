@@ -60,7 +60,7 @@ export async function childEnv(root, home, provider) {
     CAREER_OPS_TRACKER: path.join(root, 'data', 'applications.md'),
     CAREER_OPS_ADDITIONS: path.join(root, 'batch', 'tracker-additions'),
     OPENAI_BASE_URL: provider.baseUrl, OPENAI_MODEL: provider.model, OPENAI_API_KEY: provider.apiKey,
-    CAREER_OPS_MAX_TOKENS: '8192', OPENAI_TIMEOUT_MS: '90000', CAREER_OPS_TRACKER_LOCK_TIMEOUT_MS: '10000',
+    CAREER_OPS_MAX_TOKENS: '8192', OPENAI_TIMEOUT_MS: ['localhost','127.0.0.1','[::1]'].includes(new URL(provider.baseUrl).hostname) ? '300000' : '90000', CAREER_OPS_TRACKER_LOCK_TIMEOUT_MS: '10000',
   });
 }
 

@@ -5,16 +5,10 @@ import { Writable, Readable } from 'node:stream';
 import { Sandbox } from '@vercel/sandbox';
 import { exportWorkspace, importWorkspace, verifySourceRetention } from '../workspace-transfer.mjs';
 import { ControlError } from '../control-plane/queue.mjs';
+import {workerErrorCode} from '../control-plane/worker-errors.mjs';
 
 const codeRoot = '/opt/career-ops';
 const fail = code => { throw new ControlError(code); };
-const workerErrors = new Set(['tailoring_failed', 'cv_facts_failed', 'invalid_cv_html',
-  'tailored_html_missing', 'invalid_pdf', 'invalid_pdf_pages', 'pdf_not_indexed',
-  'pdf_not_marked_ready', 'evaluation_stale', 'evaluation_not_in_tracker',
-  'browser_required', 'fact_config_required', 'timed_out', 'output_limit',
-  'model_rate_limited', 'model_access_denied', 'model_request_rejected',
-  'model_response_truncated', 'model_empty_response', 'model_cv_json_invalid',
-  'model_cv_schema_invalid', 'model_cv_identity_invalid', 'model_cv_fields_invalid']);
 // Configuration is operator-owned. Credentials are brokered outside the VM.
 export function sandboxRunner({ images, provider, journal, credentials = {}, timeoutMs = 240000, create = options => Sandbox.create(options) }) {
   let endpoint;
@@ -76,7 +70,7 @@ export function sandboxRunner({ images, provider, journal, credentials = {}, tim
           // provider response bodies or arbitrary worker-supplied error text.
           let reply;
           try { reply = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch {}
-          fail(script === 'worker.mjs' && reply?.ok === false && workerErrors.has(reply.error) ? reply.error : 'worker_failed');
+          fail(script === 'worker.mjs' ? workerErrorCode(reply) : 'worker_failed');
         }
         try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { fail('invalid_worker_response'); }
       };

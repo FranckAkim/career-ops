@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import styles from './screen.module.css';
 import { Workspace } from './workspace';
+import {ProcessingNotice} from './processing-notice';
 
 type Profile = { fullName: string; cvMarkdown: string; targetRole: string; language: string };
 type Draft = { id: string; review_hash: string; revision: number; content: Profile };
@@ -21,7 +22,7 @@ async function api(path: string, data?: unknown) {
   return value;
 }
 
-export function OnboardingScreen({ user, unavailable }: { user: User | null; unavailable: boolean }) {
+export function OnboardingScreen({ user, unavailable, executionMode='unavailable' }: { user: User | null; unavailable: boolean; executionMode?: string }) {
   const [profile, setProfile] = useState<Profile>({ fullName: user?.name || '', cvMarkdown: '', targetRole: '', language: 'en' });
   const [draft, setDraft] = useState<Draft | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -77,9 +78,10 @@ export function OnboardingScreen({ user, unavailable }: { user: User | null; una
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
-  if (user && step === 'ready' && tenantId) return <Workspace tenantId={tenantId} onSignOut={signOut} pageError={error} signingOut={busy} />;
+  if (user && step === 'ready' && tenantId) return <Workspace tenantId={tenantId} onSignOut={signOut} pageError={error} signingOut={busy} executionMode={executionMode} />;
   return <main className={styles.page}>
     <header className={styles.header}><a className={styles.brand} href="/hosted"><span className={styles.mark}>CW</span>Career Workspace</a>{user && <button className={styles.quiet} onClick={signOut} disabled={busy}>Sign out</button>}</header>
+    <ProcessingNotice mode={executionMode} />
     <div className={styles.layout}>
       <aside className={styles.intro}>
         <p className={styles.eyebrow}>A clearer next move</p>

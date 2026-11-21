@@ -363,6 +363,7 @@ try {
     stream:      false,
     ...(jsonOutput ? {response_format:structuredTailoringResponseFormat()} : {}),
     temperature: 0.2,
+    ...(['localhost','127.0.0.1','::1'].includes(endpointHost) && /^qwen3\.5:/.test(modelName) ? {reasoning_effort:'none'} : {}),
     ...buildTokenLimit(maxTokens, endpointHost),
   });
   assertLlmRequestAllowed(endpoint, requestBody);

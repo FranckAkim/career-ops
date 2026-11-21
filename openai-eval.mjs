@@ -456,6 +456,7 @@ try {
       stream:      true,
       ...(withUsage && { stream_options: { include_usage: true } }),
       temperature: 0.4,
+      ...(['localhost','127.0.0.1','::1'].includes(endpointHost) && /^qwen3\.5:/.test(modelName) ? {reasoning_effort:'none'} : {}),
       ...buildTokenLimit(maxTokens, endpointHost),
     });
     assertLlmRequestAllowed(endpoint, requestBody);

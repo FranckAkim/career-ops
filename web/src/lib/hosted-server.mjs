@@ -4,6 +4,7 @@ import { createAuth } from '@hosted-career/control-plane/auth.mjs';
 import { Queue } from '@hosted-career/control-plane/queue.mjs';
 import { createApi, json } from '@hosted-career/control-plane/http.mjs';
 import { hostedMode } from './hosted-mode.mjs';
+import { executionPolicy } from './hosted-policy.mjs';
 import { Onboarding } from '@hosted-career/control-plane/onboarding.mjs';
 import { BlobSnapshotStore } from '@hosted-career/control-plane/blob-snapshots.mjs';
 import { SnapshotStore } from '@hosted-career/control-plane/snapshots.mjs';
@@ -22,8 +23,8 @@ function getServices() {
     google: { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET } });
   const queue = new Queue(pool, { maxDailyJobs: process.env.VERCEL === '1' ? 10 : 0 });
   const workerUrl = process.env.HOSTED_WORKER_URL, workerSecret = process.env.HOSTED_DISPATCH_SECRET;
-  const workerReady = workerUrl && /^https:\/\/[a-z0-9.-]+\.vercel\.app$/.test(workerUrl) && workerSecret?.length >= 32;
-  const notifyQueue = workerReady ? async jobId => {
+  const policy = executionPolicy();
+  const notifyQueue = policy.notifyCloud ? async jobId => {
     const response = await fetch(`${workerUrl}/api/wake`, { method: 'POST', headers: { Authorization: `Bearer ${workerSecret}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId }), signal: AbortSignal.timeout(5000), redirect: 'error' });
     if (!response.ok) throw new Error('worker_notification_failed');
@@ -32,7 +33,7 @@ function getServices() {
   if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) store = new BlobSnapshotStore({ storeId: process.env.BLOB_STORE_ID, token: process.env.BLOB_READ_WRITE_TOKEN });
   else if (process.env.VERCEL !== '1' && process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT) store = new SnapshotStore(process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT);
   services = { auth, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store }), artifacts: new Artifacts({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION,
-    notifyQueue, jobsEnabled: process.env.VERCEL !== '1' || (process.env.HOSTED_JOBS_ENABLED === '1' && !!workerReady) }) };
+    notifyQueue, jobsEnabled: policy.jobsEnabled }) };
   return services;
 }
 export async function hostedRequest(request) {

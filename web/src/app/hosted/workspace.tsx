@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import styles from './screen.module.css';
+import {ProcessingNotice} from './processing-notice';
 
 type Job = { id: string; operation: string; status: string; company?: string; role?: string; created_at: string; error_code?: string; result?: { company?: string; role?: string; score?: string | number; pdf?: string; report?: string; pages?: number } };
 type JobEvent = { sequence: string; kind: string; created_at: string };
 const active = (status: string) => ['queued','running','cancel_requested'].includes(status);
 const labels: Record<string,string> = { queued: 'Queued', running: 'Running', cancel_requested: 'Stopping', cancelled: 'Cancelled', succeeded: 'Complete', failed: 'Failed', needs_recovery: 'Needs review' };
 
-export function Workspace({ tenantId, onSignOut, pageError, signingOut }: { tenantId: string; onSignOut: () => void; pageError: string; signingOut: boolean }) {
+export function Workspace({ tenantId, onSignOut, pageError, signingOut, executionMode='unavailable' }: { tenantId: string; onSignOut: () => void; pageError: string; signingOut: boolean; executionMode?: string }) {
   const base = `/api/hosted/tenants/${tenantId}`;
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -112,6 +113,7 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut }: { tena
     finally { setBusy(false); }
   }
   return <main className={styles.page}>
+    <ProcessingNotice mode={executionMode} />
     <header className={styles.header}><a className={styles.brand} href="/hosted"><span className={styles.mark}>CW</span>Career Workspace</a><button className={styles.quiet} onClick={onSignOut} disabled={busy || signingOut}>Sign out</button></header>
     <div className={styles.workspace}>
       <div className={styles.workspaceTitle}><div><p className={styles.eyebrow}>Your confirmed profile is the foundation</p><h1>Your workspace</h1></div><p>Evaluate the fit. Prepare your CV.<br />You decide what to send.</p></div>

@@ -4,6 +4,8 @@ Last updated: 2026-11-20. Status: frontend and separate worker service are deplo
 
 ## Start here, regardless of AI tool
 
+**Current user direction (2026-11-20): use local AI.** Read `docs/hosted/local-ai.md` before activation. Unpaid Gemini must not process personal profiles. Local operator-worker implementation and privacy notice are in progress; initial real probes revealed context/request-budget limits, now addressed in source but awaiting a rebuilt image and live validation. Public jobs and cloud worker remain disabled. The earlier Gemini synthetic proofs below establish pipeline behavior, not approval to use unpaid Gemini for real CVs.
+
 Read this file, `docs/hosted/backend-design.md`, root `AGENTS.md`, and `DATA_CONTRACT.md` before editing. For `web/`, also read `web/AGENTS.md`; for `hosted/`, read `hosted/AGENTS.md`. Inspect the actual branch, recent commits and working tree before continuing. This document records project decisions; repository code and test results establish what is actually implemented.
 
 ## User-approved objective
