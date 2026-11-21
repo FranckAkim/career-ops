@@ -9,7 +9,7 @@ The approved dashboard and canonical application tracking are live. The current 
 - Only successful, published PDF results appear as ready CVs. CV metadata is associated with its source evaluation from the same authorized history.
 - Existing evaluation, progress, report/PDF download, cancellation and explicit recovery controls remain in Opportunities.
 - CV library uses the existing authenticated download endpoint. My Profile supports reviewed, confirmed source edits with versioned publication; see `profile-editing.md`.
-- Settings and footer disclose local operator inference and hosted storage. The interface does not claim the local worker is online without a heartbeat.
+- Settings provides published-workspace export and reviewed unused-draft cleanup; see `data-controls.md`. Settings and footer disclose local operator inference and hosted storage. The interface does not claim the local worker is online without a heartbeat.
 - Counts describe the latest 100 jobs. No fabricated applications, interviews, notifications or saved roles are shown.
 
 ## Validation
