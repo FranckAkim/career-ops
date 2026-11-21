@@ -8,7 +8,7 @@ The approved dashboard and canonical application tracking are live. The current 
 - Search over the authorized recent job history, live summary counts, progress columns and recent activity.
 - Only successful, published PDF results appear as ready CVs. CV metadata is associated with its source evaluation from the same authorized history.
 - Existing evaluation, progress, report/PDF download, cancellation and explicit recovery controls remain in Opportunities.
-- CV library uses the existing authenticated download endpoint. Confirmed profile is read through owner-authorized onboarding APIs; it is not editable in this phase.
+- CV library uses the existing authenticated download endpoint. My Profile supports reviewed, confirmed source edits with versioned publication; see `profile-editing.md`.
 - Settings and footer disclose local operator inference and hosted storage. The interface does not claim the local worker is online without a heartbeat.
 - Counts describe the latest 100 jobs. No fabricated applications, interviews, notifications or saved roles are shown.
 
@@ -20,7 +20,7 @@ The production Next build/type checks, source/dependency boundary checks, projec
 
 Application tracking now uses canonical `set-status.mjs` through queued, fenced publication and a committed-generation projection. Applied/Interview controls are live and verified; see `application-tracking.md`.
 
-Confirmed-profile editing requires an explicit review/confirmation and versioned source publication, with stale evaluations rejected. Retention/deletion and broader beta access remain separate work; do not present them as implemented.
+Confirmed-profile editing is live with explicit review/confirmation, versioned publication and stale-evaluation rejection. Read `profile-editing.md` for current evidence. Retention/deletion and broader beta access remain separate work; do not present them as implemented.
 
 ## Live evidence
 
