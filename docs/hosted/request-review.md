@@ -13,3 +13,9 @@ An empty active list, an old timestamp, READY deployment status or deployment id
 ## Verification
 
 Disposable PostgreSQL tests launch a real isolated child process, refuse resolution while it is alive, terminate and await its exit, and then resolve only its bound synthetic marker. Tests also cover unknown identity, missing confirmation, stale scope, foreign-instance evidence, sanitized verifier errors, runtime-role denial, missing receipts, atomic rollback and audit retention. This proves the local capability contract; it is not evidence of Vercel execution termination. Production identity evidence is recorded in `PROJECT_HANDOFF.md`.
+
+## Production evidence - 2026-11-21
+
+Migration 010 is installed. Source `ff149044fa8db1007a0d30ee7d26dde56239aaf7` passed Windows/Linux [CI 44923203641](https://github.com/FranckAkim/career-ops/actions/runs/44923203641). Production deployment `dpl_4CivqtSttep2dgoSvRYBn9AEcvWs` is READY. A fresh file-free synthetic account made two authenticated hosted requests: both settled with that exact deployment ID and an internal instance UUID; caller-supplied foreign identity was ignored. Its temporary auth/activity records were removed. No production marker was resolved, no termination receipt was created, and no real account or Blob object was touched.
+
+A read-only inventory observed 60 frontend deployment records, all READY. This is a point-in-time inventory, not proof of execution termination or complete coverage. Aggregate production audit found zero active markers, zero unknown active markers, zero termination receipts and zero blocked live accounts. The local worker remained running and cloud inference remained disabled. Provider termination verification remains unimplemented; no public deletion flow was activated.
