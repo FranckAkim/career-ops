@@ -97,7 +97,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
     } catch (error) {
       const code = error instanceof ControlError ? error.code : 'service_unavailable';
       const status = ['not_found','evaluation_not_found','artifact_missing'].includes(code) ? 404
-        : code === 'daily_job_limit' ? 429 : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale'].includes(code) ? 409 : code === 'input_limit' ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
+        : code === 'daily_job_limit' ? 429 : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale','profile_source_conflict'].includes(code) ? 409 : code === 'input_limit' ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
       return json({ error: code }, status);
     }
   };

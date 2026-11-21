@@ -3,7 +3,7 @@ import {useEffect,useState} from 'react';
 import d from './dashboard.module.css';
 type Profile={fullName:string;targetRole:string;language:string;cvMarkdown:string};
 type Saved={profile:Profile;reviewHash:string;generation:string;revision:number};
-const messages:Record<string,string>={review_conflict:'Your workspace changed. Reload the profile and review your changes again.',tenant_busy:'Finish or cancel pending jobs and resolve interrupted work before saving your profile.',confirmation_required:'Confirm the reviewed source before saving.'};
+const messages:Record<string,string>={review_conflict:'Your workspace changed. Reload the profile and review your changes again.',profile_source_conflict:'Your source configuration was customized outside this editor. Ask the service operator to review it before saving.',tenant_busy:'Finish or cancel pending jobs and resolve interrupted work before saving your profile.',confirmation_required:'Confirm the reviewed source before saving.'};
 export function ProfileEditor({tenantId,blocked}:{tenantId:string;blocked:boolean}){
  const[saved,setSaved]=useState<Saved|null>(null),[form,setForm]=useState<Profile|null>(null),[review,setReview]=useState<{profile:Profile;reviewHash:string}|null>(null),[editing,setEditing]=useState(false),[enabled,setEnabled]=useState(false),[ack,setAck]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[reload,setReload]=useState(0);
  const base=`/api/hosted/tenants/${tenantId}/profile`;

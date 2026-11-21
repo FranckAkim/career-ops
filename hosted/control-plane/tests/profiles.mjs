@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';import path from 'node:path';import os from 'node:os';import{randomUUID}from'node:crypto';
 import {Profiles} from '../profiles.mjs';import {Onboarding} from '../onboarding.mjs';import{Supervisor}from'../supervisor.mjs';import{createEngine}from'../../engine.mjs';
 export async function verifyProfiles({pool,queue,store,model,engineRevision}){
- const userId=randomUUID(),other=randomUUID(),onboarding=new Onboarding({queue,store}),profile={fullName:'Synthetic Profile Editing',cvMarkdown:'# Synthetic Profile Editing\n\n## Experience\n\nSoftware engineer building Python reporting tools.\n',targetRole:'Software Engineer',language:'en'};
+ const requestsBefore=model.requests.length;
+ const customizedStore={verify:(...args)=>store.verify(...args),async capture(root){const file=path.join(root,'config/profile.yml'),configuration=JSON.parse(await fs.readFile(file,'utf8'));configuration.user_setting='preserved';await fs.writeFile(file,JSON.stringify(configuration));await fs.appendFile(path.join(root,'modes/_profile.md'),'\nAdditional user-authored targeting notes.');return store.capture(root);}};
+ const userId=randomUUID(),other=randomUUID(),onboarding=new Onboarding({queue,store:customizedStore}),profile={fullName:'Synthetic Profile Editing',cvMarkdown:'# Synthetic Profile Editing\n\n## Experience\n\nSoftware engineer building Python reporting tools.\n',targetRole:'Software Engineer',language:'en'};
  const draft=await onboarding.create({userId,profile}),{tenantId}=await onboarding.confirm({userId,draftId:draft.id,expectedHash:draft.review_hash,acknowledged:true}),service=new Profiles({queue,store}),input={tenantId,userId},base=await service.read(input);
  await assert.rejects(service.read({tenantId,userId:other}),/not_found/);
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'hc-profile-test-'));
@@ -20,6 +22,7 @@ export async function verifyProfiles({pool,queue,store,model,engineRevision}){
   let pending;const racing=new Profiles({queue,store:{materialize:(...args)=>store.materialize(...args),verify:(...args)=>store.verify(...args),async capture(...args){const saved=await store.capture(...args);pending=await queue.enqueue({...input,engineRevision,idempotencyKey:'during-profile-save',operation:'evaluate',postingText:'Synthetic role.'});return saved;}}});
   await assert.rejects(racing.save(nextSave),/tenant_busy/);assert.equal((await service.current(input)).snapshot,current.snapshot);await queue.cancel({...input,jobId:pending.id});
   assert.equal((await service.save(nextSave)).saved,true);const latest=await service.current(input);assert.match(await store.read(latest.snapshot,'cv.md'),/new source text/);assert.equal(JSON.parse(await store.read(latest.snapshot,'config/confirmed-profile.json')).revision,3);
+  assert.equal(JSON.parse(await store.read(latest.snapshot,'config/profile.yml')).user_setting,'preserved');assert.match(await store.read(latest.snapshot,'modes/_profile.md'),/Additional user-authored targeting notes/);assert.equal(model.requests.length,requestsBefore+1,'only initial evaluation calls the model');
   console.log('PASS reviewed profile versions, concurrent replay, stale edits/evaluations, storage failure, enqueue race, tracker preservation and owner denial');
  }finally{await fs.rm(root,{recursive:true,force:true});}
 }

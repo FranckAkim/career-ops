@@ -32,8 +32,14 @@ export class Profiles {
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'hc-profile-')),workspace=path.join(root,'workspace'),draftId=randomUUID();let snapshot;
   try{
    await fs.chmod(root,0o700);await this.store.materialize(base.snapshot,workspace);
+   // These fields originated in hosted onboarding. Preserve unrelated source
+   // configuration and any additional user-authored targeting notes.
+   let configuration;try{configuration=JSON.parse(await fs.readFile(path.join(workspace,'config/profile.yml'),'utf8'));}catch{throw new ControlError('profile_source_conflict');}
+   check(configuration&&typeof configuration==='object'&&!Array.isArray(configuration),'profile_source_conflict');
+   const targeting=await fs.readFile(path.join(workspace,'modes/_profile.md'),'utf8'),oldTarget=`Target role stated by the user: ${JSON.stringify(base.content.targetRole)}. Use only confirmed CV/profile facts.`;
+   check(targeting===oldTarget||targeting.startsWith(oldTarget+'\n'),'profile_source_conflict');
    const provenance={schema:1,provenance:'user-confirmed-pasted-source',userId,draftId,revision:base.revision+1,reviewHash:fingerprint,previousReviewHash:base.review_hash,previousGeneration:base.generation,confirmedAt:new Date().toISOString()};
-   const files={'cv.md':content.cvMarkdown,'config/profile.yml':JSON.stringify({name:content.fullName,candidate:{full_name:content.fullName},output_language:content.language,cv:{page_format:'a4'}}),'modes/_profile.md':`Target role stated by the user: ${JSON.stringify(content.targetRole)}. Use only confirmed CV/profile facts.`,'config/confirmed-profile.json':JSON.stringify(provenance)};
+   const files={'cv.md':content.cvMarkdown,'config/profile.yml':JSON.stringify({...configuration,name:content.fullName,candidate:{...configuration.candidate,full_name:content.fullName},output_language:content.language}),'modes/_profile.md':`Target role stated by the user: ${JSON.stringify(content.targetRole)}. Use only confirmed CV/profile facts.`+targeting.slice(oldTarget.length),'config/confirmed-profile.json':JSON.stringify(provenance)};
    for(const[file,text]of Object.entries(files))await fs.writeFile(path.join(workspace,file),text,{mode:0o600});
    snapshot=await this.store.capture(workspace);await this.store.verify(snapshot.id);
   }finally{
