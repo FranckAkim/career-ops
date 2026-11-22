@@ -1,36 +1,70 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import {useCallback,useEffect,useRef,useState} from 'react';
 import styles from './screen.module.css';
 import css from './job-search.module.css';
 type Listing={id:string;url:string;title:string;company:string;description:string;descriptionAvailable:boolean;location:string;source:string;postedAt:string|null};
 type Results={jobs:Listing[];partial:boolean;timedOut:boolean;companiesScanned:number;unreachableBoards:number;capHit:boolean;displayCapped:boolean};
-type Run={id:string;state:string;result?:Results;error_code?:string};
+type SearchInput={q:string;location:string;workplace:string;sinceDays:number;limitPerAts:number};
+type Run={id:string;state:string;input?:SearchInput;result?:Results;error_code?:string};
 const active=(run:Run|null)=>!!run&&['queued','running'].includes(run.state);
 export function JobSearch({base,disabled,onSelect}:{base:string;disabled:boolean;onSelect:(text:string,url:string)=>void}){
  const[q,setQ]=useState(''),[location,setLocation]=useState('United States, USA, U.S., US Remote'),[workplace,setWorkplace]=useState('any'),[sinceDays,setSinceDays]=useState(14),[limit,setLimit]=useState(50);
  const[run,setRun]=useState<Run|null>(null),[sending,setSending]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const operation=useRef<AbortController|null>(null);
- useEffect(()=>{const controller=new AbortController();void fetch(`${base}/discovery`,{signal:controller.signal,cache:'no-store'}).then(async response=>{if(!response.ok)throw Error();const value=await response.json();if(!controller.signal.aborted)setRun(value.run);}).catch(()=>{if(!controller.signal.aborted)setError('Could not restore the last search. You can try a new search.');});return()=>{controller.abort();operation.current?.abort();};},[base]);
+ const[restoring,setRestoring]=useState(true);
+ const restore=useCallback((value:Run|null)=>{setRun(value);if(value?.input){setQ(value.input.q);setLocation(value.input.location);setWorkplace(value.input.workplace);setSinceDays(value.input.sinceDays);setLimit(value.input.limitPerAts);}},[]);
+ useEffect(()=>{
+  const controller=new AbortController();setRestoring(true);
+  void fetch(`${base}/discovery`,{signal:controller.signal,cache:'no-store'}).then(async response=>{
+   if(!response.ok)throw Error();const value=await response.json();if(!controller.signal.aborted)restore(value.run);
+  }).catch(()=>{if(!controller.signal.aborted)setError('Could not restore the last search. You can try a new search.');}).finally(()=>{if(!controller.signal.aborted)setRestoring(false);});
+  return()=>{controller.abort();operation.current?.abort();};
+ },[base,restore]);
  const runId=run?.id;
- useEffect(()=>{if(!runId)return;const controller=new AbortController();let timer:ReturnType<typeof setTimeout>;
-  async function poll(){try{const response=await fetch(`${base}/discovery/${runId}`,{signal:controller.signal,cache:'no-store'});if(!response.ok)throw Error();const value=await response.json();if(controller.signal.aborted)return;setRun(value);setError('');if(['queued','running'].includes(value.state))timer=setTimeout(poll,2000);}catch{if(!controller.signal.aborted){setError('Could not refresh this search. Retrying…');timer=setTimeout(poll,5000);}}}
+ useEffect(()=>{
+  if(!runId)return;const controller=new AbortController();let timer:ReturnType<typeof setTimeout>;
+  async function poll(){try{
+   const response=await fetch(`${base}/discovery/${runId}`,{signal:controller.signal,cache:'no-store'});
+   if(controller.signal.aborted)return;
+   if(response.status===404){setRun(null);setError('');setNotice('This search has expired or is no longer available. Start a new search.');return;}
+   if(response.status===401||response.status===403){setRun(null);setError('Search access ended. Refresh the page and sign in again if needed.');return;}
+   if(!response.ok)throw Error();const value=await response.json();if(controller.signal.aborted)return;
+   setRun(previous=>previous?.id===runId?value:previous);setError('');if(['queued','running'].includes(value.state))timer=setTimeout(poll,2000);
+  }catch{if(!controller.signal.aborted){setError('Could not refresh this search. Retrying…');timer=setTimeout(poll,5000);}}}
   void poll();return()=>{controller.abort();clearTimeout(timer);};
  },[base,runId]);
- async function search(){const controller=new AbortController();operation.current=controller;setSending(true);setError('');setNotice('');
-  try{const response=await fetch(`${base}/discovery`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({q:q.trim(),location:location.trim(),workplace,sinceDays,limitPerAts:limit})});if(!response.ok)throw Error(response.status===409?'A search is already queued or running. Cancel it before starting another.':response.status===429?'Search limit reached. Try again later.':'Could not start the search. Please try again.');const value=await response.json();if(!controller.signal.aborted)setRun(value);}catch(e){if(!controller.signal.aborted)setError((e as Error).message);}finally{if(!controller.signal.aborted)setSending(false);}}
- async function cancel(){setSending(true);try{const response=await fetch(`${base}/discovery/${run!.id}/cancel`,{method:'POST',headers:{'content-type':'application/json'},body:'{}'});if(!response.ok)throw Error();setRun(await response.json());setNotice('Search cancelled. No evaluation was started.');}catch{setError('Could not cancel. The search may have finished; refresh its status.');}finally{setSending(false);}}
+ async function search(){
+  const controller=new AbortController();operation.current=controller;setSending(true);setError('');setNotice('');
+  try{
+   const response=await fetch(`${base}/discovery`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({q:q.trim(),location:location.trim(),workplace,sinceDays,limitPerAts:limit})});
+   if(response.status===409){
+    const latest=await fetch(`${base}/discovery`,{signal:controller.signal,cache:'no-store'});if(!latest.ok)throw Error('Could not restore the active search. Refresh the page to try again.');const value=await latest.json();
+    if(!controller.signal.aborted){restore(value.run);setNotice(value.run?'Your existing search was restored. Review it or cancel it before starting another.':'The earlier search is no longer available. Try starting this search again.');}return;
+   }
+   if(!response.ok)throw Error(response.status===429?'Search limit reached. Try again later.':response.status===401||response.status===403?'Search access ended. Refresh the page and sign in again if needed.':'Could not start the search. Please try again.');
+   const value=await response.json();if(!controller.signal.aborted)setRun(value);
+  }catch(e){if(!controller.signal.aborted)setError((e as Error).message);}finally{if(!controller.signal.aborted)setSending(false);}
+ }
+ async function cancel(){
+  if(!run)return;const controller=new AbortController();operation.current=controller;setSending(true);setError('');
+  try{
+   const response=await fetch(`${base}/discovery/${run.id}/cancel`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json'},body:'{}'});
+   if(response.status===404){const current=await fetch(`${base}/discovery/${run.id}`,{signal:controller.signal,cache:'no-store'});if(controller.signal.aborted)return;if(current.status===404){setRun(null);setNotice('This search has expired or is no longer available. Start a new search.');return;}if(!current.ok)throw Error();setRun(await current.json());setNotice('This search has already finished.');return;}
+   if(!response.ok)throw Error();const value=await response.json();if(!controller.signal.aborted){setRun(value);setNotice('Search cancelled. No evaluation was started.');}
+  }catch{if(!controller.signal.aborted)setError('Could not cancel. The search may have finished; refresh its status.');}finally{if(!controller.signal.aborted)setSending(false);}
+ }
  function select(job:Listing){onSelect(`Company: ${job.company}\nRole: ${job.title}\nLocation: ${job.location}\nSource: ${job.source}\n\n${job.description}`,job.url);setNotice(`${job.title} loaded below. Review the description, then choose Evaluate posting.`);requestAnimationFrame(()=>document.getElementById('posting-text')?.focus());}
- const busy=sending||active(run),result=run?.result;
+ const busy=restoring||sending||active(run),result=run?.result;
  return <section className={`${styles.card} ${css.search}`} aria-label="Find jobs">
  <p className={styles.eyebrow}>Built-in career-ops discovery</p><h2>Find your next role.</h2>
  <p>Search employer boards through the repo’s Greenhouse, Lever, Ashby and Workday scanner. Scans run on your computer and wait while it is offline.</p>
  <form onSubmit={e=>{e.preventDefault();void search();}} className={css.form}>
  <label>Role or keywords<input value={q} onChange={e=>setQ(e.target.value)} maxLength={120} placeholder="e.g. project manager, program manager" required disabled={busy}/></label>
  <label>Location keywords<input value={location} onChange={e=>setLocation(e.target.value)} maxLength={120} required disabled={busy}/></label>
- <label>Work arrangement<select value={workplace} onChange={e=>setWorkplace(e.target.value)} disabled={busy}><option value="any">Any arrangement</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></label>
- <label>Posted within<select value={sinceDays} onChange={e=>setSinceDays(Number(e.target.value))} disabled={busy}>{[7,14,30].map(n=><option key={n} value={n}>{n} days</option>)}</select></label>
- <label>Boards per source<select value={limit} onChange={e=>setLimit(Number(e.target.value))} disabled={busy}>{[25,50,100].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
- <button className={styles.primary} disabled={busy||!q.trim()||!location.trim()}>{busy?'Search in progress…':'Search jobs'}</button></form>
+ <label>Work arrangement<select aria-label="Work arrangement" value={workplace} onChange={e=>setWorkplace(e.target.value)} disabled={busy}><option value="any">Any arrangement</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></label>
+ <label>Posted within<select aria-label="Posted within" value={sinceDays} onChange={e=>setSinceDays(Number(e.target.value))} disabled={busy}>{[7,14,30].map(n=><option key={n} value={n}>{n} days</option>)}</select></label>
+ <label>Boards per source<select aria-label="Boards per source" value={limit} onChange={e=>setLimit(Number(e.target.value))} disabled={busy}>{[25,50,100].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
+ <button className={styles.primary} disabled={busy||!q.trim()||!location.trim()}>{restoring?'Restoring search…':busy?'Search in progress…':'Search jobs'}</button></form>
  <p className={styles.help}>Comma-separated keywords use the repo’s matching rules. This is a sampled scan, not complete US coverage. Your CV is not used or sent to job sources. Search results expire after 24 hours. Unknown work arrangements are excluded when you choose a specific arrangement.</p>
  {error?<p role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}
  {active(run)?<div role="status"><p>{run?.state==='queued'?'Queued for your local scanner. Keep the computer and discovery worker running.':'Scanning employer boards. This can take several minutes.'}</p><button className={styles.quiet} onClick={()=>void cancel()} disabled={sending}>Cancel search</button></div>:null}
