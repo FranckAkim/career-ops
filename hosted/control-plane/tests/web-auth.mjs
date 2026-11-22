@@ -69,7 +69,7 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     await page.getByLabel('Full name', { exact: true }).waitFor();
     await verifyCvUploads(page);
     await page.getByLabel('Full name', { exact: true }).fill('Synthetic Alpha');
-    await page.getByLabel('CV text', { exact: true }).fill('# Synthetic Alpha\n\n## Experience\n\n### Example Labs â€” Remote\n**Software Engineer**\n2022â€“2025\n\n- Built internal reporting tools with Python.\n- Led a team of 4 engineers.\n');
+    await page.getByLabel('CV text', { exact: true }).fill('# Synthetic Alpha\n\n## Experience\n\n### Example Labs — Remote\n**Software Engineer**\n2022–2025\n\n- Built internal reporting tools with Python.\n- Led a team of 4 engineers.\n');
     await page.getByRole('button', { name: 'Review profile', exact: true }).click();
     await page.getByRole('heading', { name: 'Check the details.' }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Confirm and create workspace' }).isDisabled(), true);

@@ -19,7 +19,7 @@ import { SnapshotStore } from '../snapshots.mjs';
 import { Supervisor } from '../supervisor.mjs';
 import { dockerRunner } from '../docker-runner.mjs';
 import { createEngine } from '../../engine.mjs';
-import { candidate, modelServer, engineRevision } from '../../tests/fixtures.mjs';
+import { candidate, modelServer, engineRevision, browserExecutable } from '../../tests/fixtures.mjs';
 import { verifyAuthHttp } from './auth-http.mjs';
 import { verifyOnboarding } from './onboarding.mjs';
 import { verifyArtifacts } from './artifacts.mjs';
@@ -124,7 +124,7 @@ try {
   console.log('PASS expired-worker fencing, explicit discard and database restart durability');
 
   const model = await modelServer(t);
-  const engine = createEngine({ provider: model.provider, engineRevision, allowLocalProvider: true });
+  const engine = createEngine({ provider: model.provider, engineRevision, browserExecutable, allowLocalProvider: true });
   const runner = ({ workspace, job: { operation, ...job }, signal }) => engine[operation]({ workspace, ...job, signal });
   const supervisor = new Supervisor({ queue, store, runner, workRoot: path.join(root, 'workspaces'), heartbeatMs: 500 });
   const success = await supervisor.runOnce(); assert.equal(success.status, 'succeeded');
@@ -187,7 +187,9 @@ try {
   await verifySnapshotInventory({pool,queue,store,model,engineRevision});
   await verifyStorageReconciliation({pool,queue});
   await verifyArtifacts({ queue, store, snapshot: initial.id, engineRevision });
-  let webRunner, webRevision = engineRevision;
+  // Exercise the full browser-to-engine path with deterministic local fixtures
+  // even without a container image; the container branch below overrides this.
+  let webRunner = runner, webRevision = engineRevision;
 
   if (process.env.HOSTED_TEST_IMAGE_ID) {
     const image = process.env.HOSTED_TEST_IMAGE_ID;
