@@ -14,8 +14,8 @@ export async function consumeDiscovery(value){
  const workRoot=path.join(os.tmpdir(),'career-discovery');await fs.mkdir(workRoot,{recursive:true});
  try{
   const codeRoot=path.join(process.cwd(),'src/lib/generated/scanner');
-  const {runDiscovery}=await import(pathToFileURL(path.join(codeRoot,'hosted/local-worker/discovery-runner.mjs')).href);
+  const {runDiscovery}=await import(/* webpackIgnore: true */ pathToFileURL(path.join(codeRoot,'hosted/local-worker/discovery-runner.mjs')).href);
   const result=await cloudDiscovery({pool,discoveryId,runner:options=>runDiscovery({...options,codeRoot,workRoot,timeoutMs:225000})});
   console.info(JSON.stringify({event:'cloud_discovery_finished',...result}));
- }catch(error){console.error(JSON.stringify({event:'cloud_discovery_failed',code:error.code||error.name}));throw error;}finally{await pool.end();}
+ }catch(error){console.error(JSON.stringify({event:'cloud_discovery_failed',code:error.code||error.name,...(['MODULE_NOT_FOUND','ERR_MODULE_NOT_FOUND'].includes(error.code)?{module:String(error.message).split('\n')[0].slice(0,300)}:{})}));throw error;}finally{await pool.end();}
 }
