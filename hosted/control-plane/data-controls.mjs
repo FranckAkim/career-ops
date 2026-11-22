@@ -34,7 +34,8 @@ export class DataControls{
    check(versions.length<=1000&&jobs.length<=10000&&profiles.length<=1000,'export_limit');
    const{rows:discovery}=await db.query('select id,input,state,result,error_code,created_at,expires_at from discovery_runs where tenant_id=$1 and user_id=$2 and expires_at>clock_timestamp() order by created_at,id limit 241',[input.tenantId,input.userId]);
    check(discovery.length<=240&&Buffer.byteLength(JSON.stringify(discovery))<=10000000,'export_limit');
-   return {discovery,schema:1,scope:'personal-workspace-published-data',exportedAt:new Date().toISOString(),tenant,versions,jobs,profiles};
+   const{rows:savedJobs}=await db.query('select id,posting,shortlisted,revision,created_at,updated_at from saved_jobs where tenant_id=$1 and user_id=$2 order by created_at,id limit 31',[input.tenantId,input.userId]);check(savedJobs.length<=30&&Buffer.byteLength(JSON.stringify(savedJobs))<=4000000,'export_limit');
+   return {savedJobs,discovery,schema:1,scope:'personal-workspace-published-data',exportedAt:new Date().toISOString(),tenant,versions,jobs,profiles};
   });
   const snapshots=[],files=new Map();let total=0,entries=0,manifestBytes=0;
   for(const id of new Set([data.tenant.snapshot,...data.versions.map(version=>version.snapshot)])){

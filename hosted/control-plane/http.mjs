@@ -1,3 +1,4 @@
+import {SavedJobs} from './saved-jobs.mjs';
 import {Discovery} from './discovery.mjs';
 import {DeletionRequest} from './deletion-request.mjs';
 import {RequestDrain} from './request-drain.mjs';
@@ -66,6 +67,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       }
       const [prefix, tenantId, collection, jobId, action] = route;
       if (prefix !== 'tenants' || route.length > 5) return json({ error: 'not_found' }, 404);
+      if(collection==='saved-jobs'){const service=new SavedJobs(queue),actor={tenantId,userId};if(route.length===3&&request.method==='GET')return json({jobs:await service.list(actor)});if(route.length===3&&request.method==='POST')return json({job:await service.save({...actor,...await body(request,['runId','jobId'])})},201);if(route.length===5&&jobId&&request.method==='POST'){if(action==='shortlist')return json({job:await service.update({...actor,id:jobId,...await body(request,['expectedRevision','shortlisted'])})});if(action==='remove')return json(await service.remove({...actor,id:jobId,...await body(request,['expectedRevision'])}));}}
       if(collection==='discovery'&&route.length<=5){const service=new Discovery(queue),actor={tenantId,userId};if(!jobId&&request.method==='GET')return json({run:await service.latest(actor)});if(!jobId&&request.method==='POST')return json(await service.start({...actor,input:await body(request,['q','location','workplace','sinceDays','limitPerAts'])}),202);if(jobId&&!action&&request.method==='GET')return json(await service.read({...actor,id:jobId}));if(jobId&&action==='cancel'&&request.method==='POST'){await body(request,[]);return json(await service.cancel({...actor,id:jobId}));}}
       if(collection==='data-controls'&&dataControlsEnabled&&onboarding){
         const controls=new DataControls({queue,store:onboarding.store}),input={tenantId,userId};
@@ -112,7 +114,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
     } catch (error) {
       const code = error instanceof ControlError ? error.code : 'service_unavailable';
       const status = code==='account_deleting'?403:['not_found','evaluation_not_found','artifact_missing'].includes(code) ? 404
-        : ['daily_job_limit','search_rate_limited'].includes(code) ? 429 : ['discovery_busy','idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale','profile_source_conflict'].includes(code) ? 409 : ['input_limit','export_limit'].includes(code) ? 413 : ['search_unavailable','service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
+        : ['daily_job_limit','search_rate_limited'].includes(code) ? 429 : ['saved_job_conflict','saved_job_limit','discovery_busy','idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale','profile_source_conflict'].includes(code) ? 409 : ['input_limit','export_limit'].includes(code) ? 413 : ['search_unavailable','service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
       return json({ error: code }, status);
     }
   };

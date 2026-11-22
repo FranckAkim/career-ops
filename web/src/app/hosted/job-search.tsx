@@ -2,6 +2,7 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import styles from './screen.module.css';
 import css from './job-search.module.css';
+import {SavedJobs,type SavedPosting} from './saved-jobs';
 type Listing={id:string;url:string;title:string;company:string;description:string;descriptionAvailable:boolean;location:string;source:string;postedAt:string|null};
 type Results={jobs:Listing[];partial:boolean;timedOut:boolean;companiesScanned:number;unreachableBoards:number;capHit:boolean;displayCapped:boolean};
 type SearchInput={q:string;location:string;workplace:string;sinceDays:number;limitPerAts:number};
@@ -11,6 +12,11 @@ export function JobSearch({base,disabled,onSelect}:{base:string;disabled:boolean
  const[q,setQ]=useState(''),[location,setLocation]=useState('United States, USA, U.S., US Remote'),[workplace,setWorkplace]=useState('any'),[sinceDays,setSinceDays]=useState(14),[limit,setLimit]=useState(50);
  const[run,setRun]=useState<Run|null>(null),[sending,setSending]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const[resultFilter,setResultFilter]=useState('');
+ const[showSaved,setShowSaved]=useState(false);
+ const[savedRefresh,setSavedRefresh]=useState(0),[savedUrls,setSavedUrls]=useState<string[]>([]),[saving,setSaving]=useState('');
+ const savedRequest=useRef<AbortController|null>(null);
+ const onSavedUrls=useCallback((urls:string[])=>setSavedUrls(urls),[]);
+ useEffect(()=>()=>savedRequest.current?.abort(),[base]);
  const operation=useRef<AbortController|null>(null);
  const[restoring,setRestoring]=useState(true);
  const restore=useCallback((value:Run|null)=>{setRun(value);setResultFilter('');if(value?.input){setQ(value.input.q);setLocation(value.input.location);setWorkplace(value.input.workplace);setSinceDays(value.input.sinceDays);setLimit(value.input.limitPerAts);}},[]);
@@ -54,11 +60,15 @@ export function JobSearch({base,disabled,onSelect}:{base:string;disabled:boolean
    if(!response.ok)throw Error();const value=await response.json();if(!controller.signal.aborted){setRun(value);setNotice('Search cancelled. No evaluation was started.');}
   }catch{if(!controller.signal.aborted)setError('Could not cancel. The search may have finished; refresh its status.');}finally{if(!controller.signal.aborted)setSending(false);}
  }
- function select(job:Listing){onSelect(`Company: ${job.company}\nRole: ${job.title}\nLocation: ${job.location}\nSource: ${job.source}\n\n${job.description}`,job.url);setNotice(`${job.title} loaded below. Review the description, then choose Evaluate posting.`);requestAnimationFrame(()=>document.getElementById('posting-text')?.focus());}
+ function select(job:SavedPosting){onSelect(`Company: ${job.company}\nRole: ${job.title}\nLocation: ${job.location}\nSource: ${job.source}\n\n${job.description}`,job.url);setNotice(`${job.title} loaded below. Review the description, then choose Evaluate posting.`);requestAnimationFrame(()=>document.getElementById('posting-text')?.focus());}
+ async function save(job:Listing){if(!run||saving)return;const controller=new AbortController();savedRequest.current=controller;setSaving(job.url);setError('');
+  try{const response=await fetch(`${base}/saved-jobs`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({runId:run.id,jobId:job.id})});if(!response.ok)throw Error(response.status===409?'Your saved list is full or changed. Review saved jobs and try again.':response.status===404?'This search result expired. Search again before saving it.':response.status===413?'This posting is too large to save. You can still open the employer page.':'Could not save this job. Please try again.');if(!controller.signal.aborted){setNotice('Job saved. It will remain after this search expires.');setSavedRefresh(value=>value+1);}}
+  catch(e){if(!controller.signal.aborted)setError((e as Error).message);}finally{if(!controller.signal.aborted)setSaving('');}
+ }
  const busy=restoring||sending||active(run),result=run?.result;
  const filterText=resultFilter.trim().toLowerCase();
  const visibleJobs=(result?.jobs||[]).filter(job=>`${job.title} ${job.company} ${job.location}`.toLowerCase().includes(filterText));
- return <section className={`${styles.card} ${css.search}`} aria-label="Find jobs">
+ return <><div className={styles.actions} role="group" aria-label="Opportunity views"><button className={styles.quiet} aria-pressed={!showSaved} onClick={()=>setShowSaved(false)}>Find jobs</button><button className={styles.quiet} aria-label="Saved jobs" aria-pressed={showSaved} onClick={()=>setShowSaved(true)}>Saved jobs ({savedUrls.length})</button></div><div hidden={!showSaved}><SavedJobs base={base} refresh={savedRefresh} disabled={disabled} onSelect={job=>{setShowSaved(false);select(job);}} onUrls={onSavedUrls}/></div><section hidden={showSaved} className={`${styles.card} ${css.search}`} aria-label="Find jobs">
  <p className={styles.eyebrow}>Built-in career-ops discovery</p><h2>Find your next role.</h2>
  <p>Search employer boards through the repo’s Greenhouse, Lever, Ashby and Workday scanner. Scans run on your computer and wait while it is offline.</p>
  <form onSubmit={e=>{e.preventDefault();void search();}} className={css.form}>
@@ -76,6 +86,6 @@ export function JobSearch({base,disabled,onSelect}:{base:string;disabled:boolean
  {!result.jobs.length?<p>No matches in this sample. Try broader role/location keywords, 30 days, or more boards per source.</p>:null}
  {result.jobs.length?<div className={css.filter}><label>Filter these results<input type="search" value={resultFilter} onChange={event=>setResultFilter(event.target.value)} maxLength={120} placeholder="Role, employer or location"/></label><p role="status">{visibleJobs.length} of {result.jobs.length} results shown. Filtering does not start another scan.</p>{resultFilter?<button className={styles.quiet} onClick={()=>setResultFilter('')}>Clear result filter</button>:null}</div>:null}
  {result.jobs.length&&!visibleJobs.length?<p>No results match this filter. Clear it to see all matches from your scan.</p>:null}
- <div className={css.results}>{visibleJobs.map(job=><article key={job.id} className={css.result}><p className={styles.eyebrow}>{job.company}</p><h3>{job.title}</h3><p>{job.location} · {job.source}{job.postedAt?` · ${job.postedAt}`:''}</p><p className={css.excerpt}>{job.descriptionAvailable?`${job.description.slice(0,260)}…`:'The scanner returned this role without a complete description. Open the employer posting for details.'}</p>{job.description?<details className={css.description}><summary>{job.descriptionAvailable?'Read full description':'Read available description'}</summary><p tabIndex={0}>{job.description}</p></details>:null}<div className={styles.actions}><button className={styles.primary} disabled={disabled||!job.descriptionAvailable} onClick={()=>select(job)}>Use this job</button><a href={job.url} target="_blank" rel="noopener noreferrer">View employer posting</a></div></article>)}</div></>:null}
- </section>;
+ <div className={css.results}>{visibleJobs.map(job=><article key={job.id} className={css.result}><p className={styles.eyebrow}>{job.company}</p><h3>{job.title}</h3><p>{job.location} · {job.source}{job.postedAt?` · ${job.postedAt}`:''}</p><p className={css.excerpt}>{job.descriptionAvailable?`${job.description.slice(0,260)}…`:'The scanner returned this role without a complete description. Open the employer posting for details.'}</p>{job.description?<details className={css.description}><summary>{job.descriptionAvailable?'Read full description':'Read available description'}</summary><p tabIndex={0}>{job.description}</p></details>:null}<div className={styles.actions}><button className={styles.primary} disabled={disabled||!job.descriptionAvailable} onClick={()=>select(job)}>Use this job</button><button className={styles.quiet} disabled={!!saving||savedUrls.includes(job.url)} onClick={()=>void save(job)}>{savedUrls.includes(job.url)?'Saved':saving===job.url?'Saving…':'Save job'}</button><a href={job.url} target="_blank" rel="noopener noreferrer">View employer posting</a></div></article>)}</div></>:null}
+ </section></>;
 }
