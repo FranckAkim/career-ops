@@ -646,7 +646,7 @@ export const SOURCES = {
 
 const KNOWN_FLAGS = [
   '--since', '--limit', '--ats', '--seeds', '--history-seeds', '--probe-unknown-hosts', '--dry-run', '--liveness',
-  '--verbose', '--md-out', '--json', '--include-undated', '--include-blacklisted',
+  '--verbose', '--md-out', '--json', '--include-descriptions', '--include-undated', '--include-blacklisted',
   '--shuffle', '--resume', '--resume-if-compatible', '--help', '-h',
 ];
 
@@ -770,6 +770,7 @@ export function parseArgs(argv) {
     verbose: args.includes('--verbose'),
     mdOut: valueOf('--md-out'),
     json: args.includes('--json'),
+    includeDescriptions: args.includes('--include-descriptions'),
     includeUndated: args.includes('--include-undated'),
     includeBlacklisted: args.includes('--include-blacklisted'),
     shuffle: args.includes('--shuffle'),
@@ -2039,6 +2040,7 @@ async function main() {
           }
           const partial = kept.map((o) => ({
             company: o.company,
+            ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, workplaceType: o.workplaceType || null } : {}),
             title: o.title,
             url: o.url,
             location: o.location || null,
@@ -2623,6 +2625,7 @@ async function main() {
       saved,
       offers: offers.map(o => ({
         company: o.company,
+        ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, workplaceType: o.workplaceType || null } : {}),
         title: o.title,
         url: o.url,
         location: o.location || null,

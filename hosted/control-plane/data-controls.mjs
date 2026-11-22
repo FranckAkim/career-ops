@@ -32,7 +32,9 @@ export class DataControls{
    const{rows:jobs}=await db.query('select id,payload,engine_revision,status,result,error_code,created_at,finished_at from jobs where tenant_id=$1 order by created_at,id limit 10001',[input.tenantId]);
    const{rows:profiles}=await db.query('select id,revision,review_hash,content,created_at,updated_at,confirmed_at from profile_drafts where user_id=$1 order by created_at,id limit 1001',[input.userId]);
    check(versions.length<=1000&&jobs.length<=10000&&profiles.length<=1000,'export_limit');
-   return {schema:1,scope:'personal-workspace-published-data',exportedAt:new Date().toISOString(),tenant,versions,jobs,profiles};
+   const{rows:discovery}=await db.query('select id,input,state,result,error_code,created_at,expires_at from discovery_runs where tenant_id=$1 and user_id=$2 and expires_at>clock_timestamp() order by created_at,id limit 241',[input.tenantId,input.userId]);
+   check(discovery.length<=240&&Buffer.byteLength(JSON.stringify(discovery))<=10000000,'export_limit');
+   return {discovery,schema:1,scope:'personal-workspace-published-data',exportedAt:new Date().toISOString(),tenant,versions,jobs,profiles};
   });
   const snapshots=[],files=new Map();let total=0,entries=0,manifestBytes=0;
   for(const id of new Set([data.tenant.snapshot,...data.versions.map(version=>version.snapshot)])){

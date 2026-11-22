@@ -1,3 +1,4 @@
+import {verifyDiscovery} from './discovery.mjs';
 import {verifyPublicDeletion} from './public-deletion.mjs';
 import {verifySnapshotFences} from './snapshot-fences.mjs';
 import {verifyCompletionReview} from './completion-review.mjs';
@@ -69,6 +70,7 @@ try {
   const userA = randomUUID(), userB = randomUUID();
   const tenantA = await queue.provision({ userId: userA, snapshot: initial.id });
   const tenantB = await queue.provision({ userId: userB, snapshot: initialB.id });
+  await verifyDiscovery({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
   const enqueue = (tenantId, userId, key = randomUUID()) => queue.enqueue({ tenantId, userId, idempotencyKey: key, operation: 'evaluate', postingText: 'Example Employer needs a Python engineer.', engineRevision });
   const first = await enqueue(tenantA, userA, 'first');
   const copies = await Promise.all(Array.from({ length: 8 }, () => enqueue(tenantA, userA, 'first')));
