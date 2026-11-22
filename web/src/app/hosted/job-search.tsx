@@ -10,9 +10,10 @@ const active=(run:Run|null)=>!!run&&['queued','running'].includes(run.state);
 export function JobSearch({base,disabled,onSelect}:{base:string;disabled:boolean;onSelect:(text:string,url:string)=>void}){
  const[q,setQ]=useState(''),[location,setLocation]=useState('United States, USA, U.S., US Remote'),[workplace,setWorkplace]=useState('any'),[sinceDays,setSinceDays]=useState(14),[limit,setLimit]=useState(50);
  const[run,setRun]=useState<Run|null>(null),[sending,setSending]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const[resultFilter,setResultFilter]=useState('');
  const operation=useRef<AbortController|null>(null);
  const[restoring,setRestoring]=useState(true);
- const restore=useCallback((value:Run|null)=>{setRun(value);if(value?.input){setQ(value.input.q);setLocation(value.input.location);setWorkplace(value.input.workplace);setSinceDays(value.input.sinceDays);setLimit(value.input.limitPerAts);}},[]);
+ const restore=useCallback((value:Run|null)=>{setRun(value);setResultFilter('');if(value?.input){setQ(value.input.q);setLocation(value.input.location);setWorkplace(value.input.workplace);setSinceDays(value.input.sinceDays);setLimit(value.input.limitPerAts);}},[]);
  useEffect(()=>{
   const controller=new AbortController();setRestoring(true);
   void fetch(`${base}/discovery`,{signal:controller.signal,cache:'no-store'}).then(async response=>{
@@ -34,7 +35,7 @@ export function JobSearch({base,disabled,onSelect}:{base:string;disabled:boolean
   void poll();return()=>{controller.abort();clearTimeout(timer);};
  },[base,runId]);
  async function search(){
-  const controller=new AbortController();operation.current=controller;setSending(true);setError('');setNotice('');
+  const controller=new AbortController();operation.current=controller;setSending(true);setError('');setNotice('');setResultFilter('');
   try{
    const response=await fetch(`${base}/discovery`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({q:q.trim(),location:location.trim(),workplace,sinceDays,limitPerAts:limit})});
    if(response.status===409){
@@ -55,6 +56,8 @@ export function JobSearch({base,disabled,onSelect}:{base:string;disabled:boolean
  }
  function select(job:Listing){onSelect(`Company: ${job.company}\nRole: ${job.title}\nLocation: ${job.location}\nSource: ${job.source}\n\n${job.description}`,job.url);setNotice(`${job.title} loaded below. Review the description, then choose Evaluate posting.`);requestAnimationFrame(()=>document.getElementById('posting-text')?.focus());}
  const busy=restoring||sending||active(run),result=run?.result;
+ const filterText=resultFilter.trim().toLowerCase();
+ const visibleJobs=(result?.jobs||[]).filter(job=>`${job.title} ${job.company} ${job.location}`.toLowerCase().includes(filterText));
  return <section className={`${styles.card} ${css.search}`} aria-label="Find jobs">
  <p className={styles.eyebrow}>Built-in career-ops discovery</p><h2>Find your next role.</h2>
  <p>Search employer boards through the repo’s Greenhouse, Lever, Ashby and Workday scanner. Scans run on your computer and wait while it is offline.</p>
@@ -71,6 +74,8 @@ export function JobSearch({base,disabled,onSelect}:{base:string;disabled:boolean
  {run?.state==='failed'?<p role="alert">The scanner could not finish. Try again with a smaller scan or check that your local discovery worker is running.</p>:null}
  {result?<><p role="status">{result.jobs.length} matches · {result.companiesScanned} boards scanned. {result.partial?'Partial coverage: some boards were capped, unavailable, undated, or the scan stopped early.':'This sampled scan finished.'}{result.displayCapped?' Showing the first 50 matches. Narrow your keywords to refine results.':''}</p>
  {!result.jobs.length?<p>No matches in this sample. Try broader role/location keywords, 30 days, or more boards per source.</p>:null}
- <div className={css.results}>{result.jobs.map(job=><article key={job.id} className={css.result}><p className={styles.eyebrow}>{job.company}</p><h3>{job.title}</h3><p>{job.location} · {job.source}{job.postedAt?` · ${job.postedAt}`:''}</p><p className={css.excerpt}>{job.descriptionAvailable?`${job.description.slice(0,260)}…`:'The scanner returned this role without a complete description. Open the employer posting for details.'}</p><div className={styles.actions}><button className={styles.primary} disabled={disabled||!job.descriptionAvailable} onClick={()=>select(job)}>Use this job</button><a href={job.url} target="_blank" rel="noopener noreferrer">View employer posting</a></div></article>)}</div></>:null}
+ {result.jobs.length?<div className={css.filter}><label>Filter these results<input type="search" value={resultFilter} onChange={event=>setResultFilter(event.target.value)} maxLength={120} placeholder="Role, employer or location"/></label><p role="status">{visibleJobs.length} of {result.jobs.length} results shown. Filtering does not start another scan.</p>{resultFilter?<button className={styles.quiet} onClick={()=>setResultFilter('')}>Clear result filter</button>:null}</div>:null}
+ {result.jobs.length&&!visibleJobs.length?<p>No results match this filter. Clear it to see all matches from your scan.</p>:null}
+ <div className={css.results}>{visibleJobs.map(job=><article key={job.id} className={css.result}><p className={styles.eyebrow}>{job.company}</p><h3>{job.title}</h3><p>{job.location} · {job.source}{job.postedAt?` · ${job.postedAt}`:''}</p><p className={css.excerpt}>{job.descriptionAvailable?`${job.description.slice(0,260)}…`:'The scanner returned this role without a complete description. Open the employer posting for details.'}</p>{job.description?<details className={css.description}><summary>{job.descriptionAvailable?'Read full description':'Read available description'}</summary><p tabIndex={0}>{job.description}</p></details>:null}<div className={styles.actions}><button className={styles.primary} disabled={disabled||!job.descriptionAvailable} onClick={()=>select(job)}>Use this job</button><a href={job.url} target="_blank" rel="noopener noreferrer">View employer posting</a></div></article>)}</div></>:null}
  </section>;
 }
