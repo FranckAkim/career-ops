@@ -5,7 +5,7 @@ export const matchReport=`## Block B — Match with CV
 | Python | high (stated) | Strong | Python tools | CV: Built Python reporting tools. |
 | Kubernetes | meaningful (stated) | Missing | Kubernetes deployments | No production Kubernetes evidence in this CV. |
 
-## Block C — Level and Strategy
+## Block C
 The posting asks for five years; the synthetic CV describes three years. Verify the experience requirement with the employer.
 
 ## Machine Summary

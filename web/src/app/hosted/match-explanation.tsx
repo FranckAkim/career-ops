@@ -13,7 +13,7 @@ export function MatchExplanation({base,match,onOpen}:{base:string;match:MatchInf
  async function explain(){if(shown){setShown(false);return;}setShown(true);if(report||!match)return;const controller=new AbortController();request.current=controller;setLoading(true);setError('');try{const response=await fetch(`${base}/artifacts/${match.jobId}/report`,{signal:controller.signal,cache:'no-store'});if(!response.ok)throw Error();const text=await response.text();if(text.length>2000000)throw Error();if(!controller.signal.aborted)setReport(text);}catch{if(!controller.signal.aborted)setError('Could not load the evaluation. Close and reopen this explanation to retry.');}finally{if(!controller.signal.aborted)setLoading(false);}}
  const summary=report?readMachineSummary(report):null;
  // Only report-owned sections before the archived, untrusted job description.
- const sections=report?splitSections(report.split(/^##\s+Job Description\b/im)[0]).sections:[];
+ const sections=report?splitSections(report.split(/^##\s+Job Description\b/im)[0].replace(/^##[ \t]+Block[ \t]+([BC])[ \t]*\r?$/gim,'## Block $1)')).sections:[];
  const matrix=sections.find(section=>section.letter==='B'||/^match with cv$/i.test(section.heading));
  const experience=sections.find(section=>section.letter==='C'||/level and strategy/i.test(section.heading));
  const tables=matrix?splitPipeTables(matrix.content).filter(part=>part.type==='table').map(part=>parsePipeTable(part.text)).filter(Boolean):[];
@@ -25,6 +25,7 @@ export function MatchExplanation({base,match,onOpen}:{base:string;match:MatchInf
  {summary?.decision?<p>{summary.decision}</p>:null}
  <h4>Matching skills and strengths</h4>{summary?.strengths.length?<ul>{summary.strengths.slice(0,12).map((item,index)=><li key={index}>{item.slice(0,1000)}</li>)}</ul>:<p>The evaluator did not provide a separate strengths summary. Review its requirement evidence below.</p>}
  <h4>Missing or partial requirements</h4>{summary?.softGaps.length?<ul>{summary.softGaps.slice(0,12).map((item,index)=><li key={index}>{item.slice(0,1000)}</li>)}</ul>:<p>No separate gap summary was supplied. This does not mean every requirement is met.</p>}
+ {matrix&&!tables.length?<><h4>Requirement evidence</h4><p className={css.matchText}>{matrix.content.slice(0,8000)}</p></>:null}
  {tables.map((table,index)=>table?<div className={css.matchTable} key={index} tabIndex={0} role="region" aria-label="Requirement evidence"><table><thead><tr>{table.header.slice(0,6).map((cell,i)=><th key={i} scope="col">{cell}</th>)}</tr></thead><tbody>{table.rows.slice(0,30).map((row,i)=><tr key={i}>{row.slice(0,6).map((cell,j)=><td key={j}>{cell.slice(0,2000)}</td>)}</tr>)}</tbody></table></div>:null)}
  <h4>Experience and seniority</h4>{experience?<p className={css.matchText}>{experience.content.slice(0,8000)}</p>:<p>No separate experience assessment was provided. Check the original report before making a decision.</p>}
  {summary?.hardStops.length?<><h4>Other concerns from the evaluator</h4><ul>{summary.hardStops.slice(0,12).map((item,index)=><li key={index}>{item.slice(0,1000)}</li>)}</ul></>:null}
