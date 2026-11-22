@@ -14,3 +14,5 @@
 .env*
 
 .env*
+
+/src/lib/hosted-cv-import.mjs

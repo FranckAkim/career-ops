@@ -15,6 +15,7 @@ export default function PrivacyPage(){
     <h2>Where your information goes</h2>
     <p>Your account, confirmed profile, job descriptions and job history are stored in the hosted service on Vercel and Neon. Workspace files and generated documents use private Vercel Blob storage. Access to results requires your signed-in account.</p>
     <p>{mode==='local' ? 'AI inference runs with Ollama on the service operator’s computer. That computer downloads the workspace needed for a job. The inference containers have no external network access, and local mode has no automatic cloud AI fallback. The computer must be running for jobs to finish.' : 'Local AI processing is not selected for this deployment. Do not submit personal information until the operator has confirmed a suitable processing configuration.'}</p>
+    <p>The CV file chooser reads PDF, Word and text files in your browser. Extracted text is sent through the profile review process; choosing Review profile during setup saves that text as a hosted draft. Confirming creates your workspace from the reviewed text.</p>
     <h2>Sign-in and control</h2>
     <p>Google sign-in provides your account identity, name and email. It does not grant access to Gmail or Google Drive. Career Workspace never submits applications automatically.</p>
     <h2>Storage and deletion</h2>

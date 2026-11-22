@@ -1,3 +1,4 @@
+import {verifyCvUploads} from './cv-upload-browser.mjs';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -64,6 +65,7 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     assert.equal((await page.goto(`${origin}/`)).status(), 200);
     assert.equal(new URL(page.url()).pathname, '/hosted');
     await page.getByLabel('Full name', { exact: true }).waitFor();
+    await verifyCvUploads(page);
     await page.getByLabel('Full name', { exact: true }).fill('Synthetic Alpha');
     await page.getByLabel('CV text', { exact: true }).fill('# Synthetic Alpha\n\n## Experience\n\n### Example Labs — Remote\n**Software Engineer**\n2022–2025\n\n- Built internal reporting tools with Python.\n- Led a team of 4 engineers.\n');
     await page.getByRole('button', { name: 'Review profile', exact: true }).click();
@@ -87,6 +89,11 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     assert.ok((await store.read(personal.snapshot, 'cv.md')).includes('Synthetic Alpha'));
     await page.reload();
     await page.getByRole('heading', { name: 'Your next move, in focus.', exact:true }).waitFor();
+    await page.getByRole('button',{name:'My Profile',exact:true}).click();await page.getByRole('button',{name:'Edit profile',exact:true}).click();
+    await page.getByLabel('Upload your CV',{exact:true}).setInputFiles({name:'replacement.txt',mimeType:'text/plain',buffer:Buffer.from('Synthetic replacement source for upload review only.')});
+    await page.waitForFunction(()=>[...document.querySelectorAll('textarea')].some(t=>t.value.includes('Synthetic replacement source')));
+    assert.match(await page.getByLabel('Source CV',{exact:true}).inputValue(),/Synthetic replacement source/);
+    await page.getByRole('button',{name:'Cancel changes',exact:true}).click();assert.ok((await store.read(personal.snapshot,'cv.md')).includes('Synthetic Alpha'));console.log('PASS profile-editor file import is reviewable and cancellation preserves confirmed source');
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     const cancellation = await page.evaluate(async ({ tenant, jobId }) => {

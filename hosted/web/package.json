@@ -14,7 +14,9 @@
   "overrides": { "zod": "4.6.7" },
   "dependencies": {
     "@hosted-career/control-plane": "file:../control-plane",
+    "fflate": "0.8.3",
     "next": "16.4.6",
+    "pdfjs-dist": "6.5.438",
     "pg": "8.23.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",

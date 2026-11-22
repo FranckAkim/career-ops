@@ -63,7 +63,7 @@ jobs:
       - run: node validate-system-paths-coverage.mjs
       - run: npm ci --prefix web --ignore-scripts --no-audit --no-fund
       - run: npm --prefix web run typecheck
-      - run: node --test web/tests/hosted-mode.test.mjs web/tests/hosted-policy.test.mjs web/tests/workspace-summary.test.mjs web/tests/lib/origin-guard.test.mjs
+      - run: node --test web/tests/hosted-cv-import.test.mjs web/tests/hosted-mode.test.mjs web/tests/hosted-policy.test.mjs web/tests/workspace-summary.test.mjs web/tests/lib/origin-guard.test.mjs
       - run: npm ci --prefix hosted/web --ignore-scripts --no-audit --no-fund
       - run: npm --prefix hosted/web test
       - run: npm --prefix hosted/web run build
