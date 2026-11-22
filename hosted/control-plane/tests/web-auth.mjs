@@ -1,3 +1,4 @@
+import {verifyAuthorizationBrowser} from './authorization-browser.mjs';
 import {verifySavedJobsBrowser} from './saved-jobs-browser.mjs';
 import {verifyJobSearch} from './job-search-browser.mjs';
 import {verifyCvUploads} from './cv-upload-browser.mjs';
@@ -89,6 +90,7 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     await page.getByRole('heading', { name: 'Your next move, in focus.', exact:true }).waitFor();
     await verifyJobSearch(page);
     await verifySavedJobsBrowser({page,pool,userId:accounts[0].id});
+    await verifyAuthorizationBrowser(page);
     const personal = (await pool.query('select t.snapshot from personal_workspaces p join tenants t on p.tenant_id=t.id where p.user_id=$1', [accounts[0].id])).rows[0];
     assert.ok((await store.read(personal.snapshot, 'cv.md')).includes('Synthetic Alpha'));
     await page.reload();

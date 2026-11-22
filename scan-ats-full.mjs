@@ -2040,7 +2040,7 @@ async function main() {
           }
           const partial = kept.map((o) => ({
             company: o.company,
-            ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, workplaceType: o.workplaceType || null } : {}),
+            ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, workplaceType: o.workplaceType || null, visaText: String(o.visaText || '').slice(0,4000) } : {}),
             title: o.title,
             url: o.url,
             location: o.location || null,
@@ -2625,7 +2625,7 @@ async function main() {
       saved,
       offers: offers.map(o => ({
         company: o.company,
-        ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, workplaceType: o.workplaceType || null } : {}),
+        ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, workplaceType: o.workplaceType || null, visaText: String(o.visaText || '').slice(0,4000) } : {}),
         title: o.title,
         url: o.url,
         location: o.location || null,

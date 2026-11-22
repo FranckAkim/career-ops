@@ -1,0 +1,6 @@
+import css from './job-search.module.css';
+export type AuthorizationEvidence={version:number;h1b:{status:string;evidence:string[]};opt:{status:string;evidence:string[]};incomplete:boolean};
+export function WorkAuthorization({value}:{value?:AuthorizationEvidence}){
+ const label=(kind:'h1b'|'opt')=>{const status=value?.[kind].status;const name=kind==='h1b'?'H-1B':'OPT / STEM OPT';return `${name}: ${status==='positive'?(kind==='h1b'?'sponsorship wording':'acceptance wording'):status==='negative'?(kind==='h1b'?'not offered':'not accepted'):status==='conflicting'?'conflicting wording':status==='unknown'?'unclear':'not assessed'}`;};
+ return <div className={css.authorization}><p>{label('h1b')}</p><p>{label('opt')}</p>{value?<details><summary>Work authorization evidence</summary><p>Matches posting wording, not verified eligibility. OPT acceptance does not establish future H-1B sponsorship. Confirm the exact policy with the employer.</p>{value.incomplete?<p>The available description is incomplete; positive wording is treated as unclear.</p>:null}{(['h1b','opt'] as const).map(kind=><div key={kind}><strong>{kind==='h1b'?'H-1B':'OPT / STEM OPT'}</strong>{value[kind].evidence.length?<ul>{value[kind].evidence.map((text,index)=><li key={index}>{text}</li>)}</ul>:<p>No explicit policy identified in the available posting.</p>}</div>)}</details>:null}</div>;
+}

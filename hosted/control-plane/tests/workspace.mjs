@@ -124,7 +124,7 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   await queue.reapExpired();
   await page.getByRole('heading',{name:'A job needs your review.'}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Discard interrupted changes'}).isDisabled(),true);
-  await page.getByRole('checkbox').check();
+  await page.getByRole('region',{name:'Workspace recovery',exact:true}).getByRole('checkbox').check();
   await page.getByRole('button',{name:'Discard interrupted changes'}).click();
   await page.getByRole('heading',{name:'A job needs your review.'}).waitFor({state:'hidden'});
   assert.equal((await pool.query('select recovery_required from tenants where id=$1',[tenantId])).rows[0].recovery_required,false);

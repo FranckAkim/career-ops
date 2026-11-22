@@ -16,3 +16,12 @@ test('scanner results retain incomplete coverage and use core work-arrangement m
  assert.equal(scanResult(null,{timedOut:true,live:[{...offer,description:undefined}]}).jobs[0].descriptionAvailable,false);
  assert.equal(scanResult({offers:[{...offer,descriptionTruncated:true}]}).jobs[0].descriptionAvailable,false);
 });
+
+test('H-1B/OPT gates use full source policy text and keep explicit refusals separate from unknowns',()=>{
+ const base={company:'Synthetic',title:'Engineer',location:'United States',source:'lever-full',workplaceType:'remote'};
+ const offers=[{...base,url:'https://example.test/h1b',description:'We sponsor H1B visas for qualified software engineers.'},{...base,url:'https://example.test/opt',description:'OPT candidates are welcome. No visa sponsorship is available.'},{...base,url:'https://example.test/unknown',description:'Build reporting tools with engineering teams.'},{...base,url:'https://example.test/metadata',description:'Build reporting tools for internal engineering teams.',visaText:'H-1B sponsorship is available.'}];
+ assert.equal(scanResult({offers},{authorization:'h1b'}).jobs.length,2);const opt=scanResult({offers},{authorization:'opt'});assert.equal(opt.jobs.length,1);assert.equal(opt.jobs[0].authorization.h1b.status,'negative');assert.equal(opt.jobs[0].authorization.opt.status,'positive');assert.equal(opt.filteredAuthorization,3);
+ assert.equal(scanResult({offers},{authorization:'either'}).jobs.length,3);assert.equal(scanResult({offers},{authorization:'both'}).jobs.length,0);assert.equal(scanResult({offers},{authorization:'h1b',includeUnknown:true}).jobs.length,3);
+ const partial=scanResult({offers:[{...offers[0],descriptionTruncated:true}]},{authorization:'h1b'});assert.equal(partial.jobs.length,0);
+ assert.throws(()=>discoveryInput({q:'engineer',authorization:'guaranteed'}));assert.throws(()=>discoveryInput({q:'engineer',includeUnknown:'yes'}));
+});
