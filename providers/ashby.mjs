@@ -634,6 +634,9 @@ export default {
       return {
         title: j.title || '',
         url: j.jobUrl || '',
+        applicationLink: typeof j.applyUrl === 'string' ? j.applyUrl : undefined,
+        isListed: j.isListed,
+        department: j.department,
         company: entry.name,
         listingIdentity: boardSlug && typeof j.id === 'string' && j.id.trim()
           ? { ats_provider: 'ashby', board_slug: boardSlug, posting_id: j.id }

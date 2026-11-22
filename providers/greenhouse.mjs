@@ -395,6 +395,8 @@ export default {
       return {
         title: j.title || '',
         url: j.absolute_url,
+        department: Array.isArray(j.departments) ? j.departments.map(d => d.name).filter(Boolean).join(', ') : undefined,
+        applicationDeadline: j.application_deadline,
         company: entry.name,
         listingIdentity: boardSlug && (typeof j.id === 'string' || (typeof j.id === 'number' && Number.isSafeInteger(j.id)))
           ? { ats_provider: 'greenhouse', board_slug: boardSlug, posting_id: String(j.id) }

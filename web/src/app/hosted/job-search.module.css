@@ -5,3 +5,5 @@
 .shortlistToggle{display:flex;align-items:center;gap:10px;margin:16px 0}.shortlistToggle input{width:18px;height:18px}
 
 .form .authorizationUnknown{flex-direction:row;align-items:center;gap:10px}.authorizationUnknown input{width:18px;height:18px;flex:0 0 18px}.authorization{margin:12px 0;color:#344c5e;font-size:.9rem;overflow-wrap:anywhere}.authorization>p{display:inline-block;margin:4px 8px 4px 0;padding:5px 8px;background:#eef3e9;border-radius:6px}.authorization details{margin:8px 0}.authorization summary{cursor:pointer;text-decoration:underline}.authorization summary:focus-visible{outline:3px solid #739b64;outline-offset:2px}
+
+.metadata {font-size:.85rem;color:#526176;overflow-wrap:anywhere}.metadata p {margin:.35rem 0}.linkNote {flex-basis:100%;font-size:.8rem;color:#526176;overflow-wrap:anywhere}

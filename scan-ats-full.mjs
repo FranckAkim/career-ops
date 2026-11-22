@@ -1300,6 +1300,7 @@ export function formatLiveOfferLine(job, source) {
   }
   return JSON.stringify({
     kind: 'offer',
+    ...(job.sourceCheckedAt ? { sourceCheckedAt: job.sourceCheckedAt, applicationDeadline: job.applicationDeadline, isListed: job.isListed, applicationLink: job.applicationLink, listingIdentity: job.listingIdentity } : {}),
     company: job.company,
     title: job.title,
     url: job.url,
@@ -1332,7 +1333,7 @@ export function emitLiveOffer(job, source, { json } = {}) {
 }
 
 export function keepAndMaybeEmit(job, source, sink, blacklist, opts) {
-  const kept = { ...job, ...(opts.workplacePolicy ? { geographyEvidence: captureWorkplaceEvidence(job) } : {}), source, dateStatus: job.postedAt ? 'dated' : 'unknown' };
+  const kept = { ...job, ...(opts.includeDescriptions ? { sourceCheckedAt: new Date().toISOString() } : {}), ...(opts.workplacePolicy ? { geographyEvidence: captureWorkplaceEvidence(job) } : {}), source, dateStatus: job.postedAt ? 'dated' : 'unknown' };
   sink.push(kept);
   const live = filterBlacklistedOffers([kept], blacklist, { includeBlacklisted: opts.includeBlacklisted });
   if (live.offers.length) emitLiveOffer(live.offers[0], source, { json: opts.json });
@@ -2040,7 +2041,7 @@ async function main() {
           }
           const partial = kept.map((o) => ({
             company: o.company,
-            ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, workplaceType: o.workplaceType || null, visaText: String(o.visaText || '').slice(0,4000) } : {}),
+            ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, visaText: String(o.visaText || '').slice(0,4000), applicationDeadline: o.applicationDeadline, isListed: o.isListed, applicationLink: o.applicationLink, listingIdentity: o.listingIdentity, sourceCheckedAt: o.sourceCheckedAt, salary: o.salary, workplaceType: o.workplaceType || null, employmentType: o.employmentType, department: o.department, requisitionId: o.requisitionId } : {}),
             title: o.title,
             url: o.url,
             location: o.location || null,
@@ -2625,7 +2626,7 @@ async function main() {
       saved,
       offers: offers.map(o => ({
         company: o.company,
-        ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, workplaceType: o.workplaceType || null, visaText: String(o.visaText || '').slice(0,4000) } : {}),
+        ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, visaText: String(o.visaText || '').slice(0,4000), applicationDeadline: o.applicationDeadline, isListed: o.isListed, applicationLink: o.applicationLink, listingIdentity: o.listingIdentity, sourceCheckedAt: o.sourceCheckedAt, salary: o.salary, workplaceType: o.workplaceType || null, employmentType: o.employmentType, department: o.department, requisitionId: o.requisitionId } : {}),
         title: o.title,
         url: o.url,
         location: o.location || null,

@@ -1,3 +1,4 @@
+import {postingDetails} from './posting-details.mjs';
 import {classifyWorkAuthorization} from './work-authorization.mjs';
 import {randomUUID} from 'node:crypto';
 import {ControlError,hash} from './queue.mjs';
@@ -10,7 +11,8 @@ export function savedPosting(job){
  check(job.title.length<=200&&job.company.length<=200&&job.location.length<=300&&job.description.length<=30000&&job.source.length<=80);
  const visaText=typeof job.visaText==='string'?job.visaText.slice(0,4000):'';
  const authorization=classifyWorkAuthorization([job.description,visaText].filter(Boolean).join('\n'),{incomplete:job.descriptionAvailable!==true});
- const posting={visaText,authorization,id:job.url,url:job.url,title:job.title,company:job.company,location:job.location,description:job.description,descriptionAvailable:job.descriptionAvailable===true,source:job.source,postedAt:typeof job.postedAt==='string'?job.postedAt.slice(0,30):null};
+ const details=postingDetails(job);
+ const posting={...details,visaText,authorization,id:job.url,url:job.url,title:job.title,company:job.company,location:job.location,description:job.description,descriptionAvailable:job.descriptionAvailable===true,source:job.source,postedAt:typeof job.postedAt==='string'?job.postedAt.slice(0,30):null};
  check(Buffer.byteLength(JSON.stringify(posting))<=120000,'input_limit');return posting;
 }
 export class SavedJobs{

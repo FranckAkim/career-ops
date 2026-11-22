@@ -3,7 +3,8 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import styles from './screen.module.css';
 import css from './job-search.module.css';
 import {WorkAuthorization,type AuthorizationEvidence} from './work-authorization';
-export type SavedPosting={visaText?:string;authorization?:AuthorizationEvidence;id:string;url:string;title:string;company:string;description:string;descriptionAvailable:boolean;location:string;source:string;postedAt:string|null};
+import {PostingDetails,PostingLinks,type PostingMetadata} from './posting-details';
+export type SavedPosting=PostingMetadata & {visaText?:string;authorization?:AuthorizationEvidence;id:string;url:string;title:string;company:string;description:string;descriptionAvailable:boolean;location:string;source:string;postedAt:string|null};
 type Entry={id:string;posting:SavedPosting;shortlisted:boolean;revision:number;created_at:string};
 export function SavedJobs({base,refresh,disabled,onSelect,onUrls}:{base:string;refresh:number;disabled:boolean;onSelect:(job:SavedPosting)=>void;onUrls:(urls:string[])=>void}){
  const[jobs,setJobs]=useState<Entry[]|null>(null),[shortlistOnly,setShortlistOnly]=useState(false),[busy,setBusy]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[removing,setRemoving]=useState('');
@@ -26,9 +27,9 @@ export function SavedJobs({base,refresh,disabled,onSelect,onUrls}:{base:string;r
  {jobs!==null?<p>{jobs.length} saved · {jobs.filter(item=>item.shortlisted).length} shortlisted</p>:null}
  {jobs!==null&&!visible.length?<p>{shortlistOnly?'Your shortlist is empty. Add a saved job to your shortlist.':'Save a result from your search to keep it here.'}</p>:null}
  <div className={css.results}>{visible.map(item=><article key={item.id} className={css.result}><p className={styles.eyebrow}>{item.posting.company}{item.shortlisted?' · Shortlisted':''}</p><h3>{item.posting.title}</h3><p>{item.posting.location} · Saved {new Date(item.created_at).toLocaleDateString()}</p>
- <WorkAuthorization value={item.posting.authorization}/>
+ <PostingDetails job={item.posting}/><WorkAuthorization value={item.posting.authorization}/>
  {item.posting.description?<details className={css.description}><summary>Read saved description</summary><p tabIndex={0}>{item.posting.description}</p></details>:<p>Description not available. Open the employer posting.</p>}
- <div className={styles.actions}><button className={styles.primary} disabled={disabled||!item.posting.descriptionAvailable} onClick={()=>onSelect(item.posting)}>Use this saved job</button><button className={styles.quiet} disabled={!!busy} onClick={()=>void change(item,'shortlist')}>{item.shortlisted?'Remove from shortlist':'Add to shortlist'}</button><a href={item.posting.url} target="_blank" rel="noopener noreferrer">View employer posting</a><button className={styles.quiet} disabled={!!busy} onClick={()=>setRemoving(item.id)}>Remove saved job</button></div>
+ <div className={styles.actions}><button className={styles.primary} disabled={disabled||!item.posting.descriptionAvailable} onClick={()=>onSelect(item.posting)}>Use this saved job</button><button className={styles.quiet} disabled={!!busy} onClick={()=>void change(item,'shortlist')}>{item.shortlisted?'Remove from shortlist':'Add to shortlist'}</button><PostingLinks job={item.posting}/><button className={styles.quiet} disabled={!!busy} onClick={()=>setRemoving(item.id)}>Remove saved job</button></div>
  {removing===item.id?<div><p>Remove this saved copy? Your evaluations and applications will remain.</p><button className={styles.quiet} disabled={!!busy} onClick={()=>void change(item,'remove')}>Confirm removal</button><button className={styles.quiet} disabled={!!busy} onClick={()=>setRemoving('')}>Keep saved job</button></div>:null}
  </article>)}</div></section>;
 }
