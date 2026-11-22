@@ -1,3 +1,4 @@
+import {verifyJobSearch} from './job-search-browser.mjs';
 import {verifyCvUploads} from './cv-upload-browser.mjs';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -67,7 +68,7 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     await page.getByLabel('Full name', { exact: true }).waitFor();
     await verifyCvUploads(page);
     await page.getByLabel('Full name', { exact: true }).fill('Synthetic Alpha');
-    await page.getByLabel('CV text', { exact: true }).fill('# Synthetic Alpha\n\n## Experience\n\n### Example Labs — Remote\n**Software Engineer**\n2022–2025\n\n- Built internal reporting tools with Python.\n- Led a team of 4 engineers.\n');
+    await page.getByLabel('CV text', { exact: true }).fill('# Synthetic Alpha\n\n## Experience\n\n### Example Labs â€” Remote\n**Software Engineer**\n2022â€“2025\n\n- Built internal reporting tools with Python.\n- Led a team of 4 engineers.\n');
     await page.getByRole('button', { name: 'Review profile', exact: true }).click();
     await page.getByRole('heading', { name: 'Check the details.' }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Confirm and create workspace' }).isDisabled(), true);
@@ -85,6 +86,7 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Confirm and create workspace' }).click();
     await page.getByRole('heading', { name: 'Your next move, in focus.', exact:true }).waitFor();
+    await verifyJobSearch(page);
     const personal = (await pool.query('select t.snapshot from personal_workspaces p join tenants t on p.tenant_id=t.id where p.user_id=$1', [accounts[0].id])).rows[0];
     assert.ok((await store.read(personal.snapshot, 'cv.md')).includes('Synthetic Alpha'));
     await page.reload();

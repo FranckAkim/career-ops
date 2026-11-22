@@ -29,7 +29,7 @@ async function body(request, fields) {
   } finally { clearTimeout(timer); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
-export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobsEnabled = true,applicationsEnabled=true,profileEditingEnabled=true,dataControlsEnabled=true,deletionRequestsEnabled=false,requestDrainEnabled=false,requestDeploymentId=null,requestInstanceId=null,requestCompletion=null }) {
+export function createApi({ queue, auth, origin, engineRevision, onboarding, artifacts, notifyQueue, jobSearch, jobsEnabled = true,applicationsEnabled=true,profileEditingEnabled=true,dataControlsEnabled=true,deletionRequestsEnabled=false,requestDrainEnabled=false,requestDeploymentId=null,requestInstanceId=null,requestCompletion=null }) {
   if (new URL(origin).origin !== origin || !/^[a-f0-9]{40}$/.test(engineRevision)) throw new ControlError('invalid_api_config');
   const handle = async (request,register) => {
     try {
@@ -65,6 +65,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       }
       const [prefix, tenantId, collection, jobId, action] = route;
       if (prefix !== 'tenants' || route.length > 5) return json({ error: 'not_found' }, 404);
+      if(collection==='discover'&&route.length===3&&request.method==='GET'&&jobSearch){await queue.authorize(queue.pool,tenantId,userId,false);return json(await jobSearch.search(url.searchParams));}
       if(collection==='data-controls'&&dataControlsEnabled&&onboarding){
         const controls=new DataControls({queue,store:onboarding.store}),input={tenantId,userId};
         if(deletionRequestsEnabled&&jobId==='account-deletion'&&route.length===4){const service=new DeletionRequest({queue}),actor={userId,tenantId,sessionId:session.session.id};if(request.method==='GET')return json(await service.preview(actor));if(request.method==='POST')return json(await service.request({...await body(request,['scopeHash','acknowledged','confirmation']),...actor}),202);}
@@ -110,7 +111,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
     } catch (error) {
       const code = error instanceof ControlError ? error.code : 'service_unavailable';
       const status = code==='account_deleting'?403:['not_found','evaluation_not_found','artifact_missing'].includes(code) ? 404
-        : code === 'daily_job_limit' ? 429 : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale','profile_source_conflict'].includes(code) ? 409 : ['input_limit','export_limit'].includes(code) ? 413 : ['service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
+        : ['daily_job_limit','search_rate_limited'].includes(code) ? 429 : ['idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale','profile_source_conflict'].includes(code) ? 409 : ['input_limit','export_limit'].includes(code) ? 413 : ['search_unavailable','service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
       return json({ error: code }, status);
     }
   };
