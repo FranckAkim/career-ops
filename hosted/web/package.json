@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": "24.x" },
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "prepare:source": "node scripts/prepare.mjs",
     "build": "node scripts/prepare.mjs && next build && node scripts/verify-build.mjs",
@@ -11,7 +13,9 @@
     "typecheck": "node scripts/prepare.mjs && tsc --noEmit",
     "test": "node --test tests/*.test.mjs"
   },
-  "overrides": { "zod": "4.6.7" },
+  "overrides": {
+    "zod": "4.6.7"
+  },
   "dependencies": {
     "@hosted-career/control-plane": "file:../control-plane",
     "fflate": "0.8.3",
@@ -20,7 +24,8 @@
     "pg": "8.23.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "server-only": "0.0.1"
+    "server-only": "0.0.1",
+    "js-yaml": "5.5.0"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

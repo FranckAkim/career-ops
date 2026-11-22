@@ -55,7 +55,7 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   assert.ok(attachment.headers()['content-security-policy'].includes("default-src 'none'"));
   await page.getByRole('button',{name:'Applications',exact:true}).click();
   await page.getByLabel('Application status',{exact:true}).waitFor();
-  for(const stage of ['Applied','Interview']){
+  for(const stage of ['Applied','Interview','Offer']){
     await page.getByLabel('Application status',{exact:true}).selectOption(stage);
     if(stage==='Applied'){
       assert.equal(await page.getByRole('button',{name:'Save status',exact:true}).isDisabled(),true);
@@ -67,7 +67,7 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
     await page.getByLabel('Current application status',{exact:true}).filter({hasText:new RegExp(`^${stage}$`)}).waitFor();
   }
   await page.reload();await page.getByRole('button',{name:'Applications',exact:true}).click();
-  await page.getByLabel('Current application status',{exact:true}).filter({hasText:/^Interview$/}).waitFor();
+  await page.getByLabel('Current application status',{exact:true}).filter({hasText:/^Offer$/}).waitFor();
   await page.getByLabel('Filter by status',{exact:true}).selectOption('Applied');await page.getByRole('heading',{name:'No matching applications.',exact:true}).waitFor();await page.getByLabel('Filter by status',{exact:true}).selectOption('all');
   if(process.env.HOSTED_TEST_SCREENSHOTS){
     await fs.mkdir(process.env.HOSTED_TEST_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.HOSTED_TEST_SCREENSHOTS,'applications-desktop.png'),fullPage:true});
@@ -91,7 +91,7 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   await page.reload();await page.getByRole('button',{name:'My Profile',exact:true}).click();
   await page.getByText('Backend Engineer — Confirmed Update',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Applications',exact:true}).click();
-  await page.getByLabel('Current application status',{exact:true}).filter({hasText:/^Interview$/}).waitFor();
+  await page.getByLabel('Current application status',{exact:true}).filter({hasText:/^Offer$/}).waitFor();
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('heading',{name:'Processing and privacy',exact:true}).waitFor();
   const exportDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Download workspace data',exact:true}).click();

@@ -16,3 +16,9 @@
 .env*
 
 /src/lib/hosted-cv-import.mjs
+
+/src/lib/match-context.mjs
+/src/lib/machine-summary.mjs
+/src/lib/machine-summary-section.mjs
+/src/lib/report-sections.mjs
+/src/lib/report-tables.mjs

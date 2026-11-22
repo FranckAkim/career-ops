@@ -39,7 +39,7 @@ export function Dashboard({jobs,tenantId,userName,loaded,executionMode,onOpenJob
       <header className={d.topbar}><p>Workspace <span>/</span> <strong>{navigation.find(([id])=>id===view)?.[1]}</strong></p><div className={d.topActions}><button className={d.primary} onClick={evaluateRole}><Icon name="plus"/>Evaluate a role</button><button className={d.secondary} onClick={onSignOut} disabled={signingOut}>Sign out</button></div></header>
       <div className={d.heading}><div><h1>{titles[view]}</h1><p>{subtitles[view]}</p></div>{(view==='overview'||view==='cvs')&&<label className={d.search}><Icon name="search"/><span className={d.srOnly}>Search recent work</span><input type="search" placeholder="Search roles, companies or CVs…" maxLength={200} value={search} onChange={event=>setSearch(event.target.value)}/></label>}</div>
       {alert&&<p className={d.error} role="alert">{alert}</p>}
-      {view==='applications'&&applicationsEnabled&&<Applications tenantId={tenantId} revision={jobs.map(item=>item.id+item.status).join('|')} processing={summary.inProgress.length>0} recovery={recovery} enqueue={enqueue}/>}
+      {view==='applications'&&applicationsEnabled&&<Applications onOpenJob={openJob} tenantId={tenantId} revision={jobs.map(item=>item.id+item.status).join('|')} processing={summary.inProgress.length>0} recovery={recovery} enqueue={enqueue}/>}
       {view==='overview'&&<>
         <section className={d.stats} aria-label="Recent workspace summary">{[
           ['Evaluations',summary.completed.length,'search'],['CVs ready',summary.cvs.length,'file'],['In progress',summary.inProgress.length,'clock'],['Needs review',summary.review.length,'shield'],

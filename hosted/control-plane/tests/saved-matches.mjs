@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
+import {SavedJobs} from '../saved-jobs.mjs';import {postingContext,rankedScore} from '../match-context.mjs';import {hash} from '../queue.mjs';
+export async function verifySavedMatches({pool,queue,tenantId,userId,otherUserId,engineRevision}){
+ const service=new SavedJobs(queue),runId=randomUUID(),draftId=randomUUID(),nextDraft=randomUUID(),posting={id:'https://jobs.lever.co/synthetic/match',url:'https://jobs.lever.co/synthetic/match',company:'Synthetic Match Employer',title:'Engineer',location:'US',source:'lever-full',description:'Build Python tools. OPT candidates are welcome.',descriptionAvailable:true};
+ const ids=[];
+ await pool.query('insert into profile_drafts(id,user_id,review_hash,content,confirmed_at) values($1,$2,$3,$4,clock_timestamp())',[draftId,userId,'a'.repeat(64),{fullName:'Synthetic match fixture',cvMarkdown:'Synthetic Python engineer',language:'en'}]);
+ await pool.query('insert into personal_workspaces(user_id,tenant_id,draft_id,review_hash) values($1,$2,$3,$4)',[userId,tenantId,draftId,'a'.repeat(64)]);
+ await pool.query("insert into discovery_runs(id,tenant_id,user_id,input,state,result) values($1,$2,$3,$4,'succeeded',$5)",[runId,tenantId,userId,{q:'synthetic',location:'US'},{jobs:[posting]}]);
+ const saved=await service.save({tenantId,userId,runId,jobId:posting.id}),input={tenantId,userId,id:saved.id,expectedRevision:saved.revision,engineRevision};
+ await pool.query('update discovery_runs set result=$2 where id=$1',[runId,{jobs:[{...posting,description:posting.description+' Updated requirements.'}]}]);await assert.rejects(service.save({tenantId,userId,runId,jobId:posting.id}),/saved_job_source_changed/);await pool.query('update discovery_runs set result=$2 where id=$1',[runId,{jobs:[posting]}]);
+ await assert.rejects(service.evaluate({...input,userId:otherUserId}),/not_found/);await assert.rejects(service.evaluate({...input,expectedRevision:9}),/saved_job_conflict/);
+ const [first,replay]=await Promise.all([service.evaluate(input),service.evaluate(input)]);ids.push(first.id);assert.equal(first.id,replay.id);
+ const actual=(await pool.query('select payload from jobs where id=$1',[first.id])).rows[0].payload;assert.equal(actual.postingText,postingContext(posting));assert.equal(actual.postingUrl,posting.url);
+ await pool.query("update jobs set status='succeeded',result=$2,finished_at=clock_timestamp() where id=$1",[first.id,{score:'4.6/5',applicationNumber:1}]);
+ let item=(await service.list({tenantId,userId}))[0];assert.equal(item.match.jobId,first.id);assert.equal(item.match.score,4.6);assert.equal(item.match.stale,false);assert.equal((await service.evaluate(input)).id,first.id);
+ const wrong=await queue.enqueue({tenantId,userId,idempotencyKey:randomUUID(),operation:'evaluate',postingText:postingContext({...posting,description:'A different posting body.'}),postingUrl:posting.url,engineRevision});ids.push(wrong.id);await pool.query("update jobs set status='succeeded',result=$2 where id=$1",[wrong.id,{score:5}]);assert.equal((await service.list({tenantId,userId}))[0].match.jobId,first.id,'same URL with changed text cannot supply the score');
+ await pool.query('insert into profile_drafts(id,user_id,review_hash,content,confirmed_at) values($1,$2,$3,$4,clock_timestamp())',[nextDraft,userId,'b'.repeat(64),{fullName:'Synthetic changed profile',cvMarkdown:'Updated synthetic CV.',language:'en'}]);await pool.query('update personal_workspaces set draft_id=$2,review_hash=$3 where user_id=$1',[userId,nextDraft,'b'.repeat(64)]);
+ item=(await service.list({tenantId,userId}))[0];assert.equal(item.match.stale,true);assert.equal(rankedScore(item),null);
+ const updated=await service.evaluate(input);ids.push(updated.id);assert.notEqual(updated.id,first.id);
+ await pool.query("update jobs set status='failed' where id=$1",[updated.id]);const retried=await service.evaluate(input);ids.push(retried.id);assert.notEqual(retried.id,updated.id);
+ await pool.query('delete from saved_jobs where id=$1',[saved.id]);await pool.query('delete from discovery_runs where id=$1',[runId]);await pool.query('delete from job_events where job_id=any($1::uuid[])',[ids]);await pool.query('delete from jobs where id=any($1::uuid[])',[ids]);await pool.query('delete from personal_workspaces where user_id=$1',[userId]);await pool.query('delete from profile_drafts where id=any($1::uuid[])',[[draftId,nextDraft]]);
+ console.log('PASS saved CV matching: server-owned source, authorization/revision denial, concurrent replay, exact text binding, authoritative score, current-profile staleness and safe retry');
+}
