@@ -2,11 +2,11 @@ import fs from 'node:fs/promises';import path from 'node:path';import {createHas
 import {init,parse} from 'es-module-lexer';
 const service=path.resolve(import.meta.dirname,'..'),repo=path.resolve(service,'../..'),destination=path.join(service,'src/lib/generated/scanner');
 export async function prepareScanner(){
- await init;const pending=['scan-ats-full.mjs','hosted/local-worker/discovery-runner.mjs'],files=new Map(),external=new Set();
+ await init;const pending=['tracker-aliases.json','scan-ats-full.mjs','hosted/local-worker/discovery-runner.mjs'],files=new Map(),external=new Set();
  while(pending.length){const relative=pending.pop().replaceAll('\\','/');if(files.has(relative))continue;
-  if(relative.startsWith('../')||path.isAbsolute(relative)||!relative.endsWith('.mjs')||/^(?:data|config|modes|documents|output|jds|reports)\//.test(relative))throw Error('unsafe_scanner_dependency');
+  if(relative.startsWith('../')||path.isAbsolute(relative)||(!relative.endsWith('.mjs')&&relative!=='tracker-aliases.json')||/^(?:data|config|modes|documents|output|jds|reports)\//.test(relative))throw Error('unsafe_scanner_dependency');
   const source=path.join(repo,relative);if(!(await fs.lstat(source)).isFile())throw Error('unsafe_scanner_source');const text=await fs.readFile(source,'utf8');files.set(relative,text);
-  for(const item of parse(text)[0]){if(!item.n)continue;if(item.n.startsWith('.')){pending.push(path.relative(repo,path.resolve(path.dirname(source),item.n)));}else if(!item.n.startsWith('node:')&&!['fs','path','url','crypto','os','util','http','https','stream','zlib','dns','net','tls','child_process','events','module','assert','readline','buffer','timers','perf_hooks','string_decoder'].includes(item.n.split('/')[0]))external.add(item.n);}
+  for(const item of (relative.endsWith('.mjs')?parse(text)[0]:[])){if(!item.n)continue;if(item.n.startsWith('.')){pending.push(path.relative(repo,path.resolve(path.dirname(source),item.n)));}else if(!item.n.startsWith('node:')&&!['fs','path','url','crypto','os','util','http','https','stream','zlib','dns','net','tls','child_process','events','module','assert','readline','buffer','timers','perf_hooks','string_decoder'].includes(item.n.split('/')[0]))external.add(item.n);}
  }
  if([...external].some(name=>!['js-yaml','undici','playwright','dotenv'].includes(name)))throw Error('unexpected_scanner_package:'+JSON.stringify([...external]));
  await fs.mkdir(destination,{recursive:true});const manifest=[];

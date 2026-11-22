@@ -24,6 +24,6 @@ async function walk(directory){
 await walk(path.join(root,'.next/server'));if(!traces)throw new Error('missing_worker_traces');
 console.log(JSON.stringify({workerRoutes:Object.keys(routes),traces,uniqueFiles:files.size}));
 
-const manifest=JSON.parse(await fs.readFile(path.join(root,'.scanner-manifest.json'),'utf8'));if(!manifest.length||manifest.some(file=>!file.path.endsWith('.mjs')||file.path.includes('..')))throw Error('invalid_scanner_manifest');
+const manifest=JSON.parse(await fs.readFile(path.join(root,'.scanner-manifest.json'),'utf8'));if(!manifest.length||manifest.some(file=>(!file.path.endsWith('.mjs')&&file.path!=='tracker-aliases.json')||file.path.includes('..')))throw Error('invalid_scanner_manifest');
 
 for(const file of manifest){const bytes=await fs.readFile(path.join(root,'src/lib/generated/scanner',file.path));if(createHash('sha256').update(bytes).digest('hex')!==file.sha256)throw Error('scanner_source_changed');}
