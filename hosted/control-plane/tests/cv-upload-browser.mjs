@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {zipSync,strToU8} from '../../web/node_modules/fflate/esm/index.mjs';
 export async function verifyCvUploads(page){
+ const {zipSync,strToU8}=await import('../../web/node_modules/fflate/esm/index.mjs');
  const input=page.getByLabel('Upload your CV',{exact:true}),text=page.getByLabel('CV text',{exact:true});let savedRequests=0;const listener=r=>{if(r.method()==='POST'&&r.url().includes('/api/hosted/'))savedRequests++;};page.on('request',listener);
  try{
  await input.setInputFiles({name:'cv.txt',mimeType:'text/plain',buffer:Buffer.from('Synthetic text engineer with Python experience.')});await text.waitFor();await page.waitForFunction(()=>document.querySelector('#cv-text')?.value.includes('Synthetic text engineer'));assert.equal(savedRequests,0,'selection alone must not save a draft');
