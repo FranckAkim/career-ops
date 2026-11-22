@@ -1,3 +1,4 @@
+import {prepareScanner} from './prepare-scanner.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 const root = path.resolve(import.meta.dirname,'..');
@@ -19,3 +20,5 @@ for (const [source,name] of copies) {
   await fs.writeFile(target,text);
 }
 console.log('Prepared fixed worker SDK sources.');
+
+await prepareScanner();

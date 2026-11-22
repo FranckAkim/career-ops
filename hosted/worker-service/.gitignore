@@ -8,3 +8,5 @@
 
 .vercel
 .env*
+
+/.scanner-manifest.json

@@ -11,7 +11,7 @@ type JobEvent = { sequence: string; kind: string; created_at: string };
 const active = (status: string) => ['queued','running','cancel_requested'].includes(status);
 const labels: Record<string,string> = { queued: 'Queued', running: 'Running', cancel_requested: 'Stopping', cancelled: 'Cancelled', succeeded: 'Complete', failed: 'Failed', needs_recovery: 'Needs review' };
 
-export function Workspace({ tenantId, onSignOut, pageError, signingOut, executionMode='unavailable', userName='Your profile',applicationsEnabled=false }: { tenantId: string; onSignOut: () => void; pageError: string; signingOut: boolean; executionMode?: string; userName?: string;applicationsEnabled?:boolean }) {
+export function Workspace({ tenantId, onSignOut, pageError, signingOut, executionMode='unavailable', userName='Your profile',applicationsEnabled=false,cloudDiscovery=false }: { tenantId: string; onSignOut: () => void; pageError: string; signingOut: boolean; executionMode?: string; userName?: string;applicationsEnabled?:boolean;cloudDiscovery?:boolean }) {
   const base = `/api/hosted/tenants/${tenantId}`;
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -124,7 +124,7 @@ export function Workspace({ tenantId, onSignOut, pageError, signingOut, executio
   return <Dashboard applicationsEnabled={applicationsEnabled} key={tenantId} jobs={jobs} tenantId={tenantId} userName={userName} loaded={loaded} executionMode={executionMode} onSignOut={onSignOut} signingOut={busy || signingOut} enqueue={enqueue} recovery={recovery} alert={error || pageError || historyError} onOpenJob={id=>{setSelected(id);setRefresh(value=>value+1);}}>
     <div>
       {recovery && <section className={styles.recovery} aria-label="Workspace recovery"><h2>A job needs your review.</h2><p>Your last saved workspace is still in place. Discard uncommitted changes from the interrupted attempt before starting more work.</p><label><input type="checkbox" checked={discard} onChange={e => setDiscard(e.target.checked)} /> I understand this discards the workspaceâ€™s uncommitted changes.</label><button className={styles.primary} disabled={!discard || busy} onClick={discardRecovery}>Discard interrupted changes</button></section>}
-      <JobSearch base={base} disabled={busy||recovery||!loaded} onSelect={(text,url)=>{setPostingText(text);setPostingUrl(url);}}/>
+      <JobSearch cloudDiscovery={cloudDiscovery} base={base} disabled={busy||recovery||!loaded} onSelect={(text,url)=>{setPostingText(text);setPostingUrl(url);}}/>
       <div className={styles.workspaceGrid}>
         <aside className={styles.card}>
           <form onSubmit={evaluate}><p className={styles.eyebrow}>A new opportunity</p><h2>Bring a role.</h2><p>Choose a search result above or paste a job description to evaluate it against your confirmed profile.</p><label htmlFor="posting-text">Posting text</label><textarea id="posting-text" rows={8} maxLength={200000} required disabled={busy || recovery} value={postingText} onChange={e => setPostingText(e.target.value)} /><label>Posting URL <span>(optional)</span><input type="url" maxLength={4096} disabled={busy || recovery} value={postingUrl} onChange={e => setPostingUrl(e.target.value)} /></label><p className={styles.help}>Text-only assessment. The link is saved as a reference; it is not fetched.</p><button className={styles.primary} disabled={busy || recovery || !loaded || !postingText.trim()}>{busy ? 'Savingâ€¦' : 'Evaluate posting'}</button></form>

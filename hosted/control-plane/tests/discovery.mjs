@@ -1,3 +1,4 @@
+import {verifyCloudDiscovery} from './cloud-discovery.mjs';
 import assert from 'node:assert/strict';import{randomUUID}from'node:crypto';
 import{Discovery}from'../discovery.mjs';import{discoveryOnce}from'../../local-worker/discovery-runtime.mjs';
 export async function verifyDiscovery({pool,queue,tenantId,userId,otherUserId}){
@@ -12,5 +13,6 @@ export async function verifyDiscovery({pool,queue,tenantId,userId,otherUserId}){
  const interrupted=await service.start({tenantId,userId,input});await pool.query("update discovery_runs set state='running',claim=$2,lease_until=clock_timestamp()-interval '1 second' where id=$1",[interrupted.id,randomUUID()]);assert.equal(await discoveryOnce({pool,runner}),null);assert.equal((await service.read({tenantId,userId,id:interrupted.id})).state,'failed');
  const pending=await service.start({tenantId,userId,input}),requestId=randomUUID();await pool.query('insert into account_deletion_requests(id,user_id,tenant_id,scope_hash,session_fingerprint) values($1,$2,$3,$4,$4)',[requestId,userId,tenantId,'a'.repeat(64)]);await pool.query('insert into account_tombstones(user_id,request_id) values($1,$2)',[userId,requestId]);assert.equal((await pool.query('select 1 from discovery_runs where user_id=$1',[userId])).rowCount,0);await assert.rejects(service.start({tenantId,userId,input}),/account_deleting/);await pool.query('delete from account_tombstones where user_id=$1',[userId]);await pool.query('delete from account_deletion_requests where id=$1',[requestId]);
  const rights=(await pool.query("select has_column_privilege('career_web','discovery_runs','claim','UPDATE') as web_claim,has_column_privilege('career_worker','discovery_runs','input','UPDATE') as worker_input,has_table_privilege('career_worker','discovery_runs','INSERT') as worker_insert")).rows[0];assert.deepEqual(rights,{web_claim:false,worker_input:false,worker_insert:false});
+ await verifyCloudDiscovery({pool,queue,tenantId,userId});
  console.log('PASS built-in discovery: exact replay/conflict, tenant denial, concurrent claim, queued/running cancellation with late publication refusal, interrupted leases, account blocking removes results and restricted role grants');
 }

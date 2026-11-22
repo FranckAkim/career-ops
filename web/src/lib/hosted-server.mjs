@@ -38,11 +38,15 @@ function getServices() {
       body: JSON.stringify({ jobId }), signal: AbortSignal.timeout(5000), redirect: 'error' });
     if (!response.ok) throw new Error('worker_notification_failed');
   } : undefined;
+  const notifyDiscovery=process.env.HOSTED_DISCOVERY_CLOUD_ENABLED==='1'?async discoveryId=>{
+    if(!/^https:\/\/[a-z0-9.-]+\.vercel\.app$/.test(workerUrl||'')||!workerSecret||workerSecret.length<32)throw Error('discovery_dispatch_required');
+    const response=await fetch(`${workerUrl}/api/wake`,{method:'POST',headers:{Authorization:`Bearer ${workerSecret}`,'content-type':'application/json'},body:JSON.stringify({discoveryId}),signal:AbortSignal.timeout(5000),redirect:'error'});if(!response.ok)throw Error('discovery_dispatch_failed');
+  }:undefined;
   let store;
   if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) store = new BlobSnapshotStore({ ...snapshotOptions,storeId: process.env.BLOB_STORE_ID, token: process.env.BLOB_READ_WRITE_TOKEN });
   else if (process.env.VERCEL !== '1' && process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT) store = new SnapshotStore(process.env.HOSTED_DEVELOPMENT_SNAPSHOT_ROOT,snapshotOptions);
   services = { auth,pool,lifecycleEnabled, api: createApi({ queue, auth, onboarding: new Onboarding({ queue, store,inventory }), artifacts: new Artifacts({ queue, store }), origin: process.env.BETTER_AUTH_URL, engineRevision: process.env.HOSTED_ENGINE_REVISION,
-    requestCompletion:process.env.VERCEL_PROJECT_ID?{projectId:process.env.VERCEL_PROJECT_ID,secret:process.env.BETTER_AUTH_SECRET,report:receipt=>console.info(receipt)}:null,requestDrainEnabled:process.env.HOSTED_REQUEST_DRAIN_ENABLED==='1',requestDeploymentId:process.env.VERCEL_DEPLOYMENT_ID||null,requestInstanceId:process.env.VERCEL_DEPLOYMENT_ID?requestInstanceId:null,notifyQueue, jobsEnabled: policy.jobsEnabled,applicationsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_APPLICATIONS_ENABLED==='1',profileEditingEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_PROFILE_EDITING_ENABLED==='1',deletionRequestsEnabled:deletionRequestPolicy(process.env),dataControlsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_DATA_CONTROLS_ENABLED==='1' }) };
+    requestCompletion:process.env.VERCEL_PROJECT_ID?{projectId:process.env.VERCEL_PROJECT_ID,secret:process.env.BETTER_AUTH_SECRET,report:receipt=>console.info(receipt)}:null,requestDrainEnabled:process.env.HOSTED_REQUEST_DRAIN_ENABLED==='1',requestDeploymentId:process.env.VERCEL_DEPLOYMENT_ID||null,requestInstanceId:process.env.VERCEL_DEPLOYMENT_ID?requestInstanceId:null,notifyQueue,notifyDiscovery, jobsEnabled: policy.jobsEnabled,applicationsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_APPLICATIONS_ENABLED==='1',profileEditingEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_PROFILE_EDITING_ENABLED==='1',deletionRequestsEnabled:deletionRequestPolicy(process.env),dataControlsEnabled:process.env.VERCEL!=='1'||process.env.HOSTED_DATA_CONTROLS_ENABLED==='1' }) };
   return services;
 }
 export async function hostedRequest(request) {

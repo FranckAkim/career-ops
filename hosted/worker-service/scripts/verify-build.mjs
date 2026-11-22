@@ -1,6 +1,7 @@
+import {createHash} from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-const root=path.resolve(import.meta.dirname,'..'), expected=new Set(['/page','/_not-found/page','/_global-error/page','/api/wake/route','/api/consume/route','/api/sweep/route']);
+const root=path.resolve(import.meta.dirname,'..'), expected=new Set(['/page','/_not-found/page','/_global-error/page','/api/wake/route','/api/consume/route','/api/sweep/route','/api/discovery/route']);
 const routes=JSON.parse(await fs.readFile(path.join(root,'.next/server/app-paths-manifest.json'),'utf8'));
 if(Object.keys(routes).some(r=>!expected.has(r)) || !['/api/wake/route','/api/consume/route','/api/sweep/route'].every(r=>routes[r]))throw new Error('unexpected_worker_routes');
 let traces=0;const files=new Set();
@@ -22,3 +23,7 @@ async function walk(directory){
 }
 await walk(path.join(root,'.next/server'));if(!traces)throw new Error('missing_worker_traces');
 console.log(JSON.stringify({workerRoutes:Object.keys(routes),traces,uniqueFiles:files.size}));
+
+const manifest=JSON.parse(await fs.readFile(path.join(root,'.scanner-manifest.json'),'utf8'));if(!manifest.length||manifest.some(file=>!file.path.endsWith('.mjs')||file.path.includes('..')))throw Error('invalid_scanner_manifest');
+
+for(const file of manifest){const bytes=await fs.readFile(path.join(root,'src/lib/generated/scanner',file.path));if(createHash('sha256').update(bytes).digest('hex')!==file.sha256)throw Error('scanner_source_changed');}

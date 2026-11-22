@@ -1,8 +1,36 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs", "installCommand": "npm ci --ignore-scripts", "buildCommand": "npm run build",
+  "framework": "nextjs",
+  "installCommand": "npm ci --ignore-scripts",
+  "buildCommand": "npm run build",
   "functions": {
-    "src/app/api/consume/route.ts": { "maxDuration": 300, "experimentalTriggers": [{ "type": "queue/v2beta", "topic": "career-jobs", "maxDeliveries": 5, "maxConcurrency": 2 }] }
+    "src/app/api/consume/route.ts": {
+      "maxDuration": 300,
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "career-jobs",
+          "maxDeliveries": 5,
+          "maxConcurrency": 2
+        }
+      ]
+    },
+    "src/app/api/discovery/route.ts": {
+      "maxDuration": 300,
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "career-discovery",
+          "maxDeliveries": 5,
+          "maxConcurrency": 1
+        }
+      ]
+    }
   },
-  "crons": [{ "path": "/api/sweep", "schedule": "0 6 * * *" }]
+  "crons": [
+    {
+      "path": "/api/sweep",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }
