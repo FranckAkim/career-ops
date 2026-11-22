@@ -9,6 +9,10 @@ export function discoveryConfigured(env=process.env){
  const url=new URL(env.DISCOVERY_DATABASE_URL);if(decodeURIComponent(url.username)!=='career_discovery'||!url.hostname.endsWith('.neon.tech')||url.searchParams.get('sslmode')!=='verify-full')throw Error('discovery_role_required');return url.href;
 }
 export async function wakeDiscovery(value){discoveryConfigured();const id=discoveryMessage(value);await send('career-discovery',{discoveryId:id},{region:'iad1',idempotencyKey:`${id}:${Math.floor(Date.now()/300000)}`,retentionSeconds:3600});}
+export async function cleanupDiscovery(){
+ const pool=new pg.Pool({connectionString:discoveryConfigured(),max:1,connectionTimeoutMillis:5000,statement_timeout:5000});pool.on('error',()=>{});
+ try{const removed=(await pool.query('select hosted_discovery_cleanup() as count')).rows[0].count;console.info(JSON.stringify({event:'cloud_discovery_cleanup',removed}));}finally{await pool.end();}
+}
 export async function consumeDiscovery(value){
  const discoveryId=discoveryMessage(value),connectionString=discoveryConfigured(),pool=new pg.Pool({connectionString,max:2,connectionTimeoutMillis:5000,statement_timeout:5000});pool.on('error',()=>{});
  const workRoot=path.join(os.tmpdir(),'career-discovery');await fs.mkdir(workRoot,{recursive:true});

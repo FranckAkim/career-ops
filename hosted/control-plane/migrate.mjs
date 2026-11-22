@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
 export async function migrate(pool) {
-  const migrations = ['./schema.sql','./migrations/002-onboarding.sql','./migrations/003-artifact-job-index.sql','./migrations/004-worker-attempts.sql','./migrations/005-snapshot-inventory.sql','./migrations/006-storage-reconciliation.sql','./migrations/007-account-lifecycle.sql','./migrations/008-account-purge.sql','./migrations/009-request-drain.sql','./migrations/010-request-review.sql','./migrations/011-completion-receipts.sql','./migrations/012-snapshot-generations.sql','./migrations/013-snapshot-fences.sql','./migrations/014-public-deletion-request.sql','./migrations/015-local-discovery.sql','./migrations/016-saved-jobs.sql','./migrations/017-cloud-discovery.sql'];
+  const migrations = ['./schema.sql','./migrations/002-onboarding.sql','./migrations/003-artifact-job-index.sql','./migrations/004-worker-attempts.sql','./migrations/005-snapshot-inventory.sql','./migrations/006-storage-reconciliation.sql','./migrations/007-account-lifecycle.sql','./migrations/008-account-purge.sql','./migrations/009-request-drain.sql','./migrations/010-request-review.sql','./migrations/011-completion-receipts.sql','./migrations/012-snapshot-generations.sql','./migrations/013-snapshot-fences.sql','./migrations/014-public-deletion-request.sql','./migrations/015-local-discovery.sql','./migrations/016-saved-jobs.sql','./migrations/017-cloud-discovery.sql','./migrations/018-cloud-discovery-cleanup.sql'];
   const db = await pool.connect();
   try {
     await db.query('begin');
