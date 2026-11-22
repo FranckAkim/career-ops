@@ -1,3 +1,5 @@
+Current production (2026-11-22): cloud job discovery is enabled through career-discovery, using the search-only DISCOVERY_DATABASE_URL and RPC grants from migrations 017–018. /api/wake still requires the existing server secret; the discovery callback is private to Vercel Queues. Daily /api/sweep cleans only expired search records while cloud AI is disabled. HOSTED_WORKER_ENABLED remains 0: CV evaluation/tailoring stays on local Ollama. Local CareerWorkspaceDiscovery is Disabled after successful automatic frontend/cloud-only proofs; CareerWorkspaceLocalWorker remains Running. Read ../../docs/hosted/cloud-discovery.md and ../../PROJECT_HANDOFF.md before changing activation or rollback. The older AI worker description below is retained as implementation history, not permission to enable cloud AI.
+
 # Career Workspace background service
 
 Separate Vercel project: `career-workspace-worker`, Root Directory
