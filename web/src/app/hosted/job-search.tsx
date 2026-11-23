@@ -2,6 +2,7 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import styles from './screen.module.css';
 import css from './job-search.module.css';
+import {HandshakeImport} from './handshake-import';
 import {SavedJobs,type SavedPosting,type SavedEntry} from './saved-jobs';
 import {postingContext,samePosting,compareMatches} from '@/lib/match-context.mjs';
 import {MatchExplanation} from './match-explanation';
@@ -18,7 +19,7 @@ export function JobSearch({base,disabled,onSelect,cloudDiscovery=false,onOpenMat
  const[run,setRun]=useState<Run|null>(null),[sending,setSending]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const[authorization,setAuthorization]=useState('any'),[includeUnknown,setIncludeUnknown]=useState(false);
  const[resultFilter,setResultFilter]=useState('');
- const[showSaved,setShowSaved]=useState(false);
+ const[showSaved,setShowSaved]=useState(false),[showImport,setShowImport]=useState(false);
  const[savedRefresh,setSavedRefresh]=useState(0),[savedUrls,setSavedUrls]=useState<string[]>([]),[saving,setSaving]=useState('');
  const[savedEntries,setSavedEntries]=useState<SavedEntry[]>([]),[sort,setSort]=useState('newest');
  const onEntries=useCallback((items:SavedEntry[])=>setSavedEntries(items),[]);
@@ -78,7 +79,7 @@ export function JobSearch({base,disabled,onSelect,cloudDiscovery=false,onOpenMat
  const outdated=(job:SavedPosting)=>savedEntries.some(item=>item.posting.url===job.url&&!samePosting(item.posting,job));
  const matching=(job:SavedPosting)=>savedEntries.find(item=>samePosting(item.posting,job))?.match;
  const visibleJobs=(result?.jobs||[]).filter(job=>`${job.title} ${job.company} ${job.location}`.toLowerCase().includes(filterText)).sort((a,b)=>sort==='best'?compareMatches({id:a.id,posting:a,match:matching(a)},{id:b.id,posting:b,match:matching(b)}):String(b.postedAt||'').localeCompare(String(a.postedAt||'')));
- return <><div className={styles.actions} role="group" aria-label="Opportunity views"><button className={styles.quiet} aria-pressed={!showSaved} onClick={()=>setShowSaved(false)}>Find jobs</button><button className={styles.quiet} aria-label="Saved jobs" aria-pressed={showSaved} onClick={()=>setShowSaved(true)}>Saved jobs ({savedUrls.length})</button></div><div hidden={!showSaved}><SavedJobs onEntries={onEntries} onOpenMatch={onOpenMatch} base={base} refresh={savedRefresh} disabled={disabled} onSelect={job=>{setShowSaved(false);select(job);}} onUrls={onSavedUrls}/></div><section hidden={showSaved} className={`${styles.card} ${css.search}`} aria-label="Find jobs">
+ return <><div className={styles.actions} role="group" aria-label="Opportunity views"><button className={styles.quiet} aria-pressed={!showSaved&&!showImport} onClick={()=>{setShowImport(false);setShowSaved(false);}}>Find jobs</button><button className={styles.quiet} aria-label="Saved jobs" aria-pressed={showSaved&&!showImport} onClick={()=>{setShowImport(false);setShowSaved(true);}}>Saved jobs ({savedUrls.length})</button><button className={styles.quiet} aria-pressed={showImport} onClick={()=>{setShowImport(true);setShowSaved(false);}}>Import from Handshake</button></div><div hidden={!showImport}><HandshakeImport base={base} onSaved={()=>{setSavedRefresh(n=>n+1);setShowImport(false);setShowSaved(true);}}/></div><div hidden={!showSaved||showImport}><SavedJobs onEntries={onEntries} onOpenMatch={onOpenMatch} base={base} refresh={savedRefresh} disabled={disabled} onSelect={job=>{setShowImport(false);setShowSaved(false);select(job);}} onUrls={onSavedUrls}/></div><section hidden={showSaved||showImport} className={`${styles.card} ${css.search}`} aria-label="Find jobs">
  <p className={styles.eyebrow}>Built-in career-ops discovery</p><h2>Find your next role.</h2>
  <p>Search employer boards through Greenhouse, Lever, Ashby and Workday, plus iCIMS, BambooHR and Paylocity in expanded coverage. {cloudDiscovery?'Search runs in the cloud, including while your computer is off.':'Scans run on your computer and wait while it is offline.'}</p>
  <form onSubmit={e=>{e.preventDefault();void search();}} className={css.form}>

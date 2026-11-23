@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
 export const copies = [
+  ['src/app/hosted/handshake-import.tsx','src/app/hosted/handshake-import.tsx'],
   ['src/app/hosted/match-explanation.tsx','src/app/hosted/match-explanation.tsx'],
   ...['match-context','machine-summary','machine-summary-section','report-sections','report-tables'].map(name=>[`src/lib/${name}.mjs`,`src/lib/${name}.mjs`]),
   ['src/app/hosted/posting-details.tsx','src/app/hosted/posting-details.tsx'],

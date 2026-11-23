@@ -13,7 +13,16 @@ function roleUrl(value,provider){
  if(provider==='paylocity')ok=u.hostname==='recruiting.paylocity.com'&&/^\/Recruiting\/Jobs\/Details\/\d+$/.test(p);
  if(!ok)return null;u.search='';u.hash='';u.pathname=p;return u;
 }
+export function handshakeUrl(value){
+ const u=https(value);if(!u||u.hostname!=='app.joinhandshake.com'||!/^\/(?:stu\/)?jobs\/[1-9]\d*\/?$/.test(u.pathname))return null;
+ return 'https://app.joinhandshake.com/stu/jobs/'+u.pathname.match(/\d+\/?$/)[0].replace(/\/$/,'');
+}
 export function postingDetails(job){
+ if(job.source==='handshake-import'){
+  const url=handshakeUrl(job.url);if(!url)return {};
+  const date=Date.parse(job.importedAt);
+  return {postingUrl:url,applicationLink:url,applicationKind:'posting',sourceName:'Handshake (imported)',sourceHost:'app.joinhandshake.com',checkedAt:null,provenance:'user_import',importedAt:Number.isFinite(date)?new Date(date).toISOString():null};
+ }
  const provider=String(job.source||'').replace(/-full$/,'');if(!Object.hasOwn(names,provider)||job.source!==provider+'-full')return {};
  let posting=roleUrl(job.url,provider);
  // Greenhouse can return a custom employer URL. Its source-owned board/id

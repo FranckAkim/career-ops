@@ -53,3 +53,9 @@ export async function readCvFile(file){
  const text=/\.pdf$/i.test(file.name)?await pdfText(data):/\.docx$/i.test(file.name)?await docxText(data):decodeCvText(data);
  return checkedCvText(text);
 }
+
+// Shared bounded browser document reader; original bytes are never uploaded.
+export async function readPostingFile(file){
+ try{const text=await readCvFile(file);if(text.length>30000)throw Error('This job posting is too long. Keep the posting text within 30,000 characters.');return text;}
+ catch(error){throw Error((error instanceof Error?error.message:'This document could not be read.').replace(/\bCVs?\b/g,'job posting'));}
+}

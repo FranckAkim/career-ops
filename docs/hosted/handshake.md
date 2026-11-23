@@ -1,0 +1,13 @@
+# Handshake student posting import
+
+A university student account is used by the person in Handshake itself. This app does not use it as an API credential or automate that session. Handshake documents institutional EDU API access via its relationship managers, not a public student job-search integration; its terms prohibit automated bulk marketplace collection. This integration is an explicit individual posting import supplied and reviewed by the user.
+
+Opportunities → Import from Handshake accepts the original app.joinhandshake.com job link, title/employer/location and full text. PDF, DOCX, Markdown and text files reuse the existing bounded browser reader (5MB, no HTML/execution; document bytes stay local). Only reviewed text/metadata is sent when Save Handshake posting is clicked. The backend requires acknowledgment, exact supported HTTPS host/numeric job path, bounded strings and allowlisted fields; legacy /jobs links canonicalize to /stu/jobs. It makes no Handshake network request and stores no Handshake password, token or cookies. Uploaded job content remains untrusted data, never agent instructions or candidate CV facts.
+
+The saved copy has source handshake-import, user_import provenance, a server import timestamp and no source posting/check date or live-availability claim. Work authorization labels reflect the supplied wording only. Open in Handshake retains the original job destination; sign-in or school-specific access may be necessary. Date, employer eligibility and current availability must be checked by the user there. Imported jobs are not admitted to automatic ATS discovery as fresh results.
+
+The existing immutable saved_jobs table, 30-item owner quota, tenant checks, duplicate/source-conflict handling, shortlist/removal, complete export and account deletion apply without schema/grant changes. Canonical URL + unchanged source replay returns the same copy; changing imported text requires explicit removal/reimport, preserving old evaluations and application history. Import never triggers AI. Explicit saved-role evaluation uses the existing confirmed-profile/local-Ollama queue and canonical engine tracker, including stale-profile handling and application stages. This does not provide automatic Handshake search/sync or submit applications.
+
+Validation and deployment evidence are recorded in PROJECT_HANDOFF.md. All tests use synthetic postings and accounts.
+
+Sources: [Handshake terms](https://joinhandshake.com/legal/tos/), [institutional API access](https://support.joinhandshake.com/hc/en-us/articles/360000869147-University-Technical-Support-Guidelines-and-Resources), [EDU endpoint scope](https://support.joinhandshake.com/hc/en-us/articles/35762729693719-EDU-API-Endpoint-Definitions).
