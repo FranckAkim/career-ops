@@ -4,7 +4,7 @@ test('cloud wake follows authorization, carries only the existing run ID and ret
  const db={query:async sql=>({rows:sql.includes('count(*)')?[{count:0}]:sql.includes('select id,state,input')?(latest?[latest]:[]):[]})};
  const queue={pool:db,transaction:fn=>fn(db),authorize:async(_db,tenant)=>{if(tenant!=='mine')throw new ControlError('not_found');}};
  const api=createApi({queue,engineRevision:'a'.repeat(40),auth:{api:{getSession:async()=>({user:{id:'user'}})}},origin:'https://example.com',notifyDiscovery:async runId=>{calls.push(runId);throw Error('temporary_dispatch_failure');}});
- const req=(tenant,method='GET')=>new Request(`https://example.com/api/hosted/tenants/${tenant}/discovery`,{method,headers:{origin:'https://example.com','content-type':'application/json'},...(method==='POST'?{body:JSON.stringify({q:'engineer'})}:{})});
+ const req=(tenant,method='GET')=>new Request(`https://example.com/api/hosted/tenants/${tenant}/discovery`,{method,headers:{origin:'https://example.com','content-type':'application/json'},...(method==='POST'?{body:JSON.stringify({q:'engineer',titleMatch:'all_words'})}:{})});
  assert.equal((await api(req('other','POST'))).status,404);assert.equal(calls.length,0);
  const started=await api(req('mine','POST'));assert.equal(started.status,202);const run=await started.json();assert.equal(calls[0],run.id);
  latest={id,state:'queued',input:{q:'engineer'}};assert.equal((await api(req('mine'))).status,200);assert.equal(calls[1],id);

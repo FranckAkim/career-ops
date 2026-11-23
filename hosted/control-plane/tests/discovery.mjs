@@ -2,10 +2,10 @@ import {verifyCloudDiscovery} from './cloud-discovery.mjs';
 import assert from 'node:assert/strict';import{randomUUID}from'node:crypto';
 import{Discovery}from'../discovery.mjs';import{discoveryOnce}from'../../local-worker/discovery-runtime.mjs';
 export async function verifyDiscovery({pool,queue,tenantId,userId,otherUserId}){
- const service=new Discovery(queue),input={q:'engineer',location:'United States',sinceDays:14,limitPerAts:25};
+ const service=new Discovery(queue),input={q:'engineer',location:'United States',sinceDays:14,limitPerAts:25,titleMatch:'all_words'};
  const run=await service.start({tenantId,userId,input});assert.equal((await service.start({tenantId,userId,input})).id,run.id);await assert.rejects(service.start({tenantId,userId,input:{...input,q:'manager'}}),/discovery_busy/);
  await assert.rejects(service.read({tenantId,userId:otherUserId,id:run.id}),/not_found/);
- let calls=0;const runner=async()=>{calls++;return{jobs:[],partial:true,companiesScanned:1};};
+ let calls=0;const runner=async({input:claimedInput})=>{assert.equal(claimedInput.titleMatch,'all_words');calls++;return{jobs:[],partial:true,companiesScanned:1};};
  await Promise.all([discoveryOnce({pool,runner}),discoveryOnce({pool,runner})]);assert.equal(calls,1);assert.equal((await service.read({tenantId,userId,id:run.id})).state,'succeeded');
  const cancelled=await service.start({tenantId,userId,input});await service.cancel({tenantId,userId,id:cancelled.id});assert.equal(await discoveryOnce({pool,runner}),null);assert.equal((await service.read({tenantId,userId,id:cancelled.id})).state,'cancelled');
  const racing=await service.start({tenantId,userId,input});let enter,release;const entered=new Promise(resolve=>enter=resolve),gate=new Promise(resolve=>release=resolve);

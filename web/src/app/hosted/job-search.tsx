@@ -9,11 +9,12 @@ import {WorkAuthorization} from './work-authorization';
 import {PostingDetails,PostingLinks} from './posting-details';
 type Listing=SavedPosting & {id:string;url:string;title:string;company:string;description:string;descriptionAvailable:boolean;location:string;source:string;postedAt:string|null};
 type Results={checkedAt?:string;filteredQuality?:number;sort?:string;jobs:Listing[];partial:boolean;timedOut:boolean;companiesScanned:number;filteredAuthorization?:number;authorizationFilter?:string;unreachableBoards:number;capHit:boolean;displayCapped:boolean};
-type SearchInput={q:string;location:string;workplace:string;sinceDays:number;limitPerAts:number;authorization?:string;includeUnknown?:boolean};
+type SearchInput={q:string;location:string;workplace:string;sinceDays:number;limitPerAts:number;authorization?:string;includeUnknown?:boolean;titleMatch?:string};
 type Run={id:string;state:string;input?:SearchInput;result?:Results;error_code?:string};
 const active=(run:Run|null)=>!!run&&['queued','running'].includes(run.state);
 export function JobSearch({base,disabled,onSelect,cloudDiscovery=false,onOpenMatch}:{base:string;disabled:boolean;onSelect:(text:string,url:string)=>void;cloudDiscovery?:boolean;onOpenMatch?:(id:string)=>void}){
- const[q,setQ]=useState(''),[location,setLocation]=useState('United States, USA, U.S., US Remote'),[workplace,setWorkplace]=useState('any'),[sinceDays,setSinceDays]=useState(14),[limit,setLimit]=useState(50);
+ const[q,setQ]=useState(''),[location,setLocation]=useState('United States, USA, U.S., US Remote'),[workplace,setWorkplace]=useState('any'),[sinceDays,setSinceDays]=useState(14),[limit,setLimit]=useState(100);
+ const[titleMatch,setTitleMatch]=useState('all_words');
  const[run,setRun]=useState<Run|null>(null),[sending,setSending]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const[authorization,setAuthorization]=useState('any'),[includeUnknown,setIncludeUnknown]=useState(false);
  const[resultFilter,setResultFilter]=useState('');
@@ -26,7 +27,7 @@ export function JobSearch({base,disabled,onSelect,cloudDiscovery=false,onOpenMat
  useEffect(()=>()=>savedRequest.current?.abort(),[base]);
  const operation=useRef<AbortController|null>(null);
  const[restoring,setRestoring]=useState(true);
- const restore=useCallback((value:Run|null)=>{setRun(value);setResultFilter('');if(value?.input){setQ(value.input.q);setLocation(value.input.location);setWorkplace(value.input.workplace);setSinceDays(value.input.sinceDays);setLimit(value.input.limitPerAts);setAuthorization(value.input.authorization||'any');setIncludeUnknown(value.input.includeUnknown===true);}},[]);
+ const restore=useCallback((value:Run|null)=>{setRun(value);setResultFilter('');if(value?.input){setQ(value.input.q);setLocation(value.input.location);setWorkplace(value.input.workplace);setSinceDays(value.input.sinceDays);setLimit(value.input.limitPerAts);setTitleMatch(value.input.titleMatch||'phrase');setAuthorization(value.input.authorization||'any');setIncludeUnknown(value.input.includeUnknown===true);}},[]);
  useEffect(()=>{
   const controller=new AbortController();setRestoring(true);
   void fetch(`${base}/discovery`,{signal:controller.signal,cache:'no-store'}).then(async response=>{
@@ -50,7 +51,7 @@ export function JobSearch({base,disabled,onSelect,cloudDiscovery=false,onOpenMat
  async function search(){
   const controller=new AbortController();operation.current=controller;setSending(true);setError('');setNotice('');setResultFilter('');
   try{
-   const response=await fetch(`${base}/discovery`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({q:q.trim(),location:location.trim(),workplace,sinceDays,limitPerAts:limit,authorization,includeUnknown})});
+   const response=await fetch(`${base}/discovery`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({q:q.trim(),location:location.trim(),workplace,sinceDays,limitPerAts:limit,authorization,includeUnknown,titleMatch})});
    if(response.status===409){
     const latest=await fetch(`${base}/discovery`,{signal:controller.signal,cache:'no-store'});if(!latest.ok)throw Error('Could not restore the active search. Refresh the page to try again.');const value=await latest.json();
     if(!controller.signal.aborted){restore(value.run);setNotice(value.run?'Your existing search was restored. Review it or cancel it before starting another.':'The earlier search is no longer available. Try starting this search again.');}return;
@@ -82,10 +83,13 @@ export function JobSearch({base,disabled,onSelect,cloudDiscovery=false,onOpenMat
  <p>Search employer boards through the repo’s Greenhouse, Lever, Ashby and Workday scanner. {cloudDiscovery?'Search runs in the cloud, including while your computer is off.':'Scans run on your computer and wait while it is offline.'}</p>
  <form onSubmit={e=>{e.preventDefault();void search();}} className={css.form}>
  <label>Role or keywords<input value={q} onChange={e=>setQ(e.target.value)} maxLength={120} placeholder="e.g. project manager, program manager" required disabled={busy}/></label>
+ <label>Title matching<select aria-label="Title matching" value={titleMatch} onChange={e=>setTitleMatch(e.target.value)} disabled={busy}><option value="all_words">All words, any order</option><option value="phrase">Exact phrase</option></select></label>
  <label>Location keywords<input value={location} onChange={e=>setLocation(e.target.value)} maxLength={120} required disabled={busy}/></label>
+ <p>Separate alternative roles with commas. All-words matching finds “Senior Data Reporting Analyst” for “data analyst”; exact phrase keeps the words together. Country-only United States searches also include state-qualified cities. City-specific searches stay local.</p>
  <label>Work arrangement<select aria-label="Work arrangement" value={workplace} onChange={e=>setWorkplace(e.target.value)} disabled={busy}><option value="any">Any arrangement</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></label>
  <label>Posted within<select aria-label="Posted within" value={sinceDays} onChange={e=>setSinceDays(Number(e.target.value))} disabled={busy}>{[7,14,30].map(n=><option key={n} value={n}>{n} days</option>)}</select></label>
  <label>Boards per source<select aria-label="Boards per source" value={limit} onChange={e=>setLimit(Number(e.target.value))} disabled={busy}>{[25,50,100].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
+ <p>A larger board sample can find more roles but takes longer. Each new search samples employer boards again; it does not cover every US employer.</p>
  <label>Work authorization<select aria-label="Work authorization" value={authorization} onChange={event=>{setAuthorization(event.target.value);if(event.target.value==='any')setIncludeUnknown(false);}} disabled={busy}><option value="any">Any policy</option><option value="h1b">H-1B sponsorship / transfers</option><option value="opt">OPT / STEM OPT acceptance</option><option value="either">H-1B or OPT</option><option value="both">H-1B and OPT</option></select></label>
  <label className={css.authorizationUnknown}><input type="checkbox" checked={includeUnknown} onChange={event=>setIncludeUnknown(event.target.checked)} disabled={busy||authorization==='any'}/>Include unclear work-authorization policies</label>
  <button className={styles.primary} disabled={busy||!q.trim()||!location.trim()}>{restoring?'Restoring search…':busy?'Search in progress…':'Search jobs'}</button></form>
