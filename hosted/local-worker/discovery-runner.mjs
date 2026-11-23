@@ -7,7 +7,7 @@ import {spawn} from 'node:child_process';
 import {serializePortals} from '../../web/src/lib/core/portals-serialize.mjs';
 import {scannerArgs} from '../../web/src/lib/core/scan-args.mjs';
 import {discoveryInput} from '../control-plane/discovery.mjs';
-const sources=['greenhouse','lever','ashby','workday'];
+export function discoverySources(input){return ['workday','greenhouse','lever','ashby',...(input.coverage==='expanded'?['icims','bamboohr','paylocity']:[])];}
 export function scanConfiguration(raw){
  const input=discoveryInput(raw);
  // Exactly the same ephemeral filter serializer and scanner arguments as Explore.
@@ -19,7 +19,7 @@ export function scanConfiguration(raw){
  const positive=roles.map(s=>input.titleMatch==='all_words'&&!/(?:\b(?:word|stem):|\s\+\s)/i.test(s)?s.split(/\s+/).join(' + '):s);
  const filters={positive,negative:[],allow:usOnly?['United States']:locations,block:[],blockHard:[],alwaysAllow:usOnly?['United States']:[]};
  let portals=serializePortals(filters);if(input.workplace!=='any')portals+=`workplace_filter:\n  allow: [${JSON.stringify(input.workplace)}]\n  include_unknown: false\n`;
- return {input,portals,args:[...scannerArgs({ats:sources,json:true,sinceDays:input.sinceDays,limitPerAts:input.limitPerAts}),'--include-descriptions']};
+ return {input,portals,args:[...scannerArgs({ats:discoverySources(input),json:true,sinceDays:input.sinceDays,limitPerAts:input.limitPerAts}),'--include-descriptions']};
 }
 export function scanResult(raw,{timedOut=false,code=0,live=[],workplace='any',authorization='any',includeUnknown=false,sinceDays=14,now=Date.now()}={}){
  const matchesWorkplace=buildWorkplaceFilter(workplace==='any'?undefined:{allow:[workplace],include_unknown:false});
@@ -70,7 +70,7 @@ async function runSource({codeRoot,workRoot,input,signal,timeoutMs,source}){
 // core; two 200/min DNS budgets keep aggregate steady-state DNS pacing at 400/min (core startup bursts apply).
 export async function scanSources(raw,scan,{signal,timeoutMs=240000}={}){
  const input=discoveryInput(raw),started=Date.now(),deadline=started+timeoutMs;
- const pending=['workday','greenhouse','lever','ashby'],completed=[];let next=0;
+ const pending=discoverySources(input),completed=[];let next=0;
  async function worker(){while(next<pending.length){if(signal?.aborted)throw Error('scan_cancelled');const source=pending[next++],begin=Date.now(),remaining=deadline-begin;
   if(remaining<=0){completed.push({source,state:'timed_out',elapsedMs:0});continue;}
   try{const result=await scan({input,signal,source,timeoutMs:remaining});if(signal?.aborted)throw Error('scan_cancelled');completed.push({source,state:result.timedOut?'timed_out':'finished',elapsedMs:Date.now()-begin,result});}
@@ -82,7 +82,7 @@ export async function scanSources(raw,scan,{signal,timeoutMs=240000}={}){
  const sum=key=>results.reduce((n,r)=>n+(Number(r[key])||0),0),rawResult={offers:results.flatMap(r=>r.jobs.map(j=>({...j,descriptionTruncated:!j.descriptionAvailable}))),companiesScanned:sum('companiesScanned'),companiesAvailable:sum('companiesAvailable'),unreachableBoards:sum('unreachableBoards'),capHit:results.some(r=>r.capHit),stoppedEarly:completed.some(r=>r.state!=='finished')||results.some(r=>r.partial)};
  const result=scanResult(rawResult,{workplace:input.workplace,authorization:input.authorization,includeUnknown:input.includeUnknown,sinceDays:input.sinceDays,timedOut:completed.some(r=>r.state==='timed_out')});
  result.filteredQuality+=sum('filteredQuality');result.filteredAuthorization+=sum('filteredAuthorization');result.displayCapped ||= results.some(r=>r.displayCapped);
- return {...result,durationMs:Date.now()-started,sourceTimings:completed.map(({source,state,elapsedMs})=>({source,state,elapsedMs}))};
+ return {...result,durationMs:Date.now()-started,sourceTimings:completed.map(({source,state,elapsedMs,result})=>({source,state,elapsedMs,matches:result?.jobs.length||0,boardsScanned:result?.companiesScanned||0}))};
 }
 export async function runDiscovery({codeRoot,workRoot,input,signal,timeoutMs=240000}){
  return scanSources(input,options=>runSource({...options,codeRoot,workRoot}),{signal,timeoutMs});

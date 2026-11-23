@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {scanConfiguration,scanResult,scanSources,runDiscovery} from '../discovery-runner.mjs';
+import {scanConfiguration,scanResult,scanSources,runDiscovery,discoverySources} from '../discovery-runner.mjs';
 import {discoveryInput} from '../../control-plane/discovery.mjs';
 import {parseArgs} from '../../../scan-ats-full.mjs';
 test('quality gate removes stale/undated/untrusted results, deduplicates and caps after newest-first sorting',()=>{
@@ -78,4 +78,12 @@ test('real child contract has fixed providers, isolated scratch, DNS budgets and
  const result=await runDiscovery({codeRoot,workRoot,input:{q:'engineer'},timeoutMs:5000});assert.equal(result.companiesScanned,4);assert.equal(result.sourceTimings.length,4);assert.deepEqual(await fs.readdir(workRoot),[]);
  const controller=new AbortController(),pending=runDiscovery({codeRoot,workRoot,input:{q:'engineer'},signal:controller.signal,timeoutMs:5000});setTimeout(()=>controller.abort(),50);await assert.rejects(pending,/scan_cancelled/);assert.deepEqual(await fs.readdir(workRoot),[]);
  }finally{assert.equal(path.dirname(root),os.tmpdir());assert.ok(path.basename(root).startsWith('hosted-speed-fixture-'));await fs.rm(root,{recursive:true,force:true});}
+});
+
+test('expanded mode adds three fixed core providers without accepting arbitrary sources',async()=>{
+ assert.equal(discoveryInput({q:'engineer'}).coverage,'standard');assert.throws(()=>discoveryInput({q:'engineer',coverage:'all-sites'}));
+ assert.deepEqual(discoverySources({coverage:'expanded'}),['workday','greenhouse','lever','ashby','icims','bamboohr','paylocity']);
+ const requested=[];const result=await scanSources({q:'engineer',coverage:'expanded'},async({source})=>{requested.push(source);return{jobs:[],companiesScanned:1,partial:false};});assert.equal(result.sourceTimings.length,7);assert.equal(result.companiesScanned,7);assert.equal(new Set(requested).size,7);
+ const now=Date.now(),stamp=new Date(now).toISOString(),date=stamp.slice(0,10),offers=[['icims','https://careers-synthetic.icims.com/jobs/123/engineer/job'],['bamboohr','https://synthetic.bamboohr.com/careers/123'],['paylocity','https://recruiting.paylocity.com/Recruiting/Jobs/Details/123']].map(([source,url])=>({source:source+'-full',url,company:'Synthetic',title:'Engineer',location:'United States',postedAt:date,sourceCheckedAt:stamp}));
+ const normalized=scanResult({offers},{now});assert.equal(normalized.jobs.length,3);assert.ok(normalized.jobs.every(j=>!j.descriptionAvailable&&j.applicationKind==='posting'));assert.equal(scanResult({offers:offers.map(j=>({...j,postedAt:null}))},{now}).jobs.length,0);
 });

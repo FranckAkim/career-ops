@@ -21,3 +21,9 @@ test('saved source copies preserve bounded details and never trust supplied sour
  const saved=savedPosting(job);assert.equal(saved.sourceName,'Lever');assert.equal(saved.sourceHost,'jobs.lever.co');assert.equal(saved.applicationKind,'form');assert.equal(saved.salary.period,'year');assert.equal(saved.checkedAt,new Date(job.checkedAt).toISOString());assert.equal(saved.department,'Engineering');
  assert.equal(postingDetails({...job,salary:{min:NaN,max:140000,currency:'USD'}}).salary,null);
 });
+
+test('expanded ATS role destinations reject lookalike hosts, board pages and foreign application redirects',()=>{
+ const cases=[['icims','https://careers-synthetic.icims.com/jobs/123/software-engineer/job','iCIMS'],['bamboohr','https://synthetic.bamboohr.com/careers/123','BambooHR'],['paylocity','https://recruiting.paylocity.com/Recruiting/Jobs/Details/123','Paylocity']];
+ for(const [source,url,name] of cases){const job={source:source+'-full',url,applicationLink:'https://evil.test/apply'};assert.equal(postingDetails(job).sourceName,name);assert.equal(postingDetails(job).applicationLink,url);assert.equal(postingDetails(job).applicationKind,'posting');assert.deepEqual(postingDetails({...job,url:url.replace('.com/','.com.evil.test/')}),{});assert.deepEqual(postingDetails({...job,url:url.replace('123','%2f123')}),{});}
+ for(const [source,url] of [['icims','https://careers-synthetic.icims.com/jobs/search'],['bamboohr','https://synthetic.bamboohr.com/careers'],['paylocity','https://recruiting.paylocity.com/Recruiting/Jobs/All/123']])assert.deepEqual(postingDetails({source:source+'-full',url}),{});
+});

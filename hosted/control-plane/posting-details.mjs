@@ -1,5 +1,5 @@
 // Public source metadata only. Never fetch a browser-supplied URL.
-const names={greenhouse:'Greenhouse',lever:'Lever',ashby:'Ashby',workday:'Workday'};
+const names={greenhouse:'Greenhouse',lever:'Lever',ashby:'Ashby',workday:'Workday',icims:'iCIMS',bamboohr:'BambooHR',paylocity:'Paylocity'};
 function https(value){try{const u=new URL(value);return typeof value==='string'&&value.length<=4096&&u.protocol==='https:'&&!u.username&&!u.password&&!u.port?u:null;}catch{return null;}}
 function roleUrl(value,provider){
  const u=https(value);if(!u||/%2f|%5c|%2e/i.test(u.pathname))return null;
@@ -8,6 +8,9 @@ function roleUrl(value,provider){
  if(provider==='lever')ok=['jobs.lever.co','jobs.eu.lever.co'].includes(u.hostname)&&/^\/[^/]+\/[^/]+$/.test(p);
  if(provider==='ashby')ok=u.hostname==='jobs.ashbyhq.com'&&/^\/[^/]+\/[^/]+$/.test(p);
  if(provider==='workday')ok=/^[a-z0-9-]+\.wd\d+\.myworkdayjobs\.com$/.test(u.hostname)&&/^\/(?:[^/]+\/)?[^/]+\/job\/.+\/[^/]+$/.test(p);
+ if(provider==='icims')ok=/^[a-z0-9-]+\.icims\.com$/.test(u.hostname)&&/^\/jobs\/\d+\/[^/]+\/job$/.test(p);
+ if(provider==='bamboohr')ok=/^[a-z0-9-]+\.bamboohr\.com$/.test(u.hostname)&&/^\/careers\/\d+$/.test(p);
+ if(provider==='paylocity')ok=u.hostname==='recruiting.paylocity.com'&&/^\/Recruiting\/Jobs\/Details\/\d+$/.test(p);
  if(!ok)return null;u.search='';u.hash='';u.pathname=p;return u;
 }
 export function postingDetails(job){

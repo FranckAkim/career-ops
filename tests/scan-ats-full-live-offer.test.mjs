@@ -151,3 +151,11 @@ function captureStderr(fn) {
     fail(`composer call sites: seed=${seedCall} sweep=${sweepCall} exported=${typeof keepAndMaybeEmit}`);
   }
 }
+
+{
+ const deadline='2026-11-20T00:00:00Z';
+ const withProof=JSON.parse(formatLiveOfferLine({...job,sourceCheckedAt:'2026-11-23T12:00:00Z',closesAt:deadline},'icims-full'));
+ const withoutProof=JSON.parse(formatLiveOfferLine({...job,closesAt:deadline},'icims-full'));
+ if(withProof.applicationDeadline===deadline&&!Object.hasOwn(withoutProof,'applicationDeadline'))pass('opt-in live receipt preserves core closesAt without changing the default receipt');
+ else fail('opt-in closesAt receipt lost expiry evidence');
+}
