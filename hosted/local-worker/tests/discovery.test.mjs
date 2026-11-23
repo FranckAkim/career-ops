@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {scanConfiguration,scanResult} from '../discovery-runner.mjs';
+import {scanConfiguration,scanResult,scanSources,runDiscovery} from '../discovery-runner.mjs';
 import {discoveryInput} from '../../control-plane/discovery.mjs';
 import {parseArgs} from '../../../scan-ats-full.mjs';
 test('quality gate removes stale/undated/untrusted results, deduplicates and caps after newest-first sorting',()=>{
@@ -52,4 +52,30 @@ test('all-word role matching reuses core AND rules and leaves literal/advanced m
  assert.equal(title('all_words','word:AI + engineer')('AI Platform Engineer'),true);
  assert.throws(()=>discoveryInput({q:'engineer',titleMatch:'anything'}));
  assert.equal(discoveryInput({q:'engineer'}).titleMatch,'phrase');
+});
+
+test('source scheduling overlaps at most two providers and merges globally without losing gates',async()=>{
+ let running=0,peak=0;const started=[],gates=new Map();
+ const input={q:'engineer',location:'United States'};
+ const run=scanSources(input,async({source,timeoutMs})=>{assert.ok(timeoutMs>0&&timeoutMs<=2000);started.push(source);running++;peak=Math.max(peak,running);await new Promise(resolve=>gates.set(source,resolve));running--;
+  return {jobs:[{source:'lever-full',company:'Synthetic',title:'Engineer',url:'https://jobs.lever.co/synthetic/'+source,description:'Synthetic engineering role with reporting tools.',descriptionAvailable:source!=='workday',checkedAt:new Date().toISOString(),postedAt:new Date().toISOString().slice(0,10)}],companiesScanned:25,companiesAvailable:100,partial:false,capHit:false};
+ },{timeoutMs:2000});
+ await new Promise(r=>setImmediate(r));assert.deepEqual(started,['workday','greenhouse']);assert.equal(peak,2);
+ gates.get('greenhouse')();await new Promise(r=>setImmediate(r));assert.deepEqual(started,['workday','greenhouse','lever']);gates.get('lever')();await new Promise(r=>setImmediate(r));gates.get('ashby')();gates.get('workday')();
+ const result=await run;assert.equal(result.companiesScanned,100);assert.equal(result.jobs.length,4);assert.equal(result.jobs.find(j=>j.url.endsWith('/workday')).descriptionAvailable,false);assert.equal(result.sourceTimings.length,4);assert.equal(peak,2);
+});
+test('source failure retains other verified results; cancellation drains both active sources',async()=>{
+ const result=await scanSources({q:'engineer'},async({source})=>{if(source==='workday')throw Error('synthetic_source_failure');return {jobs:[],partial:false,companiesScanned:1};});assert.equal(result.partial,true);assert.equal(result.companiesScanned,3);
+ const abort=new AbortController();let closed=0;const run=scanSources({q:'engineer'},async({signal})=>{await new Promise(resolve=>signal.addEventListener('abort',()=>setTimeout(()=>{closed++;resolve();},5),{once:true}));return{jobs:[]};},{signal:abort.signal});await new Promise(r=>setImmediate(r));abort.abort();await assert.rejects(run,/scan_cancelled/);assert.equal(closed,2);
+ const before=new AbortController();before.abort();let called=false;await assert.rejects(scanSources({q:'engineer'},async()=>{called=true;},{signal:before.signal}),/scan_cancelled/);assert.equal(called,false);
+});
+
+import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';
+test('real child contract has fixed providers, isolated scratch, DNS budgets and drained cancellation',async()=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'hosted-speed-fixture-')),codeRoot=path.join(root,'code'),workRoot=path.join(root,'work');await fs.mkdir(codeRoot);await fs.mkdir(workRoot);
+ try{
+ await fs.writeFile(path.join(codeRoot,'scan-ats-full.mjs'),`const args=process.argv.slice(2),source=args[args.indexOf('--ats')+1];if(!['greenhouse','lever','ashby','workday'].includes(source)||process.env.CAREER_OPS_DNS_LOOKUPS_PER_MIN!=='200'||process.env.DATABASE_URL||!process.env.CAREER_OPS_ROOT.startsWith(${JSON.stringify(workRoot)}))process.exit(2);setTimeout(()=>console.log(JSON.stringify({offers:[],companiesScanned:1,companiesAvailable:1})),150);`);
+ const result=await runDiscovery({codeRoot,workRoot,input:{q:'engineer'},timeoutMs:5000});assert.equal(result.companiesScanned,4);assert.equal(result.sourceTimings.length,4);assert.deepEqual(await fs.readdir(workRoot),[]);
+ const controller=new AbortController(),pending=runDiscovery({codeRoot,workRoot,input:{q:'engineer'},signal:controller.signal,timeoutMs:5000});setTimeout(()=>controller.abort(),50);await assert.rejects(pending,/scan_cancelled/);assert.deepEqual(await fs.readdir(workRoot),[]);
+ }finally{assert.equal(path.dirname(root),os.tmpdir());assert.ok(path.basename(root).startsWith('hosted-speed-fixture-'));await fs.rm(root,{recursive:true,force:true});}
 });
