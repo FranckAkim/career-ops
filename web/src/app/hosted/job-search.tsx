@@ -14,7 +14,7 @@ type Run={id:string;state:string;input?:SearchInput;result?:Results;error_code?:
 const active=(run:Run|null)=>!!run&&['queued','running'].includes(run.state);
 export function JobSearch({base,disabled,onSelect,cloudDiscovery=false,onOpenMatch}:{base:string;disabled:boolean;onSelect:(text:string,url:string)=>void;cloudDiscovery?:boolean;onOpenMatch?:(id:string)=>void}){
  const[q,setQ]=useState(''),[location,setLocation]=useState('United States, USA, U.S., US Remote'),[workplace,setWorkplace]=useState('any'),[sinceDays,setSinceDays]=useState(14),[limit,setLimit]=useState(100);
- const[titleMatch,setTitleMatch]=useState('all_words');const[coverage,setCoverage]=useState('expanded');
+ const[titleMatch,setTitleMatch]=useState('all_words');const[coverage,setCoverage]=useState('standard');
  const[run,setRun]=useState<Run|null>(null),[sending,setSending]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const[authorization,setAuthorization]=useState('any'),[includeUnknown,setIncludeUnknown]=useState(false);
  const[resultFilter,setResultFilter]=useState('');
@@ -89,7 +89,7 @@ export function JobSearch({base,disabled,onSelect,cloudDiscovery=false,onOpenMat
  <label>Work arrangement<select aria-label="Work arrangement" value={workplace} onChange={e=>setWorkplace(e.target.value)} disabled={busy}><option value="any">Any arrangement</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></label>
  <label>Posted within<select aria-label="Posted within" value={sinceDays} onChange={e=>setSinceDays(Number(e.target.value))} disabled={busy}>{[7,14,30].map(n=><option key={n} value={n}>{n} days</option>)}</select></label>
  <label>Boards per source<select aria-label="Boards per source" value={limit} onChange={e=>setLimit(Number(e.target.value))} disabled={busy}>{[25,50,100].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
- <p>A larger board sample can find more roles but takes longer. Expanded coverage adds iCIMS, BambooHR and Paylocity and may take longer. Each new search samples employer boards again; it does not cover every US employer.</p>
+ <p>A larger board sample can find more roles but takes longer. Expanded adds iCIMS, BambooHR and Paylocity. Larger samples may reach the four-minute scan limit. Start with 25 boards per source; Standard is quicker. Each new search samples employer boards again; it does not cover every US employer.</p>
  <label>Employer coverage<select aria-label="Employer coverage" value={coverage} onChange={e=>setCoverage(e.target.value)} disabled={busy}><option value="expanded">Expanded — 7 ATS networks</option><option value="standard">Standard — 4 ATS networks</option></select></label>
  <label>Work authorization<select aria-label="Work authorization" value={authorization} onChange={event=>{setAuthorization(event.target.value);if(event.target.value==='any')setIncludeUnknown(false);}} disabled={busy}><option value="any">Any policy</option><option value="h1b">H-1B sponsorship / transfers</option><option value="opt">OPT / STEM OPT acceptance</option><option value="either">H-1B or OPT</option><option value="both">H-1B and OPT</option></select></label>
  <label className={css.authorizationUnknown}><input type="checkbox" checked={includeUnknown} onChange={event=>setIncludeUnknown(event.target.checked)} disabled={busy||authorization==='any'}/>Include unclear work-authorization policies</label>
