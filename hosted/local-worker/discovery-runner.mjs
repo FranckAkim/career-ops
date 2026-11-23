@@ -11,7 +11,13 @@ const sources=['greenhouse','lever','ashby','workday'];
 export function scanConfiguration(raw){
  const input=discoveryInput(raw);
  // Exactly the same ephemeral filter serializer and scanner arguments as Explore.
- const filters={positive:input.q.split(',').map(s=>s.trim()).filter(Boolean),negative:[],allow:input.location.split(',').map(s=>s.trim()).filter(Boolean),block:[],blockHard:[],alwaysAllow:[]};
+ const roles=input.q.split(',').map(s=>s.trim()).filter(Boolean),locations=input.location.split(',').map(s=>s.trim()).filter(Boolean);
+ // Country-only US searches reuse core state/city safeguards. Never widen a
+ // city-specific or mixed-country search, and never add bare 'remote'.
+ const usOnly=locations.length>0&&locations.every(s=>/^(?:united states(?: of america)?|usa|u\.?s\.?a?\.?|us remote)$/i.test(s));
+ // Reuse the core AND grammar; preserve explicit word:/stem:/+ expressions.
+ const positive=roles.map(s=>input.titleMatch==='all_words'&&!/(?:\b(?:word|stem):|\s\+\s)/i.test(s)?s.split(/\s+/).join(' + '):s);
+ const filters={positive,negative:[],allow:usOnly?['United States']:locations,block:[],blockHard:[],alwaysAllow:usOnly?['United States']:[]};
  let portals=serializePortals(filters);if(input.workplace!=='any')portals+=`workplace_filter:\n  allow: [${JSON.stringify(input.workplace)}]\n  include_unknown: false\n`;
  return {input,portals,args:[...scannerArgs({ats:sources,json:true,sinceDays:input.sinceDays,limitPerAts:input.limitPerAts}),'--include-descriptions']};
 }

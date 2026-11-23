@@ -1,10 +1,10 @@
 import {randomUUID} from 'node:crypto';
 import {ControlError} from './queue.mjs';
 export function discoveryInput(raw){
- if(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.keys(raw).some(k=>!['q','location','workplace','sinceDays','limitPerAts','authorization','includeUnknown'].includes(k)))throw new ControlError('invalid_request');
- const {q='',location='United States',workplace='any',sinceDays=14,limitPerAts=50,authorization='any',includeUnknown=false}=raw;
- if(typeof q!=='string'||!q.split(',').some(x=>x.trim())||q.length>120||typeof location!=='string'||!location.split(',').some(x=>x.trim())||location.length>120||/[\x00-\x1f]/.test(q+location)||!['any','remote','hybrid','onsite'].includes(workplace)||![7,14,30].includes(sinceDays)||![25,50,100].includes(limitPerAts)||!['any','h1b','opt','either','both'].includes(authorization)||typeof includeUnknown!=='boolean')throw new ControlError('invalid_request');
- return {q:q.trim(),location:location.trim(),workplace,sinceDays,limitPerAts,authorization,includeUnknown};
+ if(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.keys(raw).some(k=>!['q','location','workplace','sinceDays','limitPerAts','authorization','includeUnknown','titleMatch'].includes(k)))throw new ControlError('invalid_request');
+ const {q='',location='United States',workplace='any',sinceDays=14,limitPerAts=50,authorization='any',includeUnknown=false,titleMatch='phrase'}=raw;
+ if(typeof q!=='string'||!q.split(',').some(x=>x.trim())||q.length>120||typeof location!=='string'||!location.split(',').some(x=>x.trim())||location.length>120||/[\x00-\x1f]/.test(q+location)||!['any','remote','hybrid','onsite'].includes(workplace)||![7,14,30].includes(sinceDays)||![25,50,100].includes(limitPerAts)||!['any','h1b','opt','either','both'].includes(authorization)||typeof includeUnknown!=='boolean'||!['phrase','all_words'].includes(titleMatch))throw new ControlError('invalid_request');
+ return {q:q.trim(),location:location.trim(),workplace,sinceDays,limitPerAts,authorization,includeUnknown,titleMatch};
 }
 export class Discovery{
  constructor(queue){this.queue=queue;}

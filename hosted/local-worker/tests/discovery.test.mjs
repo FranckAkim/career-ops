@@ -32,3 +32,24 @@ test('H-1B/OPT gates use full source policy text and keep explicit refusals sepa
  const partial=scanResult({offers:[{...offers[0],descriptionTruncated:true}]},{authorization:'h1b'});assert.equal(partial.jobs.length,0);
  assert.throws(()=>discoveryInput({q:'engineer',authorization:'guaranteed'}));assert.throws(()=>discoveryInput({q:'engineer',includeUnknown:'yes'}));
 });
+
+import {buildLocationFilter,buildTitleFilter} from '../../../scan.mjs';
+import * as yaml from 'js-yaml';
+test('country-only US search includes state-qualified US cities without widening city/country requests',()=>{
+ const make=location=>buildLocationFilter(yaml.load(scanConfiguration({q:'engineer',location}).portals).location_filter);
+ const us=make('United States, USA, U.S., US Remote');
+ for(const location of ['Austin, TX','New York, NY','Chicago, Illinois','United States'])assert.equal(us(location),true,location);
+ for(const location of ['Toronto, Ontario, Canada','London, United Kingdom','Bengaluru, India'])assert.equal(us(location),false,location);
+ assert.equal(make('Chicago')('Austin, TX'),false);assert.equal(make('Canada')('Austin, TX'),false);
+ assert.equal(yaml.load(scanConfiguration({q:'engineer',location:'United States, Chicago'}).portals).location_filter.always_allow,undefined);
+});
+test('all-word role matching reuses core AND rules and leaves literal/advanced matching available',()=>{
+ const title=(titleMatch,q='data analyst')=>buildTitleFilter(yaml.load(scanConfiguration({q,location:'United States',titleMatch}).portals).title_filter);
+ assert.equal(title('all_words')('Senior Data Reporting Analyst'),true);
+ assert.equal(title('all_words')('Data Scientist'),false);
+ assert.equal(title('phrase')('Senior Data Reporting Analyst'),false);
+ assert.equal(title('all_words','data analyst,software engineer')('Software Backend Engineer'),true);
+ assert.equal(title('all_words','word:AI + engineer')('AI Platform Engineer'),true);
+ assert.throws(()=>discoveryInput({q:'engineer',titleMatch:'anything'}));
+ assert.equal(discoveryInput({q:'engineer'}).titleMatch,'phrase');
+});
