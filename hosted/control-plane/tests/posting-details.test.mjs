@@ -27,3 +27,11 @@ test('expanded ATS role destinations reject lookalike hosts, board pages and for
  for(const [source,url,name] of cases){const job={source:source+'-full',url,applicationLink:'https://evil.test/apply'};assert.equal(postingDetails(job).sourceName,name);assert.equal(postingDetails(job).applicationLink,url);assert.equal(postingDetails(job).applicationKind,'posting');assert.deepEqual(postingDetails({...job,url:url.replace('.com/','.com.evil.test/')}),{});assert.deepEqual(postingDetails({...job,url:url.replace('123','%2f123')}),{});}
  for(const [source,url] of [['icims','https://careers-synthetic.icims.com/jobs/search'],['bamboohr','https://synthetic.bamboohr.com/careers'],['paylocity','https://recruiting.paylocity.com/Recruiting/Jobs/All/123']])assert.deepEqual(postingDetails({source:source+'-full',url}),{});
 });
+
+test('24-hour window uses exact source time across midnight and rejects future, stale and inconsistent timestamps',()=>{
+ const opts={now:Date.parse('2026-11-22T12:00:00Z'),sinceDays:1};
+ for(const time of ['2026-11-21T12:00:00.000Z','2026-11-21T23:59:59.000Z','2026-11-22T12:00:00.000Z'])assert.equal(postingDate(time.slice(0,10),{...opts,postedTimestamp:time}),time.slice(0,10));
+ for(const time of ['2026-11-21T11:59:59.999Z','2026-11-22T12:00:00.001Z','invalid'])assert.equal(postingDate(time.slice(0,10),{...opts,postedTimestamp:time}),null);
+ assert.equal(postingDate('2026-11-21',opts),null);assert.equal(postingDate('2026-11-22',opts),'2026-11-22');
+ assert.equal(postingDate('2026-11-22',{...opts,postedTimestamp:'2026-11-21T23:00:00Z'}),null);
+});

@@ -26,14 +26,14 @@ export function scanResult(raw,{timedOut=false,code=0,live=[],workplace='any',au
  const matchesWorkplace=buildWorkplaceFilter(workplace==='any'?undefined:{allow:[workplace],include_unknown:false});
  let filteredAuthorization=0,filteredQuality=0;const targetingExclusions={};
  const jobs=[],seen=new Set();const offers=Array.isArray(raw?.offers)?raw.offers:live;
- const ordered=[...offers].sort((a,b)=>String(b.postedAt||'').localeCompare(String(a.postedAt||'')));
- for(const offer of ordered){if(!matchesWorkplace(offer.workplaceType))continue;const details=postingDetails(offer),date=postingDate(offer.postedAt,{now,sinceDays}),checked=Date.parse(details.checkedAt);
+ const ordered=[...offers].sort((a,b)=>String(b.postedTimestamp||b.postedAt||'').localeCompare(String(a.postedTimestamp||a.postedAt||'')));
+ for(const offer of ordered){if(!matchesWorkplace(offer.workplaceType))continue;const details=postingDetails(offer),date=postingDate(offer.postedAt,{now,sinceDays,postedTimestamp:offer.postedTimestamp}),checked=Date.parse(details.checkedAt);
   if((details.applicationDeadline&&Date.parse(details.applicationDeadline)<=now)||offer.isListed===false||!details.postingUrl||!date||!Number.isFinite(checked)||checked>now+60000||checked<now-300000||typeof offer.company!=='string'||!offer.company.trim()||typeof offer.title!=='string'||!offer.title.trim()){filteredQuality++;continue;}
   const reason=targetingDecision({...offer,...details},targeting);if(reason){targetingExclusions[reason]=(targetingExclusions[reason]||0)+1;continue;}
   const url=new URL(details.postingUrl);if(seen.has(url.href))continue;
   const description=typeof offer.description==='string'?offer.description:'',visaText=typeof offer.visaText==='string'?offer.visaText.slice(0,4000):'',evidence=classifyWorkAuthorization(visaFilterText({description,visaText}),{incomplete:!!offer.descriptionTruncated||description.trim().length<20});
   if(!matchesWorkAuthorization(evidence,authorization,includeUnknown)){filteredAuthorization++;continue;}seen.add(url.href);
-  jobs.push({id:url.href,url:url.href,...details,company:offer.company.slice(0,200),title:offer.title.slice(0,200),location:String(offer.location||'Location not supplied').slice(0,300),description:description.slice(0,30000),descriptionAvailable:description.trim().length>=20&&description.length<=30000&&!offer.descriptionTruncated,source:offer.source,visaText,authorization:evidence,postedAt:date});
+  jobs.push({id:url.href,url:url.href,...details,company:offer.company.slice(0,200),title:offer.title.slice(0,200),location:String(offer.location||'Location not supplied').slice(0,300),description:description.slice(0,30000),descriptionAvailable:description.trim().length>=20&&description.length<=30000&&!offer.descriptionTruncated,source:offer.source,visaText,authorization:evidence,postedAt:date,...(offer.postedTimestamp?{postedTimestamp:offer.postedTimestamp}:{})});
  }
  const available=Number(raw?.companiesAvailable)||0,scanned=Number(raw?.companiesScanned)||0;
  const partial=timedOut||code!==0||!raw||raw.capHit===true||raw.stoppedEarly===true||Number(raw.unreachableBoards)>0||Number(raw.postingsDroppedNoDate)>0||Object.values(raw.datasetStatus||{}).some(s=>s!=='ok');

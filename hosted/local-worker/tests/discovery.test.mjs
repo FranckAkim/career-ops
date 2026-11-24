@@ -97,3 +97,11 @@ test('discovery labels policy by default, and only explicit strict mode excludes
  const withUnknown=await scanSources({q:'engineer',authorization:'h1b',strictAuthorization:true,includeUnknown:true},scan);assert.equal(withUnknown.jobs.length,2);assert.equal(withUnknown.jobs.some(j=>j.authorization.h1b.status==='negative'),false);
  assert.throws(()=>discoveryInput({q:'engineer',strictAuthorization:'yes'}));assert.equal(discoveryInput({q:'engineer',strictAuthorization:false}).strictAuthorization,false);
 });
+
+test('past 24 hours is accepted end-to-end and source time survives fan-in quality gates',async()=>{
+ const input={q:'engineer',sinceDays:1};assert.equal(discoveryInput(input).sinceDays,1);assert.equal(parseArgs(['node','scan-ats-full.mjs',...scanConfiguration(input).args]).sinceDays,1);
+ const now=Date.now(),timestamp=new Date(now-23*3600000).toISOString(),old=new Date(now-25*3600000).toISOString();
+ const offer={source:'lever-full',company:'Synthetic',title:'Engineer',url:'https://jobs.lever.co/synthetic/recent',sourceCheckedAt:new Date(now).toISOString(),postedAt:timestamp.slice(0,10),postedTimestamp:timestamp};
+ const filtered=scanResult({offers:[offer,{...offer,url:offer.url+'-old',postedAt:old.slice(0,10),postedTimestamp:old}]},{now,sinceDays:1});assert.equal(filtered.jobs.length,1);assert.equal(filtered.jobs[0].postedTimestamp,timestamp);
+ const merged=await scanSources(input,async()=>({...filtered,companiesScanned:1}));assert.equal(merged.jobs.length,1);assert.equal(merged.jobs[0].postedTimestamp,timestamp);
+});

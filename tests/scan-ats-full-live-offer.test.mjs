@@ -159,3 +159,10 @@ function captureStderr(fn) {
  if(withProof.applicationDeadline===deadline&&!Object.hasOwn(withoutProof,'applicationDeadline'))pass('opt-in live receipt preserves core closesAt without changing the default receipt');
  else fail('opt-in closesAt receipt lost expiry evidence');
 }
+
+{
+ const {sourcePostingTimestamp}=await import('../scan-ats-full.mjs');
+ const timestamp='2026-11-21T23:30:00.000Z';
+ const live=JSON.parse(formatLiveOfferLine({...job,postedAt:Date.parse(timestamp),sourceCheckedAt:'2026-11-22T00:00:00Z'},'lever-full'));
+ if(live.postedTimestamp===timestamp&&sourcePostingTimestamp('invalid')===null&&sourcePostingTimestamp(null)===null)pass('source posting timestamp retains time across live serialization');else fail('source posting timestamp lost');
+}

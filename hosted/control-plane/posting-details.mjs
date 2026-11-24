@@ -43,9 +43,19 @@ export function postingDetails(job){
   salary:compensation,applicationDeadline:Number.isFinite(deadline)?new Date(deadline).toISOString():null,department:typeof job.department==='string'?job.department.slice(0,200):null,
   requisitionId:typeof job.requisitionId==='string'?job.requisitionId.slice(0,120):null};
 }
-export function postingDate(value,{now=Date.now(),sinceDays=14}={}){
+export function postingDate(value,{now=Date.now(),sinceDays=14,postedTimestamp}={}){
  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return null;
  const ms=Date.parse(value+'T00:00:00Z'),today=Math.floor(now/86400000)*86400000;
  if(!Number.isFinite(ms)||new Date(ms).toISOString().slice(0,10)!==value||ms>today||ms<today-sinceDays*86400000)return null;
+ if(sinceDays===1){
+  // Date-only sources use midnight conservatively; never guess yesterday's time.
+  let posted=ms;
+  if(postedTimestamp!==undefined&&postedTimestamp!==null){
+   if(typeof postedTimestamp!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(postedTimestamp))return null;
+   posted=Date.parse(postedTimestamp);
+   if(!Number.isFinite(posted)||new Date(posted).toISOString().slice(0,10)!==value)return null;
+  }
+  if(posted>now||posted<now-86400000)return null;
+ }
  return value;
 }

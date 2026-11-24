@@ -1292,6 +1292,10 @@ export function sampleCompanies(list, limit, shuffle = false) {
 
 /** One stderr JSON line per kept offer in `--json` mode so Explore can paint
  *  cards while the walk continues. Stdout stays the single summary object (#1199). */
+export function sourcePostingTimestamp(value) {
+  if(value===null||value===undefined||value==='')return null;
+  const date=new Date(value);return Number.isFinite(date.getTime())?date.toISOString():null;
+}
 export function formatLiveOfferLine(job, source) {
   let postedAt = null;
   if (job?.postedAt) {
@@ -1300,7 +1304,7 @@ export function formatLiveOfferLine(job, source) {
   }
   return JSON.stringify({
     kind: 'offer',
-    ...(job.sourceCheckedAt ? { sourceCheckedAt: job.sourceCheckedAt, applicationDeadline: job.applicationDeadline || job.closesAt, isListed: job.isListed, applicationLink: job.applicationLink, listingIdentity: job.listingIdentity } : {}),
+    ...(job.sourceCheckedAt ? { postedTimestamp: sourcePostingTimestamp(job.postedAt), sourceCheckedAt: job.sourceCheckedAt, applicationDeadline: job.applicationDeadline || job.closesAt, isListed: job.isListed, applicationLink: job.applicationLink, listingIdentity: job.listingIdentity } : {}),
     company: job.company,
     title: job.title,
     url: job.url,
@@ -2041,7 +2045,7 @@ async function main() {
           }
           const partial = kept.map((o) => ({
             company: o.company,
-            ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, visaText: String(o.visaText || '').slice(0,4000), applicationDeadline: o.applicationDeadline || o.closesAt, isListed: o.isListed, applicationLink: o.applicationLink, listingIdentity: o.listingIdentity, sourceCheckedAt: o.sourceCheckedAt, salary: o.salary, workplaceType: o.workplaceType || null, employmentType: o.employmentType, department: o.department, requisitionId: o.requisitionId } : {}),
+            ...(opts.includeDescriptions ? { postedTimestamp: sourcePostingTimestamp(o.postedAt), description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, visaText: String(o.visaText || '').slice(0,4000), applicationDeadline: o.applicationDeadline || o.closesAt, isListed: o.isListed, applicationLink: o.applicationLink, listingIdentity: o.listingIdentity, sourceCheckedAt: o.sourceCheckedAt, salary: o.salary, workplaceType: o.workplaceType || null, employmentType: o.employmentType, department: o.department, requisitionId: o.requisitionId } : {}),
             title: o.title,
             url: o.url,
             location: o.location || null,
@@ -2626,7 +2630,7 @@ async function main() {
       saved,
       offers: offers.map(o => ({
         company: o.company,
-        ...(opts.includeDescriptions ? { description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, visaText: String(o.visaText || '').slice(0,4000), applicationDeadline: o.applicationDeadline || o.closesAt, isListed: o.isListed, applicationLink: o.applicationLink, listingIdentity: o.listingIdentity, sourceCheckedAt: o.sourceCheckedAt, salary: o.salary, workplaceType: o.workplaceType || null, employmentType: o.employmentType, department: o.department, requisitionId: o.requisitionId } : {}),
+        ...(opts.includeDescriptions ? { postedTimestamp: sourcePostingTimestamp(o.postedAt), description: String(o.description || '').slice(0,30000), descriptionTruncated: String(o.description || '').length > 30000, visaText: String(o.visaText || '').slice(0,4000), applicationDeadline: o.applicationDeadline || o.closesAt, isListed: o.isListed, applicationLink: o.applicationLink, listingIdentity: o.listingIdentity, sourceCheckedAt: o.sourceCheckedAt, salary: o.salary, workplaceType: o.workplaceType || null, employmentType: o.employmentType, department: o.department, requisitionId: o.requisitionId } : {}),
         title: o.title,
         url: o.url,
         location: o.location || null,
