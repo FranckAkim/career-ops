@@ -1,5 +1,20 @@
 # Built-in hosted/local job discovery
 
+## Review states, availability and live progress (24 November 2026)
+
+Search cards offer Mark seen, Mark new, Dismiss job and Restore job. The Review status filter hides explicitly dismissed jobs by default, with All/New/Seen/Dismissed options. Choices persist across searches without consuming bookmark slots (500-role history); Manage job review history requires an explicit reset acknowledgement. Saved jobs use the same state. Version tokens reject stale concurrent writes, and resetting review history preserves saved postings, notes and canonical application stages. Legacy saved review choices are retained.
+
+Saved jobs → Check availability runs the existing core ATS API liveness rung through the cloud queue, with no CV, model, browser fallback or tracker mutation. The worker claims only the stored exact ATS posting URL/provider; browser-supplied URLs/commands and Handshake automatic checks are refused. Confirmed API removal is distinct from inconclusive evidence: blocked requests, timeouts, unsupported providers and non-authoritative missing responses remain unconfirmed (including Lever404). The result is a timestamped observation, not a guarantee of future availability. Some of the seven discovery networks lack a conclusive API rung; use the original posting and Record my manual check. Manual checks require acknowledgement and are labeled as the user's statement. Handshake always uses that manual route and never accesses the student account.
+
+A complete description for the same URL in the latest retained owned search can flag changed requirements. The saved source and its evaluation stay immutable. Availability alone does not refresh description, compensation, authorization evidence or CV matching; review and save the current posting before evaluating changed requirements.
+
+An active search reports actual per-provider queued/running/finished/failed/timed-out states and a completed-source progress bar. Per-source match/board counts are before final merge, not overall job counts. These updates come from the existing two-source scheduler; no percent-of-jobs estimate or extra crawl is added. Progress delivery is best effort; heartbeat/claim/cancellation/publication fences remain authoritative.
+
+Follow-up drafts retain their editing revision and unsaved text across background metadata updates. A conflicting save preserves edits; only Reload saved plan (discard edits) replaces the draft. Review-state synchronization invalidates stale saved-note forms rather than overwriting a newer state.
+
+Migrations022-024 add bounded availability metadata, private review history and token-bound progress. Discovery still has no saved-job/review table SELECT grant; its exact claim capability returns only the URL/provider needed for a check. Web has no progress-write/private-RPC grant. Export includes availability/review/progress, deletion scope binds review versions, and account purge removes metadata through tenant cascades. All75 unit tests,11 scanner cases,five worker checks,both refreshed-package production builds/audits/typechecks and the complete disposable PostgreSQL/production Next/Playwright/native engine/PDF regression pass. Browser tests exercise real queue/database progress, state persistence/sync/reset, explicit manual provenance, note-conflict preservation/discard and mobile layouts. Production rollout/evidence is tracked in PROJECT_HANDOFF.md.
+
+
 ## Saved searches and in-app alerts (24 November 2026)
 
 Find jobs → Saved searches & alerts saves the current validated filter set under a name (five per account). Run starts the normal discovery queue; View latest results restores its filters and opens the owned retained run. Removing a saved search prevents future daily checks; it does not cancel an already queued scan. Search results still expire after 24 hours. The latest summary and saved filters persist until removal/account deletion.

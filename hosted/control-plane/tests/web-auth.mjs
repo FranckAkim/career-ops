@@ -1,3 +1,5 @@
+import {verifyReviewProgressBrowser} from './review-progress-browser.mjs';
+import {verifyAvailabilityBrowser} from './availability-browser.mjs';
 import {verifySavedSearchesBrowser} from './saved-searches-browser.mjs';
 import {verifyHandshakeBrowser} from './handshake-browser.mjs';
 import {verifyMatchingBrowser} from './matching-browser.mjs';
@@ -93,6 +95,8 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     await page.getByRole('heading', { name: 'Your next move, in focus.', exact:true }).waitFor();
     await verifyJobSearch(page);
     await verifySavedSearchesBrowser({page,pool,userId:accounts[0].id});
+    await verifyAvailabilityBrowser({page,pool,userId:accounts[0].id});
+    await verifyReviewProgressBrowser({page,pool,userId:accounts[0].id});
     await verifyHandshakeBrowser({page,pool,userId:accounts[0].id});
     await verifySavedJobsBrowser({page,pool,userId:accounts[0].id});
     await verifyAuthorizationBrowser(page);

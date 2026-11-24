@@ -5,14 +5,18 @@ import css from './job-search.module.css';
 export type Workflow={state?:string;appliedOn?:string;deadline?:string;followUpOn?:string;contact?:string;notes?:string;nextAction?:string};
 export function JobWorkflow({base,id,revision,value,onSaved}:{base:string;id:string;revision:number;value?:Workflow;onSaved:()=>Promise<void>}){
  const [draft,setDraft]=useState<Workflow>({state:'new',appliedOn:'',deadline:'',followUpOn:'',contact:'',notes:'',nextAction:'',...value}),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const[dirty,setDirty]=useState(false);const editingRevision=useRef(revision);
+ useEffect(()=>{if(!dirty&&revision>=editingRevision.current){editingRevision.current=revision;setDraft({state:'new',appliedOn:'',deadline:'',followUpOn:'',contact:'',notes:'',nextAction:'',...value});}},[dirty,revision,value]);
  const operation=useRef<AbortController|null>(null);useEffect(()=>()=>operation.current?.abort(),[base,id]);
  async function save(){if(busy)return;const controller=new AbortController();operation.current=controller;setBusy(true);setMessage('');try{
-  const response=await fetch(`${base}/saved-jobs/${id}/workflow`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({expectedRevision:revision,workflow:draft})});
+  const response=await fetch(`${base}/saved-jobs/${id}/workflow`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({expectedRevision:editingRevision.current,workflow:draft})});
   if(!response.ok)throw Error(response.status===409?'This job changed in another tab. Copy your notes, refresh the saved list, and try again.':'Could not save your follow-up plan. Your edits are still here.');
-  if(!controller.signal.aborted){setMessage('Follow-up plan saved.');try{await onSaved();}catch{setMessage('Plan saved, but the list could not refresh. Refresh matches to reload it.');}}
+  const result=await response.json();if(!controller.signal.aborted){editingRevision.current=result.job.revision;setDraft(result.job.workflow);setDirty(false);setMessage('Follow-up plan saved.');try{await onSaved();}catch{setMessage('Plan saved, but the list could not refresh. Refresh matches to reload it.');}}
  }catch(error){if(!controller.signal.aborted)setMessage((error as Error).message);}finally{if(!controller.signal.aborted)setBusy(false);}}
- function text(key:keyof Workflow,value:string){setDraft(previous=>({...previous,[key]:value}));}
+ function text(key:keyof Workflow,value:string){setDirty(true);setDraft(previous=>({...previous,[key]:value}));}
  return <details className={css.workflow}><summary>Review state &amp; follow-up plan</summary><p>Private planning notes. Recording an application date does not submit an application or change its tracker stage.</p>
+ {dirty&&revision!==editingRevision.current?<p role="status">This saved job changed while you were editing. Your unsaved notes are preserved. Copy them before reloading the saved plan.</p>:null}
+ <button type="button" className={styles.quiet} disabled={busy} onClick={()=>{setBusy(true);void onSaved().then(()=>{setDirty(false);setMessage('Latest saved plan loaded; unsaved edits discarded.');}).catch(()=>setMessage('Could not reload. Your edits are preserved.')).finally(()=>setBusy(false));}}>Reload saved plan (discard edits)</button>
  <label>Review state<select aria-label="Review state" value={draft.state} disabled={busy} onChange={e=>text('state',e.target.value)}><option value="new">New</option><option value="seen">Seen</option><option value="dismissed">Dismissed</option></select></label>
  <label>Applied on<input aria-label="Applied on" type="date" value={draft.appliedOn} disabled={busy} onChange={e=>text('appliedOn',e.target.value)}/></label>
  <label>Application deadline<input aria-label="Application deadline" type="date" value={draft.deadline} disabled={busy} onChange={e=>text('deadline',e.target.value)}/></label>
