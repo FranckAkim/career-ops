@@ -1,3 +1,4 @@
+import {targetingDecision} from '../control-plane/search-targeting.mjs';
 import {postingDetails,postingDate} from '../control-plane/posting-details.mjs';
 import {classifyWorkAuthorization,matchesWorkAuthorization} from '../control-plane/work-authorization.mjs';
 import {buildWorkplaceFilter,visaFilterText} from '../../scan.mjs';
@@ -21,13 +22,14 @@ export function scanConfiguration(raw){
  let portals=serializePortals(filters);if(input.workplace!=='any')portals+=`workplace_filter:\n  allow: [${JSON.stringify(input.workplace)}]\n  include_unknown: false\n`;
  return {input,portals,args:[...scannerArgs({ats:discoverySources(input),json:true,sinceDays:input.sinceDays,limitPerAts:input.limitPerAts}),'--include-descriptions']};
 }
-export function scanResult(raw,{timedOut=false,code=0,live=[],workplace='any',authorization='any',includeUnknown=false,sinceDays=14,now=Date.now()}={}){
+export function scanResult(raw,{timedOut=false,code=0,live=[],workplace='any',authorization='any',includeUnknown=false,sinceDays=14,targeting={},now=Date.now()}={}){
  const matchesWorkplace=buildWorkplaceFilter(workplace==='any'?undefined:{allow:[workplace],include_unknown:false});
- let filteredAuthorization=0,filteredQuality=0;
+ let filteredAuthorization=0,filteredQuality=0;const targetingExclusions={};
  const jobs=[],seen=new Set();const offers=Array.isArray(raw?.offers)?raw.offers:live;
  const ordered=[...offers].sort((a,b)=>String(b.postedAt||'').localeCompare(String(a.postedAt||'')));
  for(const offer of ordered){if(!matchesWorkplace(offer.workplaceType))continue;const details=postingDetails(offer),date=postingDate(offer.postedAt,{now,sinceDays}),checked=Date.parse(details.checkedAt);
   if((details.applicationDeadline&&Date.parse(details.applicationDeadline)<=now)||offer.isListed===false||!details.postingUrl||!date||!Number.isFinite(checked)||checked>now+60000||checked<now-300000||typeof offer.company!=='string'||!offer.company.trim()||typeof offer.title!=='string'||!offer.title.trim()){filteredQuality++;continue;}
+  const reason=targetingDecision({...offer,...details},targeting);if(reason){targetingExclusions[reason]=(targetingExclusions[reason]||0)+1;continue;}
   const url=new URL(details.postingUrl);if(seen.has(url.href))continue;
   const description=typeof offer.description==='string'?offer.description:'',visaText=typeof offer.visaText==='string'?offer.visaText.slice(0,4000):'',evidence=classifyWorkAuthorization(visaFilterText({description,visaText}),{incomplete:!!offer.descriptionTruncated||description.trim().length<20});
   if(!matchesWorkAuthorization(evidence,authorization,includeUnknown)){filteredAuthorization++;continue;}seen.add(url.href);
@@ -38,7 +40,7 @@ export function scanResult(raw,{timedOut=false,code=0,live=[],workplace='any',au
  const retained=jobs.length;
  jobs.splice(50);
  while(Buffer.byteLength(JSON.stringify(jobs))>2000000)jobs.pop();
- return {jobs,checkedAt:new Date(now).toISOString(),filteredQuality,sort:'newest',filteredAuthorization,authorizationFilter:authorization,includeUnknown,source:'career-ops ATS scanner',partial,timedOut,companiesScanned:scanned,companiesAvailable:available,unreachableBoards:Number(raw?.unreachableBoards)||0,capHit:raw?.capHit===true,displayCapped:retained>50||jobs.length<retained,description:'A bounded sample of employer boards, not a complete job-market search.'};
+ return {jobs,targetingExclusions,checkedAt:new Date(now).toISOString(),filteredQuality,sort:'newest',filteredAuthorization,authorizationFilter:authorization,includeUnknown,source:'career-ops ATS scanner',partial,timedOut,companiesScanned:scanned,companiesAvailable:available,unreachableBoards:Number(raw?.unreachableBoards)||0,capHit:raw?.capHit===true,displayCapped:retained>50||jobs.length<retained,description:'A bounded sample of employer boards, not a complete job-market search.'};
 }
 async function runSource({codeRoot,workRoot,input,signal,timeoutMs,source}){
  const config=scanConfiguration(input);config.args[config.args.indexOf('--ats')+1]=source;const root=await fs.mkdtemp(path.join(workRoot,'scan-'));
@@ -56,7 +58,7 @@ async function runSource({codeRoot,workRoot,input,signal,timeoutMs,source}){
    child.stderr.on('data',data=>{stderr+=data.toString('utf8');if(stderr.length>100000)stderr=stderr.slice(-10000);let end;while((end=stderr.indexOf('\n'))>=0){const line=stderr.slice(0,end);stderr=stderr.slice(end+1);try{const ev=JSON.parse(line);if(ev.kind==='offer'&&live.length<500)live.push(ev);}catch{}}});
    child.on('error',()=>{clearTimeout(timer);signal?.removeEventListener('abort',stop);reject(new Error('scanner_start_failed'));});
    child.on('close',code=>{clearTimeout(timer);signal?.removeEventListener('abort',stop);if(signal?.aborted){reject(new Error('scan_cancelled'));return;}let raw;try{raw=JSON.parse(output.trim());}catch{}
-    if(!raw&&!live.length&&!timedOut)reject(new Error('scanner_failed'));else resolve(scanResult(raw,{timedOut:timedOut||limited,code,live,workplace:config.input.workplace,authorization:config.input.strictAuthorization===true?config.input.authorization:'any',includeUnknown:config.input.strictAuthorization===true&&config.input.includeUnknown,sinceDays:config.input.sinceDays}));
+    if(!raw&&!live.length&&!timedOut)reject(new Error('scanner_failed'));else resolve(scanResult(raw,{timedOut:timedOut||limited,code,live,workplace:config.input.workplace,authorization:config.input.strictAuthorization===true?config.input.authorization:'any',includeUnknown:config.input.strictAuthorization===true&&config.input.includeUnknown,sinceDays:config.input.sinceDays,targeting:config.input.targeting}));
    });
   });
  }finally{
@@ -80,7 +82,8 @@ export async function scanSources(raw,scan,{signal,timeoutMs=240000}={}){
  const settled=await Promise.allSettled([worker(),worker()]);if(signal?.aborted||settled.some(r=>r.status==='rejected'))throw Error('scan_cancelled');
  const results=completed.flatMap(item=>item.result?[item.result]:[]);if(!results.length)throw Error('scanner_failed');
  const sum=key=>results.reduce((n,r)=>n+(Number(r[key])||0),0),rawResult={offers:results.flatMap(r=>r.jobs.map(j=>({...j,descriptionTruncated:!j.descriptionAvailable}))),companiesScanned:sum('companiesScanned'),companiesAvailable:sum('companiesAvailable'),unreachableBoards:sum('unreachableBoards'),capHit:results.some(r=>r.capHit),stoppedEarly:completed.some(r=>r.state!=='finished')||results.some(r=>r.partial)};
- const result=scanResult(rawResult,{workplace:input.workplace,authorization:input.strictAuthorization===true?input.authorization:'any',includeUnknown:input.strictAuthorization===true&&input.includeUnknown,sinceDays:input.sinceDays,timedOut:completed.some(r=>r.state==='timed_out')});
+ const result=scanResult(rawResult,{workplace:input.workplace,authorization:input.strictAuthorization===true?input.authorization:'any',includeUnknown:input.strictAuthorization===true&&input.includeUnknown,sinceDays:input.sinceDays,targeting:input.targeting,timedOut:completed.some(r=>r.state==='timed_out')});
+ for(const r of results)for(const [reason,count] of Object.entries(r.targetingExclusions||{}))result.targetingExclusions[reason]=(result.targetingExclusions[reason]||0)+count;
  result.filteredQuality+=sum('filteredQuality');result.filteredAuthorization+=sum('filteredAuthorization');result.displayCapped ||= results.some(r=>r.displayCapped);
  return {...result,durationMs:Date.now()-started,sourceTimings:completed.map(({source,state,elapsedMs,result})=>({source,state,elapsedMs,matches:result?.jobs.length||0,boardsScanned:result?.companiesScanned||0}))};
 }

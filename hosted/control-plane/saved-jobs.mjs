@@ -1,3 +1,4 @@
+import {jobWorkflow} from './job-workflow.mjs';
 import {handshakeInput} from './handshake-import.mjs';
 import {postingContext,evaluationScore} from './match-context.mjs';
 import {postingDetails} from './posting-details.mjs';
@@ -20,7 +21,7 @@ export function savedPosting(job){
 export class SavedJobs{
  constructor(queue){this.queue=queue;}
  async lock(db,{tenantId,userId}){await db.query('select id from tenants where id=$1 for update',[tenantId]);await this.queue.authorize(db,tenantId,userId);}
- async list({tenantId,userId}){return this.queue.transaction(async db=>{await this.queue.authorize(db,tenantId,userId);const rows=(await db.query('select id,posting,shortlisted,revision,created_at,updated_at from saved_jobs where tenant_id=$1 and user_id=$2 order by shortlisted desc,created_at desc,id limit 31',[tenantId,userId])).rows;check(rows.length<=30,'saved_job_limit');
+ async list({tenantId,userId}){return this.queue.transaction(async db=>{await this.queue.authorize(db,tenantId,userId);const rows=(await db.query('select id,posting,shortlisted,workflow,revision,created_at,updated_at from saved_jobs where tenant_id=$1 and user_id=$2 order by shortlisted desc,created_at desc,id limit 31',[tenantId,userId])).rows;check(rows.length<=30,'saved_job_limit');
    if(!rows.length)return rows;
    const texts=rows.map(row=>hash(postingContext(row.posting))),urls=rows.map(row=>row.posting.url);
    const evaluations=(await db.query(`select distinct on (payload->>'postingUrl',encode(sha256(convert_to(payload->>'postingText','UTF8')),'hex')) id,status,result->>'score' as score,result->>'applicationNumber' as application_number,created_at,finished_at,payload->>'postingUrl' as url,encode(sha256(convert_to(payload->>'postingText','UTF8')),'hex') as source_hash
@@ -35,19 +36,19 @@ export class SavedJobs{
    await this.lock(db,{tenantId,userId});
    const run=(await db.query("select result from discovery_runs where id=$1 and tenant_id=$2 and user_id=$3 and state='succeeded' and expires_at>clock_timestamp() for share",[runId,tenantId,userId])).rows[0];check(run,'not_found');
    const item=run.result?.jobs?.find(job=>job.id===jobId);check(item,'not_found');const posting=savedPosting(item),urlHash=hash(posting.url);
-   const prior=(await db.query('select id,posting,shortlisted,revision,created_at,updated_at from saved_jobs where tenant_id=$1 and user_id=$2 and url_hash=$3',[tenantId,userId,urlHash])).rows[0];if(prior){check(prior.posting.url===posting.url,'saved_job_conflict');check(postingContext(prior.posting)===postingContext(posting)&&prior.posting.descriptionAvailable===posting.descriptionAvailable,'saved_job_source_changed');return prior;}
+   const prior=(await db.query('select id,posting,shortlisted,workflow,revision,created_at,updated_at from saved_jobs where tenant_id=$1 and user_id=$2 and url_hash=$3',[tenantId,userId,urlHash])).rows[0];if(prior){check(prior.posting.url===posting.url,'saved_job_conflict');check(postingContext(prior.posting)===postingContext(posting)&&prior.posting.descriptionAvailable===posting.descriptionAvailable,'saved_job_source_changed');return prior;}
    check(Number((await db.query('select count(*) as count from saved_jobs where tenant_id=$1 and user_id=$2',[tenantId,userId])).rows[0].count)<30,'saved_job_limit');
-   return (await db.query('insert into saved_jobs(id,tenant_id,user_id,url_hash,posting) values($1,$2,$3,$4,$5) returning id,posting,shortlisted,revision,created_at,updated_at',[randomUUID(),tenantId,userId,urlHash,posting])).rows[0];
+   return (await db.query('insert into saved_jobs(id,tenant_id,user_id,url_hash,posting) values($1,$2,$3,$4,$5) returning id,posting,shortlisted,workflow,revision,created_at,updated_at',[randomUUID(),tenantId,userId,urlHash,posting])).rows[0];
   });
  }
 
  async importHandshake({tenantId,userId,input}){
   const posting=savedPosting(handshakeInput(input)),urlHash=hash(posting.url);
   return this.queue.transaction(async db=>{await this.lock(db,{tenantId,userId});
-   const prior=(await db.query('select id,posting,shortlisted,revision,created_at,updated_at from saved_jobs where tenant_id=$1 and user_id=$2 and url_hash=$3',[tenantId,userId,urlHash])).rows[0];
+   const prior=(await db.query('select id,posting,shortlisted,workflow,revision,created_at,updated_at from saved_jobs where tenant_id=$1 and user_id=$2 and url_hash=$3',[tenantId,userId,urlHash])).rows[0];
    if(prior){check(prior.posting.url===posting.url,'saved_job_conflict');check(postingContext(prior.posting)===postingContext(posting),'saved_job_source_changed');return prior;}
    check(Number((await db.query('select count(*) as count from saved_jobs where tenant_id=$1 and user_id=$2',[tenantId,userId])).rows[0].count)<30,'saved_job_limit');
-   return(await db.query('insert into saved_jobs(id,tenant_id,user_id,url_hash,posting) values($1,$2,$3,$4,$5) returning id,posting,shortlisted,revision,created_at,updated_at',[randomUUID(),tenantId,userId,urlHash,posting])).rows[0];
+   return(await db.query('insert into saved_jobs(id,tenant_id,user_id,url_hash,posting) values($1,$2,$3,$4,$5) returning id,posting,shortlisted,workflow,revision,created_at,updated_at',[randomUUID(),tenantId,userId,urlHash,posting])).rows[0];
   });
  }
  async evaluate({tenantId,userId,id,expectedRevision,engineRevision}){
@@ -58,6 +59,7 @@ export class SavedJobs{
   const attempt=item.match&&!item.match.stale?item.match.jobId:'initial';
   return this.queue.enqueue({tenantId,userId,engineRevision,operation:'evaluate',postingText:postingContext(item.posting),postingUrl:item.posting.url,idempotencyKey:'saved-match:'+hash(JSON.stringify([id,item.posting,profile.review_hash,profile.draft_id,attempt]))});
  }
- async update({tenantId,userId,id,expectedRevision,shortlisted}){check(uuid.test(id||'')&&Number.isSafeInteger(expectedRevision)&&expectedRevision>0&&typeof shortlisted==='boolean');return this.queue.transaction(async db=>{await this.lock(db,{tenantId,userId});const row=(await db.query('update saved_jobs set shortlisted=$5 where id=$1 and tenant_id=$2 and user_id=$3 and revision=$4 returning id,posting,shortlisted,revision,created_at,updated_at',[id,tenantId,userId,expectedRevision,shortlisted])).rows[0];check(row,'saved_job_conflict');return row;});}
+ async update({tenantId,userId,id,expectedRevision,shortlisted}){check(uuid.test(id||'')&&Number.isSafeInteger(expectedRevision)&&expectedRevision>0&&typeof shortlisted==='boolean');return this.queue.transaction(async db=>{await this.lock(db,{tenantId,userId});const row=(await db.query('update saved_jobs set shortlisted=$5 where id=$1 and tenant_id=$2 and user_id=$3 and revision=$4 returning id,posting,shortlisted,workflow,revision,created_at,updated_at',[id,tenantId,userId,expectedRevision,shortlisted])).rows[0];check(row,'saved_job_conflict');return row;});}
+ async workflow({tenantId,userId,id,expectedRevision,workflow}){check(uuid.test(id||'')&&Number.isSafeInteger(expectedRevision)&&expectedRevision>0);workflow=jobWorkflow(workflow);return this.queue.transaction(async db=>{await this.lock(db,{tenantId,userId});const row=(await db.query('update saved_jobs set workflow=$5 where id=$1 and tenant_id=$2 and user_id=$3 and revision=$4 returning id,posting,shortlisted,workflow,revision,created_at,updated_at',[id,tenantId,userId,expectedRevision,workflow])).rows[0];check(row,'saved_job_conflict');return row;});}
  async remove({tenantId,userId,id,expectedRevision}){check(uuid.test(id||'')&&Number.isSafeInteger(expectedRevision)&&expectedRevision>0);return this.queue.transaction(async db=>{await this.lock(db,{tenantId,userId});const row=await db.query('delete from saved_jobs where id=$1 and tenant_id=$2 and user_id=$3 and revision=$4 returning id',[id,tenantId,userId,expectedRevision]);check(row.rowCount,'saved_job_conflict');return {removed:true};});}
 }
