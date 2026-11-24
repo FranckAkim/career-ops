@@ -1,5 +1,11 @@
 # Built-in hosted/local job discovery
 
+## Past 24 hours
+
+Choose **Posted within → Past 24 hours** and run a new search. The one-day window also persists in saved searches and their opt-in daily runs. Existing 7/14/30-day options and the default remain available.
+
+The core scanner preserves the source posting timestamp in its opt-in hosted JSON metadata (live, partial and final results). The hosted quality gate compares that time to a rolling 24-hour cutoff and rejects older or future timestamps. Date-only records use midnight UTC conservatively, so a date from yesterday without a time is excluded; undated records remain excluded. This can omit some recent jobs whose sources lack precise times. Employer publication/republishing is source evidence, not proof a vacancy was first created in that window. Results sort newest first by timestamp when supplied; Best match remains available. Coverage is still a bounded sample of employer boards.
+
 Current release status (24 November 2026): all seven approved workflow upgrades are implemented and deployed. Real production proof returned20 roles with live source progress, persisted review states, confirmed a saved posting via the core Ashby API, and verified acknowledged manual Handshake status/notes/mobile and exact synthetic cleanup. The earlier saved-search proof returned7 roles with correct alert counts/read/pause/resume. Seventy-five backend unit checks plus scanner/worker checks and the full isolated browser/database/engine/PDF journey pass. Daily scheduling is configured/tested; a nightly wall-clock firing was not observed. See PROJECT_HANDOFF.md for exact deployment/evidence; older remaining-work statements below are historical.
 
 
