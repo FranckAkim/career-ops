@@ -1,5 +1,8 @@
 # Built-in hosted/local job discovery
 
+Current release status (24 November 2026): all seven approved workflow upgrades are implemented and deployed. Real production proof returned20 roles with live source progress, persisted review states, confirmed a saved posting via the core Ashby API, and verified acknowledged manual Handshake status/notes/mobile and exact synthetic cleanup. The earlier saved-search proof returned7 roles with correct alert counts/read/pause/resume. Seventy-five backend unit checks plus scanner/worker checks and the full isolated browser/database/engine/PDF journey pass. Daily scheduling is configured/tested; a nightly wall-clock firing was not observed. See PROJECT_HANDOFF.md for exact deployment/evidence; older remaining-work statements below are historical.
+
+
 ## Review states, availability and live progress (24 November 2026)
 
 Search cards offer Mark seen, Mark new, Dismiss job and Restore job. The Review status filter hides explicitly dismissed jobs by default, with All/New/Seen/Dismissed options. Choices persist across searches without consuming bookmark slots (500-role history); Manage job review history requires an explicit reset acknowledgement. Saved jobs use the same state. Version tokens reject stale concurrent writes, and resetting review history preserves saved postings, notes and canonical application stages. Legacy saved review choices are retained.
