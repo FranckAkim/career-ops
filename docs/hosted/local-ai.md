@@ -18,7 +18,7 @@ Keep configuration and runtime credentials outside Git. `run.mjs --config <absol
 
 The CLI session must have access to that linked project. The worker pulls Development runtime credentials using native Vercel CLI arguments, keeps only the restricted database URL, Blob store ID and short-lived OIDC token, and refreshes before expiry. Do not print these files or commit them. A database/store change requires a restart. Only one supervisor may hold the state-directory lock.
 
-Run a bounded probe with `node hosted/local-worker/run.mjs --config <absolute-config-path> --once`; omit `--once` for polling. Stop with SIGINT/SIGTERM or the exact operator-owned process PID. Windows background launches must use `Start-Process -WindowStyle Hidden`, with logs and PID under the private work root. The configured operator installation uses the on-demand Windows task `CareerWorkspaceLocalWorker`, with a hidden PowerShell launcher and private log files. It has no automatic sign-in trigger. Start it with `Start-ScheduledTask -TaskName CareerWorkspaceLocalWorker`; after active jobs are finished or cancelled, stop it with `Stop-ScheduledTask -TaskName CareerWorkspaceLocalWorker`.
+Run a bounded probe with `node hosted/local-worker/run.mjs --config <absolute-config-path> --once`; omit `--once` for polling. Stop with SIGINT/SIGTERM or the exact operator-owned process PID. Windows background launches must use `Start-Process -WindowStyle Hidden`, with logs and PID under the private work root. The configured operator installation uses the Windows task `CareerWorkspaceLocalWorker`, with a hidden PowerShell launcher and private log files. It starts automatically 30 seconds after operator sign-in. Start it with `Start-ScheduledTask -TaskName CareerWorkspaceLocalWorker`; after active jobs are finished or cancelled, stop it with `Stop-ScheduledTask -TaskName CareerWorkspaceLocalWorker`.
 
 ## Hosted activation
 
@@ -34,4 +34,4 @@ GPU/network health passed on an RTX 3070 Laptop GPU. The initial real synthetic 
 
 The long-lived supervisor observes errors on both the pool and checked-out clients. Query/transaction failures still reject; existing leases and recovery protect publication. A real Neon driver check injects a socket error into a separate SELECT-only test connection, verifies the query rejects, discards that connection and proves the next SELECT succeeds with a new connection. No tenant data is read by that check.
 
-The configured Windows task restarts on unexpected process failure at most three times, one minute apart. No automatic sign-in trigger is installed. This restarts the supervisor, not failed model jobs; ambiguous jobs still require explicit recovery.
+The configured Windows task restarts on unexpected process failure at most five times, one minute apart. A delayed operator sign-in trigger is installed. This restarts the supervisor, not failed model jobs; ambiguous jobs still require explicit recovery.

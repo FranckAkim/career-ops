@@ -123,6 +123,7 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
   await pool.query("update jobs set lease_until=clock_timestamp()-interval '1 second' where id=$1",[interrupted]);
   await queue.reapExpired();
   await page.getByRole('heading',{name:'A job needs your review.'}).waitFor();
+  await page.getByRole('button',{name:'Overview',exact:true}).click();await page.getByRole('status',{name:'Evaluation queue paused',exact:true}).waitFor();await page.getByRole('button',{name:'Review interrupted evaluation',exact:true}).click();
   assert.equal(await page.getByRole('button',{name:'Discard interrupted changes'}).isDisabled(),true);
   await page.getByRole('region',{name:'Workspace recovery',exact:true}).getByRole('checkbox').check();
   await page.getByRole('button',{name:'Discard interrupted changes'}).click();
