@@ -1,3 +1,4 @@
+import {verifyApplicationActivityBrowser} from './application-activity-browser.mjs';
 import {verifyReviewProgressBrowser} from './review-progress-browser.mjs';
 import {verifyAvailabilityBrowser} from './availability-browser.mjs';
 import {verifySavedSearchesBrowser} from './saved-searches-browser.mjs';
@@ -98,6 +99,7 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     await verifyAvailabilityBrowser({page,pool,userId:accounts[0].id});
     await verifyReviewProgressBrowser({page,pool,userId:accounts[0].id});
     await verifyHandshakeBrowser({page,pool,userId:accounts[0].id});
+    await verifyApplicationActivityBrowser({page,pool,userId:accounts[0].id});
     await verifySavedJobsBrowser({page,pool,userId:accounts[0].id});
     await verifyAuthorizationBrowser(page);
     await verifyMatchingBrowser({page,pool,userId:accounts[0].id});

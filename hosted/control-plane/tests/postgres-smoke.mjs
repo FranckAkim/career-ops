@@ -1,3 +1,4 @@
+import {verifyApplicationActivity} from './application-activity.mjs';
 import {verifyDiscoveryReview} from './discovery-review.mjs';
 import {verifyDiscoveryProgress} from './discovery-progress.mjs';
 import {verifyAvailability} from './availability.mjs';
@@ -82,6 +83,7 @@ try {
   await verifyDiscoveryReview({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
   await verifyDiscoveryProgress({pool,queue,tenantId:tenantA,userId:userA});
   await verifyAvailability({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
+  await verifyApplicationActivity({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
   await verifySavedJobs({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
   await verifyHandshakeImport({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
   await verifySavedMatches({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB,engineRevision});

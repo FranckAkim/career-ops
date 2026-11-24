@@ -59,7 +59,7 @@ export async function verifyWorkspace({ page, pool, queue, store, runner, workRo
     await page.getByLabel('Application status',{exact:true}).selectOption(stage);
     if(stage==='Applied'){
       assert.equal(await page.getByRole('button',{name:'Save status',exact:true}).isDisabled(),true);
-      await page.getByLabel('I have already submitted this application myself.',{exact:true}).check();
+      await page.getByLabel('Application status',{exact:true}).locator('..').getByLabel('I have already submitted this application myself.',{exact:true}).check();
     }
     const acceptedStatus=page.waitForResponse(r=>r.url()===`${origin}/api/hosted/tenants/${tenantId}/jobs`&&r.request().method()==='POST');
     await page.getByRole('button',{name:'Save status',exact:true}).click();assert.equal((await acceptedStatus).status(),202);

@@ -1,3 +1,4 @@
+import {ApplicationActivity} from './application-activity.mjs';
 import {DiscoveryReview} from './discovery-review.mjs';
 import {SavedSearches} from './saved-searches.mjs';
 import {SavedJobs} from './saved-jobs.mjs';
@@ -12,7 +13,7 @@ import {assertAccountActive} from './account-lifecycle.mjs';
 export function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie', 'X-Content-Type-Options': 'nosniff' } });
 }
-async function body(request, fields) {
+async function body(request, fields, maxBytes=256000) {
   if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json') throw new ControlError('invalid_request');
   let bytes = 0, timedOut = false; const chunks = [];
   const reader = request.body?.getReader();
@@ -22,7 +23,7 @@ async function body(request, fields) {
     while (true) {
       const { done, value } = await reader.read(); if (done) break;
       bytes += value.length;
-      if (bytes > 256000) throw new ControlError('input_limit');
+      if (bytes > maxBytes) throw new ControlError('input_limit');
       chunks.push(Buffer.from(value));
     }
     if (timedOut) throw new ControlError('invalid_request');
@@ -71,6 +72,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
       if (prefix !== 'tenants' || route.length > 5) return json({ error: 'not_found' }, 404);
       if(collection==='discovery-review'){const service=new DiscoveryReview(queue),actor={tenantId,userId};if(route.length===3&&request.method==='GET')return json({reviews:await service.list(actor)});if(route.length===3&&request.method==='POST')return json(await service.set({...actor,...await body(request,['runId','jobId','state','expectedVersion'])}));if(route.length===4&&jobId==='clear'&&request.method==='POST')return json(await service.clear({...actor,...await body(request,['acknowledged'])}));}
       if(collection==='saved-searches'){const service=new SavedSearches(queue),actor={tenantId,userId};if(route.length===3&&request.method==='GET')return json({searches:await service.list(actor)});if(route.length===3&&request.method==='POST')return json({search:await service.create({...actor,...await body(request,['name','input','daily'])})},201);if(route.length===5&&request.method==='POST'){const value=await service.mutate({...actor,id:jobId,action,...await body(request,action==='daily'?['expectedRevision','daily']:['expectedRevision'])});if(action==='run'){if(notifyDiscovery&&value.state==='queued')await notifyDiscovery(value.id).catch(()=>{});return json(value,202);}return json(value);}}
+      if(collection==='saved-jobs'&&route.length===5){const service=new ApplicationActivity(queue),actor={tenantId,userId,id:jobId};if(action==='activity-evidence'&&request.method==='GET')return await service.download({...actor,eventId:url.searchParams.get('eventId')});if(action==='activity'&&request.method==='POST')return json({job:await service.add({...actor,...await body(request,['expectedRevision','event'],720000)})});if(action==='remove-activity'&&request.method==='POST')return json({job:await service.remove({...actor,...await body(request,['expectedRevision','eventId','acknowledged'])})});}
       if(collection==='saved-jobs'){const service=new SavedJobs(queue),actor={tenantId,userId};if(route.length===3&&request.method==='GET')return json({jobs:await service.list(actor)});if(route.length===4&&jobId==='import-handshake'&&request.method==='POST')return json({job:await service.importHandshake({...actor,input:await body(request,['url','title','company','location','description','acknowledged'])})},201);if(route.length===3&&request.method==='POST')return json({job:await service.save({...actor,...await body(request,['runId','jobId'])})},201);if(route.length===5&&jobId&&request.method==='POST'){if(action==='evaluate'){if(!jobsEnabled)throw new ControlError('service_unavailable');const input=await body(request,['expectedRevision']);const job=await service.evaluate({...actor,id:jobId,...input,engineRevision});if(job.status==='queued'&&notifyQueue)await notifyQueue(job.id).catch(()=>{});return json({job:{id:job.id,status:job.status}},202);}if(action==='recheck'){const run=await service.recheck({...actor,id:jobId,...await body(request,['expectedRevision'])});if(notifyDiscovery&&run.state==='queued')await notifyDiscovery(run.id).catch(()=>{});return json(run,202);}if(action==='availability')return json({job:await service.manualAvailability({...actor,id:jobId,...await body(request,['expectedRevision','state','acknowledged'])})});if(action==='workflow')return json({job:await service.workflow({...actor,id:jobId,...await body(request,['expectedRevision','workflow'])})});if(action==='shortlist')return json({job:await service.update({...actor,id:jobId,...await body(request,['expectedRevision','shortlisted'])})});if(action==='remove')return json(await service.remove({...actor,id:jobId,...await body(request,['expectedRevision'])}));}}
       if(collection==='discovery'&&route.length<=5){const service=new Discovery(queue),actor={tenantId,userId};if(!jobId&&request.method==='GET'){const run=await service.latest(actor);if(notifyDiscovery&&run?.state==='queued')await notifyDiscovery(run.id).catch(()=>{});return json({run});};if(!jobId&&request.method==='POST'){const run=await service.start({...actor,input:await body(request,['q','location','workplace','sinceDays','limitPerAts','authorization','includeUnknown','titleMatch','coverage','strictAuthorization','targeting'])});if(notifyDiscovery&&run.state==='queued')await notifyDiscovery(run.id).catch(()=>{});return json(run,202);};if(jobId&&!action&&request.method==='GET'){const run=await service.read({...actor,id:jobId});if(notifyDiscovery&&run.state==='queued')await notifyDiscovery(run.id).catch(()=>{});return json(run);};if(jobId&&action==='cancel'&&request.method==='POST'){await body(request,[]);return json(await service.cancel({...actor,id:jobId}));}}
       if(collection==='data-controls'&&dataControlsEnabled&&onboarding){
@@ -118,7 +120,7 @@ export function createApi({ queue, auth, origin, engineRevision, onboarding, art
     } catch (error) {
       const code = error instanceof ControlError ? error.code : 'service_unavailable';
       const status = code==='account_deleting'?403:['not_found','evaluation_not_found','artifact_missing'].includes(code) ? 404
-        : ['daily_job_limit','search_rate_limited'].includes(code) ? 429 : ['review_limit','saved_search_limit','saved_search_conflict','saved_job_conflict','saved_job_source_changed','saved_job_limit','discovery_busy','idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale','profile_source_conflict'].includes(code) ? 409 : ['input_limit','export_limit'].includes(code) ? 413 : ['search_unavailable','service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
+        : ['daily_job_limit','search_rate_limited'].includes(code) ? 429 : ['activity_limit','activity_conflict','review_limit','saved_search_limit','saved_search_conflict','saved_job_conflict','saved_job_source_changed','saved_job_limit','discovery_busy','idempotency_conflict','tenant_busy','already_onboarded','review_conflict','draft_limit','evaluation_stale','profile_source_conflict'].includes(code) ? 409 : ['input_limit','export_limit'].includes(code) ? 413 : ['search_unavailable','service_unavailable','storage_configuration_required','snapshot_missing','snapshot_corrupt','snapshot_limit','artifact_limit'].includes(code) ? 503 : 400;
       return json({ error: code }, status);
     }
   };

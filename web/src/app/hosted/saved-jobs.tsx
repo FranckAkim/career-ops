@@ -1,4 +1,5 @@
 'use client';
+import {ApplicationActivity,type ActivityEvent} from './application-activity';
 import {PostingAvailability,type Availability} from './posting-availability';
 import {JobWorkflow,type Workflow} from './job-workflow';
 import {useCallback,useEffect,useRef,useState} from 'react';
@@ -9,7 +10,7 @@ import {PostingDetails,PostingLinks,type PostingMetadata} from './posting-detail
 import {MatchExplanation,type MatchInfo} from './match-explanation';
 import {compareMatches,pipelineStage} from '@/lib/match-context.mjs';
 export type SavedPosting=PostingMetadata & {visaText?:string;authorization?:AuthorizationEvidence;id:string;url:string;title:string;company:string;description:string;descriptionAvailable:boolean;location:string;source:string;postedAt:string|null};
-export type SavedEntry={reviewVersion?:string|null;availability?:Availability;availabilityRun?:{id:string;state:string}|null;sourceChanged?:boolean;observedAt?:string|null;workflow?:Workflow;match?:MatchInfo|null;id:string;posting:SavedPosting;shortlisted:boolean;revision:number;created_at:string};
+export type SavedEntry={activity?:ActivityEvent[];reviewVersion?:string|null;availability?:Availability;availabilityRun?:{id:string;state:string}|null;sourceChanged?:boolean;observedAt?:string|null;workflow?:Workflow;match?:MatchInfo|null;id:string;posting:SavedPosting;shortlisted:boolean;revision:number;created_at:string};
 export function SavedJobs({base,refresh,disabled,onSelect,onUrls,onEntries,onOpenMatch}:{base:string;refresh:number;disabled:boolean;onSelect:(job:SavedPosting)=>void;onUrls:(urls:string[])=>void;onEntries?:(items:SavedEntry[])=>void;onOpenMatch?:(id:string)=>void}){
  const[jobs,setJobs]=useState<SavedEntry[]|null>(null),[shortlistOnly,setShortlistOnly]=useState(false),[busy,setBusy]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[removing,setRemoving]=useState('');
  const[reviewFilter,setReviewFilter]=useState('all');
@@ -25,7 +26,7 @@ export function SavedJobs({base,refresh,disabled,onSelect,onUrls,onEntries,onOpe
   const controller=new AbortController();mutation.current=controller;setBusy(item.id);setError('');setNotice('');
   try{const response=await fetch(`${base}/saved-jobs/${item.id}/${action}`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({expectedRevision:item.revision,...(action==='shortlist'?{shortlisted:!item.shortlisted}:{})})});
    if(!response.ok){if(response.status===409){await load(controller.signal);throw Error('This saved job changed in another tab. The list has been refreshed.');}throw Error('Could not update the saved job. Please try again.');}
-   await load(controller.signal);if(!controller.signal.aborted){setRemoving('');setNotice(action==='remove'?'Saved job removed. Your evaluations and applications are unchanged.':item.shortlisted?'Removed from shortlist. The job is still saved.':'Added to your shortlist.');}
+   await load(controller.signal);if(!controller.signal.aborted){setRemoving('');setNotice(action==='remove'?'Saved job, activity and attached evidence removed. Your evaluations and canonical applications are unchanged.':item.shortlisted?'Removed from shortlist. The job is still saved.':'Added to your shortlist.');}
   }catch(e){if(!controller.signal.aborted)setError((e as Error).message);}finally{if(!controller.signal.aborted)setBusy('');}
  }
  async function evaluate(ids:string[]){
@@ -45,10 +46,11 @@ export function SavedJobs({base,refresh,disabled,onSelect,onUrls,onEntries,onOpe
  <div className={css.results}>{visible.map(item=><article key={item.id} className={css.result}><p className={styles.eyebrow}>{item.posting.company}{item.shortlisted?' · Shortlisted':''}</p><h3>{item.posting.title}</h3><p>{item.posting.location} · Saved {new Date(item.created_at).toLocaleDateString()}</p><label className={css.compareChoice}><input type="checkbox" checked={chosen.includes(item.id)} disabled={!!busy||disabled||!item.posting.descriptionAvailable||(!chosen.includes(item.id)&&chosen.length>=3)} onChange={event=>setChosen(previous=>event.target.checked?[...previous,item.id]:previous.filter(id=>id!==item.id))}/>Compare {item.posting.title}</label><p>Stage: {pipelineStage(item.match?.applicationStatus||null)}{item.match?.applicationStatus?` (${item.match.applicationStatus})`:' — saved for review'}</p>
  {item.sourceChanged?<p role="status">This posting has different text in your latest retained search. Your saved copy and evaluation use the older text. Review the current employer posting; remove and save the updated result to evaluate its new requirements.</p>:null}
  <PostingAvailability key={`${item.id}:availability`} base={base} id={item.id} revision={item.revision} source={item.posting.source} value={item.availability} run={item.availabilityRun} onChanged={()=>load()}/>
+ <ApplicationActivity base={base} id={item.id} revision={item.revision} events={item.activity} onSaved={()=>load()}/>
  <JobWorkflow key={item.id} base={base} id={item.id} revision={item.revision} value={item.workflow} onSaved={()=>load()}/>
  <MatchExplanation key={`${base}:${item.match?.jobId||item.id}`} base={base} match={item.match} onOpen={onOpenMatch}/><button className={styles.quiet} disabled={!!busy||disabled||!item.posting.descriptionAvailable||!!(item.match&&!item.match.stale&&['queued','running','cancel_requested','needs_recovery'].includes(item.match.status))} onClick={()=>void evaluate([item.id])}>{item.match?.stale?'Re-evaluate updated profile':item.match?.status==='succeeded'?'Restore existing CV match':'Evaluate CV match'}</button><PostingDetails job={item.posting}/><WorkAuthorization value={item.posting.authorization}/>
  {item.posting.description?<details className={css.description}><summary>Read saved description</summary><p tabIndex={0}>{item.posting.description}</p></details>:<p>Description not available. Open the employer posting.</p>}
  <div className={styles.actions}><button className={styles.primary} disabled={disabled||!item.posting.descriptionAvailable} onClick={()=>onSelect(item.posting)}>Use this saved job</button><button className={styles.quiet} disabled={!!busy} onClick={()=>void change(item,'shortlist')}>{item.shortlisted?'Remove from shortlist':'Add to shortlist'}</button><PostingLinks job={item.posting}/><button className={styles.quiet} disabled={!!busy} onClick={()=>setRemoving(item.id)}>Remove saved job</button></div>
- {removing===item.id?<div><p>Remove this saved copy? Your evaluations and applications will remain.</p><button className={styles.quiet} disabled={!!busy} onClick={()=>void change(item,'remove')}>Confirm removal</button><button className={styles.quiet} disabled={!!busy} onClick={()=>setRemoving('')}>Keep saved job</button></div>:null}
+ {removing===item.id?<div><p>Remove this saved copy, its activity and attached evidence? Your evaluations and canonical applications will remain.</p><button className={styles.quiet} disabled={!!busy} onClick={()=>void change(item,'remove')}>Confirm removal</button><button className={styles.quiet} disabled={!!busy} onClick={()=>setRemoving('')}>Keep saved job</button></div>:null}
  </article>)}</div></section>;
 }
