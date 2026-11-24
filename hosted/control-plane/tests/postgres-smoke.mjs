@@ -1,3 +1,6 @@
+import {verifyDiscoveryReview} from './discovery-review.mjs';
+import {verifyDiscoveryProgress} from './discovery-progress.mjs';
+import {verifyAvailability} from './availability.mjs';
 import {verifySavedSearches} from './saved-searches.mjs';
 import {verifyHandshakeImport} from './handshake-import.mjs';
 import {verifySavedMatches} from './saved-matches.mjs';
@@ -76,6 +79,9 @@ try {
   const tenantB = await queue.provision({ userId: userB, snapshot: initialB.id });
   await verifyDiscovery({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
   await verifySavedSearches({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
+  await verifyDiscoveryReview({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
+  await verifyDiscoveryProgress({pool,queue,tenantId:tenantA,userId:userA});
+  await verifyAvailability({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
   await verifySavedJobs({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
   await verifyHandshakeImport({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB});
   await verifySavedMatches({pool,queue,tenantId:tenantA,userId:userA,otherUserId:userB,engineRevision});

@@ -32,11 +32,13 @@ export class DataControls{
    const{rows:jobs}=await db.query('select id,payload,engine_revision,status,result,error_code,created_at,finished_at from jobs where tenant_id=$1 order by created_at,id limit 10001',[input.tenantId]);
    const{rows:profiles}=await db.query('select id,revision,review_hash,content,created_at,updated_at,confirmed_at from profile_drafts where user_id=$1 order by created_at,id limit 1001',[input.userId]);
    check(versions.length<=1000&&jobs.length<=10000&&profiles.length<=1000,'export_limit');
-   const{rows:discovery}=await db.query('select id,input,state,result,error_code,created_at,expires_at from discovery_runs where tenant_id=$1 and user_id=$2 and expires_at>clock_timestamp() order by created_at,id limit 241',[input.tenantId,input.userId]);
+   const{rows:discovery}=await db.query('select id,input,state,result,progress,error_code,created_at,expires_at from discovery_runs where tenant_id=$1 and user_id=$2 and expires_at>clock_timestamp() order by created_at,id limit 241',[input.tenantId,input.userId]);
    check(discovery.length<=240&&Buffer.byteLength(JSON.stringify(discovery))<=10000000,'export_limit');
-   const{rows:savedJobs}=await db.query('select id,posting,shortlisted,workflow,revision,created_at,updated_at from saved_jobs where tenant_id=$1 and user_id=$2 order by created_at,id limit 31',[input.tenantId,input.userId]);check(savedJobs.length<=30&&Buffer.byteLength(JSON.stringify(savedJobs))<=4000000,'export_limit');
+   const{rows:savedJobs}=await db.query('select id,posting,shortlisted,workflow,availability,revision,created_at,updated_at from saved_jobs where tenant_id=$1 and user_id=$2 order by created_at,id limit 31',[input.tenantId,input.userId]);check(savedJobs.length<=30&&Buffer.byteLength(JSON.stringify(savedJobs))<=4000000,'export_limit');
    const{rows:savedSearches}=await db.query('select * from saved_searches where tenant_id=$1 and user_id=$2 order by created_at,id limit 6',[input.tenantId,input.userId]);check(savedSearches.length<=5,'export_limit');
-   return {savedSearches,savedJobs,discovery,schema:1,scope:'personal-workspace-published-data',exportedAt:new Date().toISOString(),tenant,versions,jobs,profiles};
+   const{rows:discoveryReview}=await db.query('select url,state,version,updated_at from discovery_review where tenant_id=$1 and user_id=$2 order by url_hash limit 501',[input.tenantId,input.userId]);check(discoveryReview.length<=500,'export_limit');
+   for(const job of savedJobs)job.workflow={...job.workflow,state:discoveryReview.find(row=>row.url===job.posting.url)?.state||job.workflow?.state||'new'};
+   return {discoveryReview,savedSearches,savedJobs,discovery,schema:1,scope:'personal-workspace-published-data',exportedAt:new Date().toISOString(),tenant,versions,jobs,profiles};
   });
   const snapshots=[],files=new Map();let total=0,entries=0,manifestBytes=0;
   for(const id of new Set([data.tenant.snapshot,...data.versions.map(version=>version.snapshot)])){

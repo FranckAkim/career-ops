@@ -1,0 +1,5 @@
+const sources=['workday','greenhouse','lever','ashby','icims','bamboohr','paylocity'];
+export function discoveryProgress(raw){
+ if(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.keys(raw).some(key=>key!=='sources')||!Array.isArray(raw.sources)||raw.sources.length>7)throw Error('invalid_progress');
+ const seen=new Set();return {sources:raw.sources.map(item=>{if(!item||typeof item!=='object'||Array.isArray(item)||Object.keys(item).some(key=>!['source','state','elapsedMs','matches','boardsScanned'].includes(key))||!sources.includes(item.source)||seen.has(item.source)||!['queued','running','finished','failed','timed_out'].includes(item.state)||!Number.isInteger(item.elapsedMs)||item.elapsedMs<0||item.elapsedMs>300000||!Number.isInteger(item.matches)||item.matches<0||item.matches>50||!Number.isInteger(item.boardsScanned)||item.boardsScanned<0||item.boardsScanned>500)throw Error('invalid_progress');seen.add(item.source);return {source:item.source,state:item.state,elapsedMs:item.elapsedMs,matches:item.matches,boardsScanned:item.boardsScanned};})};
+}

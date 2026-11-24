@@ -1,0 +1,15 @@
+import {randomUUID} from 'node:crypto';import {ControlError,hash} from './queue.mjs';import {postingDetails} from './posting-details.mjs';
+const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i,check=(value,code='invalid_request')=>{if(!value)throw new ControlError(code);};
+export class DiscoveryReview{
+ constructor(queue){this.queue=queue;}
+ async list({tenantId,userId}){return this.queue.transaction(async db=>{await this.queue.authorize(db,tenantId,userId);return(await db.query('select url,state,version,updated_at from discovery_review where tenant_id=$1 and user_id=$2 order by url_hash limit 501',[tenantId,userId])).rows;});}
+ async set({tenantId,userId,runId,jobId,state,expectedVersion}){
+  check(uuid.test(runId||'')&&typeof jobId==='string'&&jobId.length<=4096&&['new','seen','dismissed'].includes(state)&&(expectedVersion===null||uuid.test(expectedVersion||'')));
+  return this.queue.transaction(async db=>{await db.query('select id from tenants where id=$1 for update',[tenantId]);await this.queue.authorize(db,tenantId,userId);
+   const run=(await db.query("select result from discovery_runs where id=$1 and tenant_id=$2 and user_id=$3 and state='succeeded' and expires_at>clock_timestamp()",[runId,tenantId,userId])).rows[0],job=run?.result?.jobs?.find(item=>item.id===jobId);check(job,'not_found');const url=postingDetails(job).postingUrl;check(url&&url===job.url,'invalid_request');const digest=hash(url),prior=(await db.query('select url,version from discovery_review where tenant_id=$1 and user_id=$2 and url_hash=$3',[tenantId,userId,digest])).rows[0];check(!prior||prior.url===url,'review_conflict');check((prior?.version||null)===expectedVersion,'review_conflict');
+   if(state==='new'){await db.query('delete from discovery_review where tenant_id=$1 and user_id=$2 and url_hash=$3',[tenantId,userId,digest]);return {url,state,version:null};}
+   const version=randomUUID();if(prior)await db.query('update discovery_review set state=$4,version=$5 where tenant_id=$1 and user_id=$2 and url_hash=$3',[tenantId,userId,digest,state,version]);else{check(Number((await db.query('select count(*)::int as n from discovery_review where tenant_id=$1 and user_id=$2',[tenantId,userId])).rows[0].n)<500,'review_limit');await db.query('insert into discovery_review(tenant_id,user_id,url_hash,url,state,version) values($1,$2,$3,$4,$5,$6)',[tenantId,userId,digest,url,state,version]);}return {url,state,version};
+  });
+ }
+ async clear({tenantId,userId,acknowledged}){check(acknowledged===true);return this.queue.transaction(async db=>{await db.query('select id from tenants where id=$1 for update',[tenantId]);await this.queue.authorize(db,tenantId,userId);const result=await db.query('delete from discovery_review where tenant_id=$1 and user_id=$2',[tenantId,userId]);await db.query("update saved_jobs set workflow=workflow||jsonb_build_object('state','new') where tenant_id=$1 and user_id=$2 and workflow->>'state' in ('seen','dismissed')",[tenantId,userId]);return {cleared:result.rowCount};});}
+}

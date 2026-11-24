@@ -70,13 +70,13 @@ async function runSource({codeRoot,workRoot,input,signal,timeoutMs,source}){
 
 // Each child scans a different fixed ATS. Vendor concurrency/backoff remains in
 // core; two 200/min DNS budgets keep aggregate steady-state DNS pacing at 400/min (core startup bursts apply).
-export async function scanSources(raw,scan,{signal,timeoutMs=240000}={}){
+export async function scanSources(raw,scan,{signal,timeoutMs=240000,onProgress}={}){
  const input=discoveryInput(raw),started=Date.now(),deadline=started+timeoutMs;
- const pending=discoverySources(input),completed=[];let next=0;
+ const pending=discoverySources(input),completed=[];let next=0;const states=new Map(pending.map(source=>[source,{source,state:'queued',elapsedMs:0,matches:0,boardsScanned:0}]));const report=(source,value)=>{states.set(source,{...states.get(source),...value});onProgress?.({sources:pending.map(name=>({...states.get(name)}))});};
  async function worker(){while(next<pending.length){if(signal?.aborted)throw Error('scan_cancelled');const source=pending[next++],begin=Date.now(),remaining=deadline-begin;
-  if(remaining<=0){completed.push({source,state:'timed_out',elapsedMs:0});continue;}
-  try{const result=await scan({input,signal,source,timeoutMs:remaining});if(signal?.aborted)throw Error('scan_cancelled');completed.push({source,state:result.timedOut?'timed_out':'finished',elapsedMs:Date.now()-begin,result});}
-  catch(error){if(signal?.aborted)throw Error('scan_cancelled');completed.push({source,state:'failed',elapsedMs:Date.now()-begin});}
+  if(remaining<=0){completed.push({source,state:'timed_out',elapsedMs:0});report(source,{state:'timed_out'});continue;}report(source,{state:'running'});
+  try{const result=await scan({input,signal,source,timeoutMs:remaining});if(signal?.aborted)throw Error('scan_cancelled');completed.push({source,state:result.timedOut?'timed_out':'finished',elapsedMs:Date.now()-begin,result});report(source,{state:result.timedOut?'timed_out':'finished',elapsedMs:Math.min(300000,Date.now()-begin),matches:result.jobs.length,boardsScanned:Math.min(500,result.companiesScanned||0)});}
+  catch(error){if(signal?.aborted)throw Error('scan_cancelled');completed.push({source,state:'failed',elapsedMs:Date.now()-begin});report(source,{state:'failed',elapsedMs:Math.min(300000,Date.now()-begin)});}
  }}
  // Wait for every child to close/clean up even when a sibling is cancelled.
  const settled=await Promise.allSettled([worker(),worker()]);if(signal?.aborted||settled.some(r=>r.status==='rejected'))throw Error('scan_cancelled');
@@ -87,6 +87,6 @@ export async function scanSources(raw,scan,{signal,timeoutMs=240000}={}){
  result.filteredQuality+=sum('filteredQuality');result.filteredAuthorization+=sum('filteredAuthorization');result.displayCapped ||= results.some(r=>r.displayCapped);
  return {...result,durationMs:Date.now()-started,sourceTimings:completed.map(({source,state,elapsedMs,result})=>({source,state,elapsedMs,matches:result?.jobs.length||0,boardsScanned:result?.companiesScanned||0}))};
 }
-export async function runDiscovery({codeRoot,workRoot,input,signal,timeoutMs=240000}){
- return scanSources(input,options=>runSource({...options,codeRoot,workRoot}),{signal,timeoutMs});
+export async function runDiscovery({codeRoot,workRoot,input,signal,timeoutMs=240000,onProgress}){
+ return scanSources(input,options=>runSource({...options,codeRoot,workRoot}),{signal,timeoutMs,onProgress});
 }
