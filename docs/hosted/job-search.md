@@ -1,5 +1,18 @@
 # Built-in hosted/local job discovery
 
+## Workflow upgrades (23 November 2026)
+
+Find jobs → Advanced job targeting offers experience, employment type, minimum annual USD salary, exact employer exclusions and literal negative phrases. Controls are explicit and restored with the search. Missing evidence is retained; a salary in another currency is not converted or excluded. Experience is title evidence, not an inferred years-of-experience claim. The existing source/date/link gates and label-first visa defaults remain. Finished results show per-source timings and targeting exclusion counts; this is completed-run diagnostics, not live provider progress.
+
+Saved jobs → Review state & follow-up plan stores new/seen/dismissed, applied date, deadline, follow-up date, contact, next action and private notes. Save is explicit; edits use the current saved-job revision to reject concurrent overwrites. Notes are included in the private account export and removed with their saved row/account. Recording an application date never submits an application or writes a canonical status. These review states currently cover saved jobs only. A past follow-up date does not send messages or automatically contact an employer.
+
+Compare selected roles keeps up to three selections visible during/after evaluation, showing completed current-profile assessments and existing report-owned strengths/gaps side by side. Removed jobs drop out of selection; changed-profile evaluations do not count as current completed matches. The engine and original authenticated report remain authoritative.
+
+Migration 020 adds only the saved_jobs workflow column and narrow career_web update grant. Discovery has no access to those notes. Existing row revision binds deletion-review scope; existing deletion removes this metadata. Full disposable PostgreSQL/production Next/Playwright/native engine and PDF checks pass, including note reload, state filtering, conflict/owner refusal, export and canonical tracker behavior. Seventy unit tests, both builds and five worker checks pass.
+
+Remaining from the approved upgrade program: durable saved searches/daily in-app alerts, review states for unsaved discovery results, safe saved ATS availability rechecks (Handshake manual), and live source progress. These are not shipped by this release.
+
+
 Cloud search cutover (2026-11-22): a dedicated Vercel Queue consumer now reuses this scanner independently of the operator computer. Cloud-only proof passed with the local search task stopped. Frontend automatic dispatch is live verified (seven jobs/86 boards with the local task stopped); evidence is tracked in PROJECT_HANDOFF.md and cloud-discovery.md; the local-task descriptions below record the earlier architecture. Local Ollama CV evaluation/tailoring still requires its separate worker.
 
 Current design replaces the earlier Himalayas-only integration with the repo's real scan-ats-full.mjs scanner. Opportunities queues an authenticated search; a separate on-demand local discovery worker runs the scanner, and the app polls for results. Greenhouse, Lever, Ashby and Workday are the same four ATS sources exposed by the repo's Explore scanner. No AI/search API key is needed for these public-board requests. The user prioritizes the United States; location keywords remain editable. Keyword comma lists, recency and board sampling use the existing portals serializer and scannerArgs helper. Work-arrangement filtering uses scan.mjs buildWorkplaceFilter; unknown types are excluded when a specific type is selected. No scoring/tracker/CV rules are reimplemented.
