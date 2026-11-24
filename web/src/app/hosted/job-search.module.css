@@ -13,3 +13,5 @@
 .filter select{padding:10px;border:1px solid #a9b5c2;border-radius:8px;font:inherit;background:white;color:#132338;max-width:100%}.filter select:focus-visible{outline:3px solid #739b64;outline-offset:2px}
 
 .importText{grid-column:1/-1}.importText textarea{width:100%;box-sizing:border-box;resize:vertical;min-width:0;padding:12px;border:1px solid #a9b5c2;border-radius:8px;font:inherit;background:white;color:#132338}.importText textarea:focus-visible{outline:3px solid #739b64;outline-offset:2px}
+
+.resultSummary{padding:16px;margin:16px 0;background:#f3f6ef;border:1px solid #c9d6c1;border-radius:10px}.resultSummary>button{margin:8px 0}.resultSummary>strong{display:block}.resultsSection{scroll-margin-top:24px;outline-offset:5px}.resultsSection:focus-visible{outline:3px solid #739b64}
