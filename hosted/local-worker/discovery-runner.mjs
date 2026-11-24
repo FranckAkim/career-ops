@@ -56,7 +56,7 @@ async function runSource({codeRoot,workRoot,input,signal,timeoutMs,source}){
    child.stderr.on('data',data=>{stderr+=data.toString('utf8');if(stderr.length>100000)stderr=stderr.slice(-10000);let end;while((end=stderr.indexOf('\n'))>=0){const line=stderr.slice(0,end);stderr=stderr.slice(end+1);try{const ev=JSON.parse(line);if(ev.kind==='offer'&&live.length<500)live.push(ev);}catch{}}});
    child.on('error',()=>{clearTimeout(timer);signal?.removeEventListener('abort',stop);reject(new Error('scanner_start_failed'));});
    child.on('close',code=>{clearTimeout(timer);signal?.removeEventListener('abort',stop);if(signal?.aborted){reject(new Error('scan_cancelled'));return;}let raw;try{raw=JSON.parse(output.trim());}catch{}
-    if(!raw&&!live.length&&!timedOut)reject(new Error('scanner_failed'));else resolve(scanResult(raw,{timedOut:timedOut||limited,code,live,workplace:config.input.workplace,authorization:config.input.authorization,includeUnknown:config.input.includeUnknown,sinceDays:config.input.sinceDays}));
+    if(!raw&&!live.length&&!timedOut)reject(new Error('scanner_failed'));else resolve(scanResult(raw,{timedOut:timedOut||limited,code,live,workplace:config.input.workplace,authorization:config.input.strictAuthorization===true?config.input.authorization:'any',includeUnknown:config.input.strictAuthorization===true&&config.input.includeUnknown,sinceDays:config.input.sinceDays}));
    });
   });
  }finally{
@@ -80,7 +80,7 @@ export async function scanSources(raw,scan,{signal,timeoutMs=240000}={}){
  const settled=await Promise.allSettled([worker(),worker()]);if(signal?.aborted||settled.some(r=>r.status==='rejected'))throw Error('scan_cancelled');
  const results=completed.flatMap(item=>item.result?[item.result]:[]);if(!results.length)throw Error('scanner_failed');
  const sum=key=>results.reduce((n,r)=>n+(Number(r[key])||0),0),rawResult={offers:results.flatMap(r=>r.jobs.map(j=>({...j,descriptionTruncated:!j.descriptionAvailable}))),companiesScanned:sum('companiesScanned'),companiesAvailable:sum('companiesAvailable'),unreachableBoards:sum('unreachableBoards'),capHit:results.some(r=>r.capHit),stoppedEarly:completed.some(r=>r.state!=='finished')||results.some(r=>r.partial)};
- const result=scanResult(rawResult,{workplace:input.workplace,authorization:input.authorization,includeUnknown:input.includeUnknown,sinceDays:input.sinceDays,timedOut:completed.some(r=>r.state==='timed_out')});
+ const result=scanResult(rawResult,{workplace:input.workplace,authorization:input.strictAuthorization===true?input.authorization:'any',includeUnknown:input.strictAuthorization===true&&input.includeUnknown,sinceDays:input.sinceDays,timedOut:completed.some(r=>r.state==='timed_out')});
  result.filteredQuality+=sum('filteredQuality');result.filteredAuthorization+=sum('filteredAuthorization');result.displayCapped ||= results.some(r=>r.displayCapped);
  return {...result,durationMs:Date.now()-started,sourceTimings:completed.map(({source,state,elapsedMs,result})=>({source,state,elapsedMs,matches:result?.jobs.length||0,boardsScanned:result?.companiesScanned||0}))};
 }

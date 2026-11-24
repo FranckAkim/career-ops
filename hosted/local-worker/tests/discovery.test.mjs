@@ -87,3 +87,13 @@ test('expanded mode adds three fixed core providers without accepting arbitrary 
  const now=Date.now(),stamp=new Date(now).toISOString(),date=stamp.slice(0,10),offers=[['icims','https://careers-synthetic.icims.com/jobs/123/engineer/job'],['bamboohr','https://synthetic.bamboohr.com/careers/123'],['paylocity','https://recruiting.paylocity.com/Recruiting/Jobs/Details/123']].map(([source,url])=>({source:source+'-full',url,company:'Synthetic',title:'Engineer',location:'United States',postedAt:date,sourceCheckedAt:stamp}));
  const normalized=scanResult({offers},{now});assert.equal(normalized.jobs.length,3);assert.ok(normalized.jobs.every(j=>!j.descriptionAvailable&&j.applicationKind==='posting'));assert.equal(scanResult({offers:offers.map(j=>({...j,postedAt:null}))},{now}).jobs.length,0);
 });
+
+test('discovery labels policy by default, and only explicit strict mode excludes jobs',async()=>{
+ const base={source:'lever-full',company:'Synthetic',title:'Engineer',location:'United States',postedAt:new Date().toISOString().slice(0,10),checkedAt:new Date().toISOString(),descriptionAvailable:true};
+ const jobs=[{...base,url:'https://jobs.lever.co/synthetic/yes',description:'We sponsor H1B visas for software engineers.'},{...base,url:'https://jobs.lever.co/synthetic/no',description:'US citizens only. No visa sponsorship is available.'},{...base,url:'https://jobs.lever.co/synthetic/unknown',description:'Build Python reporting tools with engineering teams.'}];
+ const scan=async()=>({jobs,companiesScanned:1,partial:false});
+ const labels=await scanSources({q:'engineer',authorization:'h1b'},scan);assert.equal(labels.jobs.length,3);assert.equal(labels.authorizationFilter,'any');assert.equal(labels.filteredAuthorization,0);assert.deepEqual(new Set(labels.jobs.map(j=>j.authorization.h1b.status)),new Set(['positive','negative','unknown']));
+ const strict=await scanSources({q:'engineer',authorization:'h1b',strictAuthorization:true},scan);assert.equal(strict.jobs.length,1);assert.equal(strict.authorizationFilter,'h1b');
+ const withUnknown=await scanSources({q:'engineer',authorization:'h1b',strictAuthorization:true,includeUnknown:true},scan);assert.equal(withUnknown.jobs.length,2);assert.equal(withUnknown.jobs.some(j=>j.authorization.h1b.status==='negative'),false);
+ assert.throws(()=>discoveryInput({q:'engineer',strictAuthorization:'yes'}));assert.equal(discoveryInput({q:'engineer',strictAuthorization:false}).strictAuthorization,false);
+});
