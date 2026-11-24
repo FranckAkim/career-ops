@@ -1,5 +1,18 @@
 # Built-in hosted/local job discovery
 
+## Saved searches and in-app alerts (24 November 2026)
+
+Find jobs → Saved searches & alerts saves the current validated filter set under a name (five per account). Run starts the normal discovery queue; View latest results restores its filters and opens the owned retained run. Removing a saved search prevents future daily checks; it does not cancel an already queued scan. Search results still expire after 24 hours. The latest summary and saved filters persist until removal/account deletion.
+
+Daily checks are explicit opt-in, paused by default. The existing 06:00 UTC cron dispatches due searches through career-discovery; consumer completion dispatches the remaining due work, preserving one active search per account and the existing ten-search hourly limit. Scans can be delayed by queue capacity, active searches or rate limits. A paused schedule is not automatically resumed. No email, employer message, CV access, evaluation, new inference provider or additional service is involved.
+
+Migration 021 adds private saved_searches with membership/lifecycle guards, tenant-row serialization, immutable input and revisioned edits. The career_discovery role gets only a scheduler RPC returning opaque run IDs, no table/CV read privileges. Concurrent ticks create one run; queued notification recovery reuses queue idempotency and token-bound discovery claims. Completion atomically records the latest successful count, count of URLs absent from the previous successful result sample, partial-coverage flag and unread status. Failures/cancellation remain explicit and never become a successful zero count; the previous successful URL sample is retained for the next comparison. These counts do not establish that a job was newly published or cover all employer postings.
+
+Private export includes saved searches/summary/baseline URLs. Operator and recent-auth public deletion scope include saved-search revisions; mutations invalidate stale review. Account blocking prevents schedule writes/publication, and tenant deletion cascades the saved rows. The original private deletion-scope RPC identity/grants are preserved when extending its scope.
+
+Validation: 71 unit tests, both production builds/typecheck, five worker checks and full disposable PostgreSQL/production Next/Playwright/native engine/PDF suite pass. Tests cover concurrent scheduler/replay, owner and stale-revision denial, new-URL comparison, failure disclosure, quota, explicit browser consent, pause/resume/read/view/removal/mobile, export and deletion guards/final purge. Production rollout/live proof evidence is in PROJECT_HANDOFF.md. Wall-clock cron execution must not be inferred solely from these tests.
+
+
 ## Workflow upgrades (23 November 2026)
 
 Find jobs → Advanced job targeting offers experience, employment type, minimum annual USD salary, exact employer exclusions and literal negative phrases. Controls are explicit and restored with the search. Missing evidence is retained; a salary in another currency is not converted or excluded. Experience is title evidence, not an inferred years-of-experience claim. The existing source/date/link gates and label-first visa defaults remain. Finished results show per-source timings and targeting exclusion counts; this is completed-run diagnostics, not live provider progress.

@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
+import {SavedSearches} from '../saved-searches.mjs';import {cloudDiscovery} from '../cloud-discovery.mjs';
+export async function verifySavedSearches({pool,queue,tenantId,userId,otherUserId}){
+ const service=new SavedSearches(queue),actor={tenantId,userId};
+ const restricted={query:async(sql,args)=>{const db=await pool.connect();try{await db.query('begin');await db.query('set local role career_discovery');const result=await db.query(sql,args);await db.query('commit');return result;}catch(error){await db.query('rollback');throw error;}finally{db.release();}}};
+ const saved=await service.create({...actor,name:'Synthetic daily engineer',input:{q:'engineer',strictAuthorization:false,targeting:{experience:'entry'}},daily:false});
+ assert.equal((await service.list(actor)).length,1);assert.equal(saved.daily,false);await assert.rejects(service.list({...actor,userId:otherUserId}),/not_found/);await assert.rejects(service.mutate({...actor,userId:otherUserId,id:saved.id,expectedRevision:1,action:'remove'}),/not_found/);
+ assert.deepEqual((await restricted.query('select hosted_saved_search_schedule() as id')).rows,[]);
+ await service.mutate({...actor,id:saved.id,expectedRevision:1,action:'daily',daily:true});await assert.rejects(service.mutate({...actor,id:saved.id,expectedRevision:1,action:'read'}),/saved_search_conflict/);
+ const simultaneous=await Promise.all([restricted.query('select hosted_saved_search_schedule() as id'),restricted.query('select hosted_saved_search_schedule() as id')]);const queued=(await service.list(actor))[0];assert.ok(queued.last_run_id);assert.equal((await pool.query('select count(*)::int as n from discovery_runs where id=$1',[queued.last_run_id])).rows[0].n,1);
+ const jobs=[{url:'https://jobs.lever.co/synthetic/one'}];await cloudDiscovery({pool:restricted,discoveryId:queued.last_run_id,runner:async({input})=>{assert.equal(input.targeting.experience,'entry');return {jobs,checkedAt:new Date().toISOString(),partial:true};}});
+ let item=(await service.list(actor))[0];assert.equal(item.last_summary.newCount,1);assert.equal(item.last_summary.count,1);assert.equal(item.last_summary.partial,true);assert.equal(item.unread,true);
+ await service.mutate({...actor,id:item.id,expectedRevision:item.revision,action:'read'});item=(await service.list(actor))[0];assert.equal(item.unread,false);
+ const run=await service.mutate({...actor,id:item.id,expectedRevision:item.revision,action:'run'});await cloudDiscovery({pool:restricted,discoveryId:run.id,runner:async()=>({jobs:[...jobs,{url:'https://jobs.lever.co/synthetic/two'}],partial:false})});item=(await service.list(actor))[0];assert.equal(item.last_summary.newCount,1);assert.equal(item.last_summary.count,2);
+ const fail=await service.mutate({...actor,id:item.id,expectedRevision:item.revision,action:'run'});await cloudDiscovery({pool:restricted,discoveryId:fail.id,runner:async()=>{throw Error('synthetic');}});item=(await service.list(actor))[0];assert.equal(item.last_summary.state,'failed');assert.equal(item.last_summary.count,undefined);assert.equal(item.previous_urls.length,2);
+ const rights=(await pool.query("select has_table_privilege('career_discovery','saved_searches','SELECT') as discovery_read,has_function_privilege('career_web','hosted_saved_search_schedule()','EXECUTE') as web_schedule,has_column_privilege('career_web','saved_searches','input','UPDATE') as web_edit_input")).rows[0];assert.deepEqual(rights,{discovery_read:false,web_schedule:false,web_edit_input:false});
+ const others=[];for(let i=0;i<4;i++)others.push(await service.create({...actor,name:'Synthetic other',input:{q:'engineer'},daily:false}));await assert.rejects(service.create({...actor,name:'Over quota',input:{q:'engineer'},daily:false}),/saved_search_limit/);
+ for(const current of await service.list(actor))await service.mutate({...actor,id:current.id,expectedRevision:current.revision,action:'remove'});
+ await pool.query('delete from discovery_runs where id=any($1::uuid[])',[[queued.last_run_id,run.id,fail.id]]);
+ console.log('PASS saved searches: validation, explicit daily consent, owner/revision denial, concurrent scheduler, queue replay, new-result counts, failed-check disclosure, bounded quota and private grants');
+}

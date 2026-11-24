@@ -1,3 +1,4 @@
+import {verifySavedSearchesBrowser} from './saved-searches-browser.mjs';
 import {verifyHandshakeBrowser} from './handshake-browser.mjs';
 import {verifyMatchingBrowser} from './matching-browser.mjs';
 import {verifyAuthorizationBrowser} from './authorization-browser.mjs';
@@ -91,6 +92,7 @@ export async function verifyWebAuth({ pool, origin, secret, accounts, tenant, en
     await page.getByRole('button', { name: 'Confirm and create workspace' }).click();
     await page.getByRole('heading', { name: 'Your next move, in focus.', exact:true }).waitFor();
     await verifyJobSearch(page);
+    await verifySavedSearchesBrowser({page,pool,userId:accounts[0].id});
     await verifyHandshakeBrowser({page,pool,userId:accounts[0].id});
     await verifySavedJobsBrowser({page,pool,userId:accounts[0].id});
     await verifyAuthorizationBrowser(page);

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
 import {Discovery} from '../discovery.mjs';import {cloudDiscovery} from '../cloud-discovery.mjs';
 export async function verifyCloudDiscovery({pool,queue,tenantId,userId}){
  const restricted={query:async(sql,args)=>{const db=await pool.connect();try{await db.query('begin');await db.query('set local role career_discovery');const result=await db.query(sql,args);await db.query('commit');return result;}catch(e){await db.query('rollback');throw e;}finally{db.release();}}};
- for(const table of ['tenants','profile_drafts','jobs','memberships','saved_jobs','discovery_runs'])assert.equal((await pool.query("select has_table_privilege('career_discovery',$1,'SELECT') as allowed",[table])).rows[0].allowed,false,table);
+ for(const table of ['tenants','profile_drafts','jobs','memberships','saved_jobs','saved_searches','discovery_runs'])assert.equal((await pool.query("select has_table_privilege('career_discovery',$1,'SELECT') as allowed",[table])).rows[0].allowed,false,table);
  assert.equal((await pool.query("select has_function_privilege('career_web','hosted_discovery_claim(uuid,uuid)','EXECUTE') as allowed")).rows[0].allowed,false);
  await assert.rejects(restricted.query('select content from profile_drafts'),/permission denied/);
  const service=new Discovery(queue),input={q:'synthetic',location:'United States',sinceDays:7,limitPerAts:25};

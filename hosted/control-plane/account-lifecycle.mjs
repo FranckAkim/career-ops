@@ -16,7 +16,8 @@ export class AccountLifecycle{
   const{rows:captures}=await db.query('select id,snapshot_id,state from snapshot_captures where user_id=$1 order by id limit 20001',[userId]);
   check(drafts.length<=1000&&jobs.length<=10000&&captures.length<=20000,'scope_review_required');
   const{rows:savedJobs}=await db.query('select id,revision,url_hash,shortlisted from saved_jobs where user_id=$1 order by id limit 31',[userId]);check(savedJobs.length<=30,'scope_review_required');
-  const body={schema:1,userId,tenant,drafts,jobs,captures,savedJobs};return {scopeHash:hash(JSON.stringify(body)),tenantId:tenant?.id||null,counts:{savedJobs:savedJobs.length,profileVersionsAndDrafts:drafts.length,jobs:jobs.length,captures:captures.length,activeJobs:jobs.filter(row=>['running','cancel_requested'].includes(row.status)).length},physicalDeletionAvailable:false};
+  const{rows:savedSearches}=await db.query('select id,revision from saved_searches where user_id=$1 order by id limit 6',[userId]);check(savedSearches.length<=5,'scope_review_required');
+  const body={savedSearches,schema:1,userId,tenant,drafts,jobs,captures,savedJobs};return {scopeHash:hash(JSON.stringify(body)),tenantId:tenant?.id||null,counts:{savedSearches:savedSearches.length,savedJobs:savedJobs.length,profileVersionsAndDrafts:drafts.length,jobs:jobs.length,captures:captures.length,activeJobs:jobs.filter(row=>['running','cancel_requested'].includes(row.status)).length},physicalDeletionAvailable:false};
  }
  async preview(userId){return this.queue.transaction(db=>this.scope(db,userId));}
  async request({userId,sessionId,expectedScopeHash,acknowledged,confirmation}){
